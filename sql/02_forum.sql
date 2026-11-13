@@ -1,3 +1,4 @@
+SET NAMES utf8mb4;
 -- Kategoriler: forumun bölümleri
 CREATE TABLE categories (
     id          SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

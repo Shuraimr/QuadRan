@@ -1,3 +1,4 @@
+SET NAMES utf8mb4;
 -- Roller: yetkiyi belirler
 CREATE TABLE roles (
     id   TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

@@ -1,3 +1,4 @@
+SET NAMES utf8mb4;
 -- Test verileri (seed). Gerçek kullanıcılar değil, denemek için.
 INSERT INTO users (username, email, password_hash, role_id) VALUES
     ('shurai', 'shurai@test.com', 'gecici', 1),
