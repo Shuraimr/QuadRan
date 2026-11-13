@@ -1,0 +1,31 @@
+name: quadran
+
+services:
+  db:
+    image: mysql:8.4
+    container_name: quadran-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: quadran
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: Europe/Istanbul
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_turkish_ci
+    ports:
+      - "3306:3306"
+    volumes:
+      - quadran_data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d:z
+
+  adminer:
+    image: adminer
+    container_name: quadran-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  quadran_data:
