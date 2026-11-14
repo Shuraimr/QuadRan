@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QuadRan</title>
+  <style>
+    body { margin: 0; background: #121212; color: #EDEDED; font-family: Inter, system-ui, sans-serif; }
+    header { padding: 16px 24px; background: #18181A; border-bottom: 1px solid #29292D; font-size: 22px; font-weight: 700; }
+    main { max-width: 720px; margin: 24px auto; padding: 0 16px; display: grid; gap: 12px; }
+    article { background: #18181A; border: 1px solid #29292D; border-radius: 16px; padding: 16px 20px; }
+    .kategori { display: inline-block; background: #1F2A4D; color: #D6DFFF; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 8px; }
+    .meta { color: #A3A3A8; font-size: 13px; margin-left: 8px; }
+    h2 { margin: 10px 0 0; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <header>QuadRan</header>
+  <main>
+    <% for (const konu of konular) { %>
+      <article>
+        <span class="kategori"><%= konu.kategori %></span>
+        <span class="meta"><%= konu.yazar %> · <%= new Date(konu.created_at).toLocaleDateString("tr-TR") %></span>
+        <h2><%= konu.title %></h2>
+      </article>
+    <% } %>
+  </main>
+</body>
+</html>
