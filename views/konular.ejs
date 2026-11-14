@@ -1,29 +1,79 @@
-<!doctype html>
-<html lang="tr">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>QuadRan</title>
-  <style>
-    body { margin: 0; background: #121212; color: #EDEDED; font-family: Inter, system-ui, sans-serif; }
-    header { padding: 16px 24px; background: #18181A; border-bottom: 1px solid #29292D; font-size: 22px; font-weight: 700; }
-    main { max-width: 720px; margin: 24px auto; padding: 0 16px; display: grid; gap: 12px; }
-    article { background: #18181A; border: 1px solid #29292D; border-radius: 16px; padding: 16px 20px; }
-    .kategori { display: inline-block; background: #1F2A4D; color: #D6DFFF; font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 8px; }
-    .meta { color: #A3A3A8; font-size: 13px; margin-left: 8px; }
-    h2 { margin: 10px 0 0; font-size: 18px; }
-  </style>
-</head>
-<body>
-  <header>QuadRan</header>
-  <main>
-    <% for (const konu of konular) { %>
-      <article>
-        <span class="kategori"><%= konu.kategori %></span>
-        <span class="meta"><%= konu.yazar %> · <%= new Date(konu.created_at).toLocaleDateString("tr-TR") %></span>
-        <h2><%= konu.title %></h2>
-      </article>
-    <% } %>
-  </main>
-</body>
-</html>
+<%- include("partials/bas") %>
+  <%- include("partials/ust-cubuk") %>
+
+  <div class="govde">
+    <nav class="sutun" aria-label="Kategoriler">
+      <div class="bolum-etiketi">KATEGORİLER</div>
+      <div class="kategoriler">
+        <a class="kategori-ogesi aktif" href="/">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Tümü
+        </a>
+        <% for (const kategori of kategoriler) { %>
+          <a class="kategori-ogesi" href="/?kategori=<%= kategori.id %>">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>
+            <%= kategori.name %>
+          </a>
+        <% } %>
+      </div>
+    </nav>
+
+    <main class="sutun">
+      <div class="siralama">
+        <a class="aktif" href="/">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          Yeni
+        </a>
+        <a href="/">Popüler</a>
+        <a href="/">En iyi</a>
+      </div>
+
+      <% if (konular.length === 0) { %>
+        <div class="kart bos">Henüz konu yok. İlk konuyu sen aç.</div>
+      <% } %>
+      <% for (const konu of konular) { %>
+        <%- include("partials/gonderi-karti", { konu }) %>
+      <% } %>
+    </main>
+
+    <aside class="sutun sag-panel">
+      <section class="kart panel katil">
+        <span class="logo-isaret">Q</span>
+        <h3>QuadRan'a katıl</h3>
+        <p>Oy ver, yorum yaz, rütbeni yükselt. Topluluğun standartlarını birlikte belirleyelim.</p>
+        <a class="buton buton-birincil buton-genis" href="/kayit">Kayıt ol</a>
+        <a class="buton buton-cerceveli buton-genis" href="/giris">Giriş yap</a>
+      </section>
+
+      <section class="kart panel">
+        <h3>Genel sohbet</h3>
+        <% for (const mesaj of sohbet) { %>
+          <div class="sohbet-satiri">
+            <span class="avatar"><%= mesaj.yazar[0] %></span>
+            <div>
+              <div class="ad"><%= mesaj.yazar %></div>
+              <div class="mesaj"><%= mesaj.content %></div>
+            </div>
+          </div>
+        <% } %>
+        <a class="kilitli" href="/giris">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          Yazmak için giriş yap
+        </a>
+      </section>
+
+      <section class="kart panel">
+        <h3>En çok puan</h3>
+        <% liderler.forEach((lider, i) => { %>
+          <div class="lider">
+            <span class="sira"><%= i + 1 %></span>
+            <span class="avatar avatar-orta"><%= lider.username[0] %></span>
+            <span class="kullanici"><%= lider.username %></span>
+            <% if (lider.rutbe) { %><span class="rozet"><%= lider.rutbe %></span><% } %>
+            <span class="puan"><%= lider.points %></span>
+          </div>
+        <% }) %>
+      </section>
+    </aside>
+  </div>
+<%- include("partials/son") %>

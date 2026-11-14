@@ -1,0 +1,31 @@
+<%#
+  Beklenen veriler (isteğe bağlı):
+  hatalar  { username, email, password, kurallar }   alan adı -> hata mesajı
+  degerler { username, email }
+%>
+<%- include("partials/bas", { baslik: "Kayıt ol" }) %>
+<% const h = locals.hatalar || {}; const d = locals.degerler || {}; %>
+<div class="orta-sayfa">
+  <%- include("partials/kontur") %>
+  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <form class="kart form-karti" method="post" action="/kayit">
+    <div><h1>Hesap oluştur</h1><p class="ikincil kucuk">Oy ver, yorum yaz, rütbeni yükselt.</p></div>
+    <label class="alan <%= h.username ? 'hatali' : '' %>"><span>Kullanıcı adı</span>
+      <input name="username" value="<%= d.username || '' %>" autocomplete="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+">
+    </label>
+    <div class="yardim"><span><%= h.username || "Harf, rakam ve alt çizgi kullanılabilir" %></span></div>
+    <label class="alan <%= h.email ? 'hatali' : '' %>"><span>E-posta</span>
+      <input type="email" name="email" value="<%= d.email || '' %>" autocomplete="email" required>
+    </label>
+    <div class="yardim"><span><%= h.email || "Profilinde görünmez" %></span></div>
+    <label class="alan <%= h.password ? 'hatali' : '' %>"><span>Şifre</span>
+      <input type="password" name="password" autocomplete="new-password" required minlength="8">
+    </label>
+    <div class="yardim"><span><%= h.password || "En az 8 karakter" %></span></div>
+    <label class="onay"><input type="checkbox" name="kurallar" required> Topluluk kurallarını okudum, kabul ediyorum</label>
+    <% if (h.kurallar) { %><div class="yardim" style="color: var(--hata); margin-top: -12px"><span><%= h.kurallar %></span></div><% } %>
+    <button class="buton buton-birincil buton-genis">Hesap oluştur</button>
+    <p class="orta-yazi">Zaten hesabın var mı? <a href="/giris">Giriş yap</a></p>
+  </form>
+</div>
+<%- include("partials/son") %>

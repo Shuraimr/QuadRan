@@ -1,0 +1,90 @@
+<%#
+  Beklenen veriler:
+  ayar  { username, bio, email, avatar_url, tema ("koyu"|"acik"|"sistem"), vurgu ("safir"|"zumrut"|"kehribar"|"ametist"|"yakut"),
+          menu_sagda (bool), kompakt (bool), az_animasyon (bool) }
+  hatalar { username, bio }   (isteğe bağlı)
+  Formlar: POST /ayarlar/profil (multipart: banner, avatar, username, bio) · POST /ayarlar/gorunum · POST /hesap/sil
+%>
+<%- include("partials/bas", { baslik: "Ayarlar" }) %>
+<%- include("partials/ust-cubuk") %>
+<% const h = locals.hatalar || {}; %>
+<div class="ayarlar">
+  <nav aria-label="Ayarlar">
+    <h1>Ayarlar</h1>
+    <div class="kategoriler">
+      <a class="kategori-ogesi aktif" href="#profil"><%- include("partials/ikon", { ad: "kisi" }) %> Profil</a>
+      <a class="kategori-ogesi" href="#gorunum"><%- include("partials/ikon", { ad: "palet" }) %> Görünüm</a>
+      <a class="kategori-ogesi" href="#hesap"><%- include("partials/ikon", { ad: "kalkan" }) %> Hesap ve güvenlik</a>
+    </div>
+  </nav>
+  <div class="bolumler">
+    <form class="kart bolum" id="profil" method="post" action="/ayarlar/profil" enctype="multipart/form-data">
+      <div><h2>Profil</h2><p class="ikincil kucuk">Herkese açık profilinde görünen bilgiler</p></div>
+      <div class="ust-etiket">BANNER</div>
+      <label class="yukleme">
+        <input type="file" name="banner" accept="image/png, image/jpeg" aria-label="Banner yükle">
+        <span class="daire"><%- include("partials/ikon", { ad: "yukle", boyut: 22 }) %></span>
+        <strong>Banner yüklemek için sürükle ya da tıkla</strong>
+        <span class="ikincil kucuk">1500 × 500 önerilir · PNG veya JPG · en fazla 2 MB</span>
+      </label>
+      <p class="ikincil kucuk">Banner yüklemezsen vurgu renginde kristal desen gösterilir.</p>
+      <div class="ust-etiket">PROFİL FOTOĞRAFI</div>
+      <div class="satir" style="gap: 16px">
+        <span class="avatar avatar-72"><%= ayar.username[0] %></span>
+        <label class="buton buton-tonal" style="position: relative; overflow: hidden">Fotoğrafı değiştir
+          <input type="file" name="avatar" accept="image/png, image/jpeg" style="position: absolute; inset: 0; opacity: 0; cursor: pointer">
+        </label>
+        <button class="buton buton-metin" name="avatar_kaldir" value="1">Kaldır</button>
+      </div>
+      <label class="alan <%= h.username ? 'hatali' : '' %>" style="margin-top: 8px"><span>Kullanıcı adı</span>
+        <input name="username" value="<%= ayar.username %>" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+">
+      </label>
+      <div class="yardim"><span><%= h.username || "Harf, rakam ve alt çizgi kullanılabilir" %></span></div>
+      <label class="alan <%= h.bio ? 'hatali' : '' %>"><span>Hakkında</span>
+        <textarea name="bio" maxlength="280" style="min-height: 104px"><%= ayar.bio || '' %></textarea>
+      </label>
+      <div class="yardim"><span><%= h.bio || "Profilinde görünür" %></span><span>en fazla 280</span></div>
+      <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
+    </form>
+
+    <form class="kart bolum" id="gorunum" method="post" action="/ayarlar/gorunum">
+      <div><h2>Görünüm</h2><p class="ikincil kucuk">Hesabına kaydedilir, her cihazda aynı görünür</p></div>
+      <div class="ust-etiket">TEMA</div>
+      <div class="siralama" role="radiogroup" aria-label="Tema">
+        <% for (const [deger, ad] of [["koyu", "Koyu"], ["acik", "Açık"], ["sistem", "Sistem"]]) { %>
+          <label><input type="radio" name="tema" value="<%= deger %>" <%= ayar.tema === deger ? "checked" : "" %>><%= ad %></label>
+        <% } %>
+      </div>
+      <div class="ust-etiket">VURGU RENGİ</div>
+      <div class="taslar" role="radiogroup" aria-label="Vurgu rengi">
+        <% for (const [deger, ad] of [["safir", "Safir"], ["zumrut", "Zümrüt"], ["kehribar", "Kehribar"], ["ametist", "Ametist"], ["yakut", "Yakut"]]) { %>
+          <label data-vurgu="<%= deger %>"><input type="radio" name="vurgu" value="<%= deger %>" <%= ayar.vurgu === deger ? "checked" : "" %>><span class="tas"></span><%= ad %></label>
+        <% } %>
+      </div>
+      <hr class="ayirici">
+      <% for (const [alan, baslik, aciklama] of [
+        ["menu_sagda", "Menüyü sağa al", "Tablette kenar menüsü sağ tarafta durur. Solaklar ve sağ elle tutanlar için."],
+        ["kompakt", "Kompakt kartlar", "Akışta kartlar daha az yer kaplar, özet gizlenir."],
+        ["az_animasyon", "Animasyonları azalt", "Geçiş efektleri kapanır."]]) { %>
+        <label class="ayar-satiri anahtar">
+          <div><strong><%= baslik %></strong><span class="ikincil kucuk"><%= aciklama %></span></div>
+          <input type="checkbox" name="<%= alan %>" value="1" <%= ayar[alan] ? "checked" : "" %>><span class="ray"></span>
+        </label>
+      <% } %>
+      <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
+    </form>
+
+    <section class="kart bolum" id="hesap">
+      <div><h2>Hesap ve güvenlik</h2><p class="ikincil kucuk">Sadece sen görürsün</p></div>
+      <div class="ayar-satiri"><div><strong>E-posta</strong><span class="ikincil kucuk"><%= ayar.email %></span></div><a class="buton buton-cerceveli" href="/hesap/eposta">Değiştir</a></div>
+      <hr class="ayirici">
+      <div class="ayar-satiri"><div><strong>Şifre</strong><span class="ikincil kucuk">Güçlü ve başka yerde kullanmadığın bir şifre seç</span></div><a class="buton buton-cerceveli" href="/hesap/sifre">Şifreyi değiştir</a></div>
+      <hr class="ayirici">
+      <form class="ayar-satiri tehlike" method="post" action="/hesap/sil">
+        <div><strong>Hesabı sil</strong><span class="ikincil kucuk">Hesabın kapatılır, gönderilerin “silinmiş kullanıcı” adıyla kalır.</span></div>
+        <button class="buton buton-tehlikeli">Hesabı sil</button>
+      </form>
+    </section>
+  </div>
+</div>
+<%- include("partials/son") %>

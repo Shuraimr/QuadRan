@@ -1,0 +1,92 @@
+<%#
+  Beklenen veriler:
+  konu      { id, title, kategori, created_at, duzenlendi (bool), yazar, rutbe, puan, konu_sayisi }
+  mesajlar  [ { id, content, yazar, rutbe, created_at, deleted_at, skor, benim_oyum, konu_sahibi } ]
+            İlk eleman konunun kendi metnidir (posts tablosundaki ilk mesaj).
+  benzerler [ { id, title, skor } ]   aynı kategoriden başka konular
+%>
+<%- include("partials/bas", { baslik: konu.title }) %>
+<%- include("partials/ust-cubuk") %>
+<% const ilk = mesajlar[0]; const yorumlar = mesajlar.slice(1); %>
+<div class="govde-iki">
+  <main class="sutun-genis">
+    <article class="kart konu">
+      <div class="satir kucuk">
+        <span class="etiket"><%= konu.kategori %></span>
+        <span class="ikincil"><%= zaman(konu.created_at) %><%= konu.duzenlendi ? " · düzenlendi" : "" %></span>
+      </div>
+      <h1><%= konu.title %></h1>
+      <div class="yazar-satiri">
+        <span class="avatar avatar-36"><%= konu.yazar[0] %></span>
+        <a class="kullanici" href="/profil/<%= konu.yazar %>"><%= konu.yazar %></a>
+        <% if (konu.rutbe) { %><span class="rozet"><%= konu.rutbe %></span><% } %>
+      </div>
+      <% if (ilk) { %>
+        <div class="metin"><%= ilk.content %></div>
+        <div class="eylem-satiri">
+          <div class="oy-yatay"><%- include("partials/oy", { hedef: ilk }) %></div>
+          <a class="eylem" href="#yorumlar"><%- include("partials/ikon", { ad: "yorum", boyut: 18 }) %> <%= yorumlar.length %> yorum</a>
+          <button class="eylem"><%- include("partials/ikon", { ad: "paylas", boyut: 18 }) %> Paylaş</button>
+          <span class="bosluk"></span>
+          <a class="eylem" href="/sikayet?post_id=<%= ilk.id %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+        </div>
+      <% } %>
+    </article>
+
+    <% if (locals.kullanici) { %>
+      <form class="kart cevap-kutusu" id="cevap" method="post" action="/konu/<%= konu.id %>/cevap">
+        <div class="ust">
+          <span class="avatar avatar-36"><%= kullanici.username[0] %></span>
+          <textarea name="content" placeholder="Cevabını yaz" required maxlength="10000" aria-label="Cevabın"></textarea>
+        </div>
+        <div class="satir">
+          <span class="ikincil kucuk bosluk">Saygılı ol, konuya katkı sağla.</span>
+          <button class="buton buton-birincil">Cevapla</button>
+        </div>
+      </form>
+    <% } else { %>
+      <a class="kart cevap-kutusu kilitli" id="cevap" href="/giris?don=/konu/<%= konu.id %>">
+        <%- include("partials/ikon", { ad: "kilit", boyut: 16 }) %> Cevap yazmak için giriş yap
+      </a>
+    <% } %>
+
+    <div class="yorum-basligi" id="yorumlar">
+      <h2><%= yorumlar.length %> yorum</h2>
+      <div class="siralama">
+        <a class="aktif" href="?sirala=eniyi">En iyi</a>
+        <a href="?sirala=yeni">Yeni</a>
+      </div>
+    </div>
+    <% if (yorumlar.length === 0) { %>
+      <div class="kart bos">Henüz yorum yok. İlk cevabı sen yaz.</div>
+    <% } %>
+    <% for (const mesaj of yorumlar) { %>
+      <%- include("partials/yorum", { mesaj }) %>
+    <% } %>
+  </main>
+
+  <aside class="sutun sag-panel">
+    <section class="kart panel panel-20">
+      <div class="satir">
+        <span class="avatar avatar-48"><%= konu.yazar[0] %></span>
+        <div>
+          <div class="satir"><strong><%= konu.yazar %></strong><% if (konu.rutbe) { %><span class="rozet"><%= konu.rutbe %></span><% } %></div>
+          <div class="ikincil kucuk"><%= konu.puan ?? 0 %> puan · <%= konu.konu_sayisi ?? 0 %> konu</div>
+        </div>
+      </div>
+      <div class="satir">
+        <a class="buton buton-tonal bosluk" href="/mesaj/<%= konu.yazar %>">Mesaj gönder</a>
+        <a class="buton buton-cerceveli" href="/profil/<%= konu.yazar %>">Profil</a>
+      </div>
+    </section>
+    <% if (benzerler.length) { %>
+      <section class="kart panel panel-20 yan-liste">
+        <h3><%= konu.kategori %> kategorisinden</h3>
+        <% for (const b of benzerler) { %>
+          <a href="/konu/<%= b.id %>"><span class="sayi"><%= b.skor ?? 0 %></span><span><%= b.title %></span></a>
+        <% } %>
+      </section>
+    <% } %>
+  </aside>
+</div>
+<%- include("partials/son") %>

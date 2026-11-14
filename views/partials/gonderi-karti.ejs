@@ -1,0 +1,32 @@
+<article class="kart gonderi">
+  <div class="oy">
+    <button class="ikon-dugme" aria-label="Yukarı oy ver">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+    </button>
+    <span class="skor"><%= konu.skor ?? 0 %></span>
+    <button class="ikon-dugme" aria-label="Aşağı oy ver">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+    </button>
+  </div>
+  <div class="gonderi-icerik">
+    <div class="gonderi-meta">
+      <span class="etiket"><%= konu.kategori %></span>
+      <span class="avatar"><%= konu.yazar[0] %></span>
+      <span class="kullanici"><%= konu.yazar %></span>
+      <% if (konu.rutbe) { %><span class="rozet"><%= konu.rutbe %></span><% } %>
+      <span class="zaman">· <%= zaman(konu.created_at) %></span>
+    </div>
+    <h2><a href="/konu/<%= konu.id %>"><%= konu.title %></a></h2>
+    <% if (konu.ozet) { %><p class="ozet"><%= konu.ozet %></p><% } %>
+    <div class="gonderi-eylem">
+      <a class="eylem" href="/konu/<%= konu.id %>">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+        <%= konu.yorum_sayisi %> yorum
+      </a>
+      <button class="eylem">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></svg>
+        Paylaş
+      </button>
+    </div>
+  </div>
+</article>

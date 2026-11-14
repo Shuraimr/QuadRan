@@ -1,6 +1,6 @@
 # QuadRan
 
-> 🚧 **Geliştirme aşamasında.** Özellikler ve veritabanı yapısı değişebilir.
+> **Geliştirme aşamasında.** Özellikler ve veritabanı yapısı değişebilir.
 
 Çok amaçlı bir forum sitesi. Kullanıcılar kategorilere ayrılmış konular açabilir, cevap yazabilir, rozet ve rütbe kazanabilir, birbirlerine özel mesaj gönderebilir.
 
@@ -45,3 +45,14 @@ npm run dev
 
 - Site: http://localhost:3000
 - Adminer (veritabanı paneli): http://localhost:8080
+## Tasarım
+
+Arayüz Figma'da tasarlandı: koyu ve açık tema, beş vurgu rengi (Safir, Zümrüt, Kehribar, Ametist, Yakut), masaüstü, tablet ve mobil düzen.
+
+| Akış | Konu sayfası |
+|---|---|
+| ![Akış](docs/tasarim/akis.svg) | ![Konu sayfası](docs/tasarim/konu.svg) |
+| **Profil** | **Mobil** |
+| ![Profil](docs/tasarim/profil.svg) | ![Mobil](docs/tasarim/mobil.svg) |
+
+Diğer ekranlar (giriş, kayıt, ayarlar, temalar, durumlar) [`docs/tasarim`](docs/tasarim) klasöründe. Backend'in nasıl çalıştığını anlatan şema: [backend-mimarisi.svg](docs/tasarim/backend-mimarisi.svg).

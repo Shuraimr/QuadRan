@@ -1,0 +1,97 @@
+<%#
+  Beklenen veriler:
+  profil   { username, bio, avatar_url, banner_url, rol, created_at, points, rutbe,
+             konu_sayisi, mesaj_sayisi, alinan_oy }
+  rutbeler [ { name, min_points } ]   min_points'e göre küçükten büyüğe (ranks tablosu)
+  konular  [ gönderi kartı verisi ]    partials/gonderi-karti ile aynı alanlar
+  rozetler [ { name } ]
+  haftalik [ { gun: "Pzt", sayi: 2, bugun: false } ]   7 eleman, Pazartesi'den Pazar'a
+  kendisi  bool   giriş yapan kişi kendi profiline mi bakıyor
+%>
+<%- include("partials/bas", { baslik: profil.username }) %>
+<%- include("partials/ust-cubuk") %>
+<%
+  // Rütbe çubuğu: etiketler eşit aralıklı olduğu için dolgu da basamak basamak hesaplanır
+  let oran = 1;
+  for (let i = 0; i < rutbeler.length - 1; i++) {
+    if (profil.points < rutbeler[i + 1].min_points) {
+      const aralik = rutbeler[i + 1].min_points - rutbeler[i].min_points;
+      oran = (i + (profil.points - rutbeler[i].min_points) / aralik) / (rutbeler.length - 1);
+      break;
+    }
+  }
+  const sonraki = rutbeler.find(r => r.min_points > profil.points);
+  const enCok = Math.max(1, ...haftalik.map(g => g.sayi));
+  const toplam = haftalik.reduce((t, g) => t + g.sayi, 0);
+%>
+<div class="profil">
+  <div>
+    <div class="banner" <% if (profil.banner_url) { %>style="background-image: url('<%= profil.banner_url %>')"<% } %>>
+      <% if (!profil.banner_url) { %><%- include("partials/kontur") %><% } %>
+    </div>
+    <div class="kimlik">
+      <span class="avatar avatar-buyuk" <% if (profil.avatar_url) { %>style="background-image: url('<%= profil.avatar_url %>')"<% } %>><%= profil.avatar_url ? "" : profil.username[0] %></span>
+      <div class="kimlik-bilgi">
+        <div class="satir"><h1><%= profil.username %></h1><% if (profil.rutbe) { %><span class="rozet"><%= profil.rutbe %></span><% } %></div>
+        <div class="satir ikincil kucuk"><%- include("partials/ikon", { ad: "takvim", boyut: 16 }) %> <%= profil.rol %> · <%= new Date(profil.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %> tarihinden beri üye</div>
+      </div>
+      <div class="satir">
+        <% if (kendisi) { %>
+          <a class="buton buton-tonal" href="/ayarlar">Profili düzenle</a>
+          <button class="buton buton-cerceveli">Paylaş</button>
+        <% } else { %>
+          <a class="buton buton-birincil" href="/mesaj/<%= profil.username %>">Mesaj gönder</a>
+          <a class="buton buton-cerceveli" href="/sikayet?kullanici=<%= profil.username %>">Şikâyet et</a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <% if (profil.bio) { %><p class="bio"><%= profil.bio %></p><% } %>
+
+  <section class="sutun">
+    <div class="siralama">
+      <a class="aktif" href="/profil/<%= profil.username %>">Konular</a>
+      <a href="/profil/<%= profil.username %>?sekme=yorumlar">Yorumlar</a>
+    </div>
+    <% if (konular.length === 0) { %><div class="kart bos">Henüz konu açmamış.</div><% } %>
+    <% for (const konu of konular) { %>
+      <%- include("partials/gonderi-karti", { konu }) %>
+    <% } %>
+  </section>
+
+  <section class="sutun">
+    <h2 class="baslik-tipi" style="font-size: 22px; padding-top: 16px">İstatistikler</h2>
+    <div class="istatistik">
+      <div class="kart kutu">
+        <div class="satir"><span class="buyuk-sayi"><%= toplam %> katkı</span><span class="ust-etiket">BU HAFTA</span></div>
+        <div class="grafik" role="img" aria-label="Bu haftaki günlük katkı sayıları">
+          <% for (const g of haftalik) { %>
+            <div class="cubuk <%= g.bugun ? 'bugun' : '' %>" style="height: <%= Math.round(g.sayi / enCok * 100) %>%" title="<%= g.gun %>: <%= g.sayi %>"></div>
+          <% } %>
+        </div>
+        <div class="gunler"><% for (const g of haftalik) { %><span class="<%= g.bugun ? 'bugun' : '' %>"><%= g.gun %></span><% } %></div>
+      </div>
+      <div class="kart kutu">
+        <div class="satir">
+          <div class="bosluk"><div class="ust-etiket">RÜTBE</div><div class="baslik-tipi" style="font-size: 24px"><%= profil.rutbe %></div></div>
+          <div style="text-align: right"><div class="buyuk-sayi" style="font-size: 24px"><%= profil.points %></div><div class="ikincil" style="font-size: 12px">puan</div></div>
+        </div>
+        <div class="ilerleme"><span style="width: <%= (oran * 100).toFixed(1) %>%"></span></div>
+        <div class="rutbe-etiketleri"><% for (const r of rutbeler) { %><span class="<%= r.name === profil.rutbe ? 'aktif' : '' %>"><%= r.name %></span><% } %></div>
+        <% if (sonraki) { %><div class="ikincil kucuk"><%= sonraki.name %> rütbesine <%= sonraki.min_points - profil.points %> puan kaldı</div><% } %>
+        <div class="sayilar">
+          <div><strong><%= profil.konu_sayisi %></strong><span>konu</span></div>
+          <div><strong><%= profil.mesaj_sayisi %></strong><span>mesaj</span></div>
+          <div><strong><%= profil.alinan_oy %></strong><span>aldığı oy</span></div>
+        </div>
+        <div class="ust-etiket">ROZETLER</div>
+        <div class="rozetler">
+          <% if (rozetler.length === 0) { %><span class="ikincil kucuk">Henüz rozet yok.</span><% } %>
+          <% for (const r of rozetler) { %><span class="rozet-cip"><%= r.name %></span><% } %>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<%- include("partials/son") %>

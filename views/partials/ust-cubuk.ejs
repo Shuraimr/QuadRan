@@ -1,0 +1,20 @@
+<header class="ust-cubuk">
+  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <div class="arama-alani">
+    <button class="arama" aria-label="QuadRan'da ara">
+      <%- include("ikon", { ad: "ara" }) %>
+      <span>QuadRan'da ara</span>
+      <kbd class="kisayol">Ctrl K</kbd>
+    </button>
+  </div>
+  <div class="ust-eylemler">
+    <% if (locals.kullanici) { %>
+      <a class="buton buton-birincil" href="/konu/yeni">Konu aç</a>
+      <a class="ikon-dugme zil" href="/bildirimler" aria-label="Bildirimler"><%- include("ikon", { ad: "zil" }) %></a>
+      <a class="avatar avatar-ust" href="/profil/<%= kullanici.username %>" aria-label="Profilim"><%= kullanici.username[0] %></a>
+    <% } else { %>
+      <a class="buton buton-cerceveli" href="/giris">Giriş yap</a>
+      <a class="buton buton-birincil" href="/kayit">Kayıt ol</a>
+    <% } %>
+  </div>
+</header>

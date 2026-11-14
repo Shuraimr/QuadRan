@@ -1,0 +1,32 @@
+<%#
+  Beklenen veriler (hepsi isteğe bağlı):
+  not      string   yönlendirme sebebi, örn. "Oy vermek için giriş yapman gerekiyor."
+  hata     string   örn. "Kullanıcı adı ya da şifre yanlış."
+  degerler { kullanici_adi }   hata sonrası formu dolu tutmak için
+  don      string   girişten sonra dönülecek adres
+%>
+<%- include("partials/bas", { baslik: "Giriş yap" }) %>
+<% const d = locals.degerler || {}; %>
+<div class="orta-sayfa">
+  <%- include("partials/kontur") %>
+  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <form class="kart form-karti" method="post" action="/giris">
+    <h1>Giriş yap</h1>
+    <% if (locals.not) { %><div class="bilgi-notu"><%- include("partials/ikon", { ad: "bilgi", boyut: 18 }) %><span><%= not %></span></div><% } %>
+    <% if (locals.hata) { %><div class="bilgi-notu hata-notu" role="alert"><%- include("partials/ikon", { ad: "uyari", boyut: 18 }) %><span><%= hata %></span></div><% } %>
+    <input type="hidden" name="don" value="<%= locals.don || '/' %>">
+    <label class="alan"><span>Kullanıcı adı veya e-posta</span>
+      <input name="kullanici_adi" value="<%= d.kullanici_adi || '' %>" autocomplete="username" required autofocus>
+    </label>
+    <label class="alan"><span>Şifre</span>
+      <input type="password" name="sifre" autocomplete="current-password" required>
+    </label>
+    <div class="satir">
+      <label class="onay bosluk"><input type="checkbox" name="hatirla" checked> Beni hatırla</label>
+      <a class="baglanti kucuk" href="/sifremi-unuttum">Şifremi unuttum</a>
+    </div>
+    <button class="buton buton-birincil buton-genis">Giriş yap</button>
+    <p class="orta-yazi">Hesabın yok mu? <a href="/kayit">Kayıt ol</a></p>
+  </form>
+</div>
+<%- include("partials/son") %>

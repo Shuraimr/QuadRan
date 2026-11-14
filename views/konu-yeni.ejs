@@ -1,0 +1,45 @@
+<%#
+  Beklenen veriler:
+  kategoriler [ { id, name } ]
+  hatalar  { category_id, title, content }   (isteğe bağlı)
+  degerler { category_id, title, content }   (isteğe bağlı)
+%>
+<%- include("partials/bas", { baslik: "Yeni konu" }) %>
+<%- include("partials/ust-cubuk") %>
+<% const h = locals.hatalar || {}; const d = locals.degerler || {}; %>
+<div class="govde-iki">
+  <form class="kart form-karti-genis form" method="post" action="/konu/yeni">
+    <h1>Yeni konu</h1>
+    <label class="alan <%= h.category_id ? 'hatali' : '' %>"><span>Kategori</span>
+      <select name="category_id" required>
+        <option value="">Kategori seç</option>
+        <% for (const k of kategoriler) { %>
+          <option value="<%= k.id %>" <%= String(d.category_id) === String(k.id) ? "selected" : "" %>><%= k.name %></option>
+        <% } %>
+      </select>
+    </label>
+    <div class="yardim"><span><%= h.category_id || "Doğru kategori, konunun doğru kişilere ulaşmasını sağlar" %></span></div>
+    <label class="alan <%= h.title ? 'hatali' : '' %>"><span>Başlık</span>
+      <input name="title" value="<%= d.title || '' %>" required minlength="5" maxlength="120">
+    </label>
+    <div class="yardim"><span><%= h.title || "Sorunu tek cümlede özetle" %></span><span>en fazla 120</span></div>
+    <label class="alan <%= h.content ? 'hatali' : '' %>"><span>İçerik</span>
+      <textarea name="content" required maxlength="10000"><%= d.content || '' %></textarea>
+    </label>
+    <div class="yardim"><span><%= h.content || "Düz metin olarak yaz, satır boşlukların korunur." %></span><span>en fazla 10.000</span></div>
+    <div class="satir" style="justify-content: flex-end">
+      <a class="buton buton-metin" href="/">Vazgeç</a>
+      <button class="buton buton-birincil">Yayınla</button>
+    </div>
+  </form>
+  <aside class="kart panel panel-20">
+    <h3>İyi bir konu için</h3>
+    <ol class="sayili-liste">
+      <li>Önce arat: aynı soru sorulmuş olabilir.</li>
+      <li>Başlıkta sorunu yaz, “yardım” yazma.</li>
+      <li>Ne denediğini ve ne olduğunu anlat.</li>
+      <li>Hata mesajını olduğu gibi yapıştır.</li>
+    </ol>
+  </aside>
+</div>
+<%- include("partials/son") %>
