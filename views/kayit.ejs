@@ -1,5 +1,6 @@
 <%#
   Beklenen veriler (isteğe bağlı):
+  kapali   true ise (yönetim panelinde kayıt kapatılmış) form yerine "kayıtlar kapalı" kutusu çizilir
   hatalar  { username, email, password, kurallar }   alan adı -> hata mesajı
   degerler { username, email }
 %>
@@ -8,7 +9,14 @@
 <div class="orta-sayfa">
   <%- include("partials/kontur") %>
   <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
-  <form class="kart form-karti" method="post" action="/kayit">
+  <% if (locals.kapali) { %>
+  <div class="kart form-karti">
+    <div><h1>Kayıtlar kapalı</h1><p class="ikincil kucuk">Şu anda yeni hesap açılmıyor. Daha sonra tekrar dene.</p></div>
+    <a class="buton buton-birincil buton-genis" href="/giris">Giriş yap</a>
+    <p class="orta-yazi"><a href="/">Akışa dön</a></p>
+  </div>
+  <% } else { %>
+  <form class="kart form-karti" method="post" action="/kayit"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
     <div><h1>Hesap oluştur</h1><p class="ikincil kucuk">Oy ver, yorum yaz, rütbeni yükselt.</p></div>
     <label class="alan <%= h.username ? 'hatali' : '' %>"><span>Kullanıcı adı</span>
       <input name="username" value="<%= d.username || '' %>" autocomplete="username" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+">
@@ -27,5 +35,6 @@
     <button class="buton buton-birincil buton-genis">Hesap oluştur</button>
     <p class="orta-yazi">Zaten hesabın var mı? <a href="/giris">Giriş yap</a></p>
   </form>
+  <% } %>
 </div>
 <%- include("partials/son", { sade: true }) %>

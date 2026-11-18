@@ -1,0 +1,45 @@
+<%#
+  Kullanıcı listesi (admin): kullanicilar [{id, username, email, points, created_at, last_seen_at, deleted_at, banli, banned_until, rol, rutbe}],
+  sf, qs { q, rol, banli, silinmis, sirala, yon }, yol
+%>
+<%- include("duzen-ust", { baslik: "Kullanıcılar", aktif: "kullanicilar" }) %>
+<form class="yn-filtre kart" method="get" action="/yonetim/kullanicilar">
+  <input class="yn-girdi" type="search" name="q" value="<%= qs.q %>" placeholder="Kullanıcı adı ya da e-posta" aria-label="Ara">
+  <select class="yn-girdi" name="rol" aria-label="Rol"><% for (const [d, e] of [["hepsi","Tüm roller"],["admin","Yönetici"],["moderator","Moderatör"],["uye","Üye"]]) { %><option value="<%= d %>"<%= qs.rol === d ? " selected" : "" %>><%= e %></option><% } %></select>
+  <select class="yn-girdi" name="banli" aria-label="Uzaklaştırma"><% for (const [d, e] of [["hepsi","Ban: fark etmez"],["evet","Uzaklaştırılmış"],["hayir","Uzaklaştırılmamış"]]) { %><option value="<%= d %>"<%= qs.banli === d ? " selected" : "" %>><%= e %></option><% } %></select>
+  <select class="yn-girdi" name="silinmis" aria-label="Kapatılmış hesaplar"><% for (const [d, e] of [["gizle","Kapatılanları gizle"],["goster","Kapatılanları da göster"],["sadece","Yalnızca kapatılanlar"]]) { %><option value="<%= d %>"<%= qs.silinmis === d ? " selected" : "" %>><%= e %></option><% } %></select>
+  <input type="hidden" name="sirala" value="<%= qs.sirala %>"><input type="hidden" name="yon" value="<%= qs.yon %>">
+  <button class="buton buton-tonal">Süz</button>
+  <a class="buton buton-cerceveli" href="/yonetim/kullanicilar">Sıfırla</a>
+</form>
+<% const baslik_ = (ad, anahtar) => { const ters = qs.sirala === anahtar && qs.yon === "desc" ? "asc" : "desc"; %>
+<a href="<%= yUrl(yol, qs, { sirala: anahtar, yon: ters, sayfa: "" }) %>"><%= ad %><%= qs.sirala === anahtar ? (qs.yon === "asc" ? " ▲" : " ▼") : "" %></a><% }; %>
+<div class="kart yn-tablo-kutu">
+  <table class="yn-tablo">
+    <thead><tr>
+      <th><% baslik_("#", "id") %></th><th><% baslik_("Kullanıcı", "kullanici") %></th><th>E-posta</th><th><% baslik_("Rol", "rol") %></th>
+      <th><% baslik_("Puan", "puan") %></th><th><% baslik_("Kayıt", "kayit") %></th><th><% baslik_("Son görülme", "gorulme") %></th><th>Durum</th>
+    </tr></thead>
+    <tbody>
+      <% if (!kullanicilar.length) { %><tr><td colspan="8" class="bos">Eşleşen kullanıcı yok.</td></tr><% } %>
+      <% for (const u of kullanicilar) { %>
+        <tr>
+          <td data-etiket="#"><%= u.id %></td>
+          <td data-etiket="Kullanıcı"><a class="kullanici" href="/yonetim/kullanicilar/<%= u.id %>"><%= u.username %></a> <small class="ikincil"><%= u.rutbe %></small></td>
+          <td data-etiket="E-posta" class="yn-kisa"><%= u.email %></td>
+          <td data-etiket="Rol"><span class="etiket"><%= u.rol %></span></td>
+          <td data-etiket="Puan"><%= u.points %></td>
+          <td data-etiket="Kayıt"><%= new Date(u.created_at).toLocaleDateString("tr-TR") %></td>
+          <td data-etiket="Son görülme"><%= u.last_seen_at ? zaman(u.last_seen_at) : "—" %></td>
+          <td data-etiket="Durum">
+            <% if (u.deleted_at) { %><span class="yn-etiket tehlike">Kapatıldı</span><% } %>
+            <% if (u.banli) { %><span class="yn-etiket tehlike"><%= u.banned_until ? "Banlı" : "Kalıcı ban" %></span><% } %>
+            <% if (!u.deleted_at && !u.banli) { %><span class="ikincil">Aktif</span><% } %>
+          </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<%- include("sayfalama") %>
+<%- include("duzen-alt") %>

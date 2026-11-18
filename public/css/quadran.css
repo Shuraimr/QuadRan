@@ -260,7 +260,7 @@ svg { flex: none; }
 .metin { font-size: 16px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .eylem-satiri { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--kenar-ince); }
 .oy-yatay { display: inline-flex; align-items: center; gap: 6px; padding: 2px; border-radius: 22px; background: var(--yuzey-2); }
-.oy-yatay form, .oy form { display: contents; }
+.oy-yatay form, .oy form, .oy-yatay .oy-misafir, .oy .oy-misafir { display: contents; }
 .oy-yatay .ikon-dugme { width: 36px; height: 36px; }
 .ikon-dugme.secili-yukari { background: var(--ton); color: var(--ton-ustu); }
 .ikon-dugme.secili-asagi { color: var(--hata); }
@@ -402,3 +402,44 @@ svg { flex: none; }
   .form-karti { padding: 28px 20px 24px; }
 }
 .cevap-kutusu.kilitli { display: flex; align-items: center; gap: 8px; height: auto; border-radius: 16px; background: var(--yuzey-1); }
+
+/* =====================================================================
+   "Sistem" teması: kullanıcı tarayıcısı/işletim sistemi açık temadaysa açık değişkenler kullanılır,
+   koyuysa :root'taki koyu değerler zaten geçerlidir. Değerler [data-tema="acik"] ile aynıdır
+   (vurgu taşı birleşimleri dahil); bu yüzden dosyanın en sonunda, öncekileri ezecek sırada duruyor.
+   ===================================================================== */
+@media (prefers-color-scheme: light) {
+  [data-tema="sistem"] {
+    color-scheme: light;
+    --zemin: #E9EEF5; --yuzey-1: #F4F7FB; --yuzey-2: #FFFFFF; --yuzey-3: #FFFFFF;
+    --kenar: #C6D0DD; --kenar-ince: #DAE1EA; --yazi: #0B1220; --yazi-2: #4A5568; --hata: #C2183E;
+    --vurgu: #2E4BB8; --vurgu-ustu: #FFFFFF; --ton: #E0E6FF; --ton-ustu: #13235E;
+    --kat-1: 0 1px 2px rgb(0 0 0 / .08), inset 0 -1px 0 rgb(0 0 0 / .06);
+    --kat-2: 0 1px 2px rgb(0 0 0 / .1), 0 10px 28px -8px rgb(0 0 0 / .14);
+    --kat-buton: 0 1px 2px rgb(0 0 0 / .2), inset 0 1px 0 rgb(255 255 255 / .25);
+  }
+  [data-tema="sistem"][data-vurgu="safir"], [data-tema="sistem"] [data-vurgu="safir"]       { --vurgu: #2E4BB8; --vurgu-ustu: #FFFFFF; --ton: #E0E6FF; --ton-ustu: #13235E; }
+  [data-tema="sistem"][data-vurgu="zumrut"], [data-tema="sistem"] [data-vurgu="zumrut"]     { --vurgu: #0F7A4F; --vurgu-ustu: #FFFFFF; --ton: #D5F3E4; --ton-ustu: #0A3B27; }
+  [data-tema="sistem"][data-vurgu="kehribar"], [data-tema="sistem"] [data-vurgu="kehribar"] { --vurgu: #8A5A00; --vurgu-ustu: #FFFFFF; --ton: #FFEFC7; --ton-ustu: #4A3000; }
+  [data-tema="sistem"][data-vurgu="ametist"], [data-tema="sistem"] [data-vurgu="ametist"]   { --vurgu: #6B3FD6; --vurgu-ustu: #FFFFFF; --ton: #ECE3FF; --ton-ustu: #2E1670; }
+  [data-tema="sistem"][data-vurgu="yakut"], [data-tema="sistem"] [data-vurgu="yakut"]       { --vurgu: #C2183E; --vurgu-ustu: #FFFFFF; --ton: #FFE0E6; --ton-ustu: #5C0A1F; }
+}
+
+/* Ayarlardaki "Kompakt kartlar": <html data-kompakt>. Özet gizlenir, kart dolgusu daralır. */
+[data-kompakt] .gonderi .ozet { display: none; }
+[data-kompakt] .gonderi { padding: 8px 16px 8px 8px; }
+[data-kompakt] .kart.yorum, [data-kompakt] .profil-yorum { padding-top: 10px; padding-bottom: 10px; }
+
+/* Ayarlardaki "Animasyonları azalt": <html data-az-animasyon>. Geçişler ve animasyonlar kapanır. */
+[data-az-animasyon] *, [data-az-animasyon] *::before, [data-az-animasyon] *::after {
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
+}
+
+/* Profil "Yorumlar" sekmesi */
+.profil-yorum { display: grid; gap: 8px; padding: 14px 20px; }
+.profil-yorum .metin { margin: 0; color: var(--yazi); overflow-wrap: anywhere; }
+
+/* Mesaj eylem satırındaki küçük formlar (Sil) bağlantılarla aynı hizada dursun */
+.yorum .satir > form, .eylem-satiri > form { display: contents; }

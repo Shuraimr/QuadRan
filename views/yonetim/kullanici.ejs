@@ -1,0 +1,131 @@
+<%#
+  Kullanıcı detayı: /yonetim/kullanicilar/:id (moderatör de açar; yalnızca ban/ban kaldırma yapabilir)
+  k, ist, konular, mesajlar, sohbet, sikayetler, gecmis (admin), rozetler (admin), tumRozetler (admin), roller (admin),
+  banHatasi (null ise ban uygulanabilir), islemEngeli (null ise admin işlemleri uygulanabilir), sureler
+%>
+<%- include("duzen-ust", { baslik: k.username, aktif: "kullanicilar" }) %>
+<% const adminMi = kullanici.rol === "admin"; %>
+<section class="kart yn-kart yn-kimlik">
+  <div class="yn-kimlik-ust">
+    <span class="avatar avatar-48"><%= k.username[0] %></span>
+    <div>
+      <h2><%= k.username %> <span class="etiket"><%= k.rol %></span>
+        <% if (k.deleted_at) { %><span class="yn-etiket tehlike">Hesap kapatıldı</span><% } %>
+        <% if (k.banli) { %><span class="yn-etiket tehlike"><%= k.banned_until ? "Banlı" : "Kalıcı ban" %></span><% } %></h2>
+      <p class="ikincil kucuk">
+        <%= k.rutbe %> · <%= k.points %> puan · Kayıt: <%= new Date(k.created_at).toLocaleDateString("tr-TR") %> · Son görülme: <%= k.last_seen_at ? zaman(k.last_seen_at) : "—" %>
+        <% if (adminMi) { %> · <%= k.email %><% } %>
+      </p>
+      <% if (k.banli) { %><p class="kucuk">Ban sebebi: <strong><%= k.ban_reason || "—" %></strong> ·
+        <%= k.banned_until ? "Bitiş: " + new Date(k.banned_until).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" }) : "Süresiz" %></p><% } %>
+    </div>
+    <a class="buton buton-cerceveli yn-sag" href="/profil/<%= k.username %>">Profili aç</a>
+  </div>
+  <div class="yn-sayaclar kucuk-sayac">
+    <% for (const [ad, d] of [["Konu", ist.konu], ["Mesaj", ist.mesaj], ["Sohbet", ist.sohbet], ["Gönderilen özel mesaj", ist.ozel], ["Alınan oy", ist.oy], ["Hakkında şikâyet", ist.sikayet]]) { %>
+      <div class="yn-sayac"><strong><%= d %></strong><span><%= ad %></span></div>
+    <% } %>
+  </div>
+</section>
+
+<section class="yn-izgara-2">
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Uzaklaştırma</h3></div>
+    <% if (banHatasi && !k.banli) { %><p class="ikincil kucuk"><%= banHatasi %></p><% } %>
+    <% if (!banHatasi && !k.deleted_at) { %>
+      <form class="yn-form" method="post" action="/yonetim/kullanicilar/<%= k.id %>/ban"><%- include("csrf") %>
+        <label class="yn-etiketli">Süre
+          <select class="yn-girdi" name="sure"><% for (const [d, s] of Object.entries(sureler)) { %><option value="<%= d %>"><%= s.etiket %></option><% } %></select></label>
+        <label class="yn-etiketli">Sebep (zorunlu)
+          <input class="yn-girdi" name="sebep" maxlength="255" required placeholder="Kullanıcıya giriş ekranında gösterilir"></label>
+        <button class="buton buton-tehlikeli"><%= k.banli ? "Banı güncelle" : "Uzaklaştır" %></button>
+      </form>
+    <% } %>
+    <% if (k.banli && !islemEngeli) { %>
+      <form class="yn-form" method="post" action="/yonetim/kullanicilar/<%= k.id %>/ban-kaldir"><%- include("csrf") %><button class="buton buton-tonal">Uzaklaştırmayı kaldır</button></form>
+    <% } %>
+  </div>
+
+  <% if (adminMi) { %>
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Rol ve puan</h3></div>
+    <% if (islemEngeli) { %><p class="ikincil kucuk"><%= islemEngeli %></p><% } else { %>
+      <form class="yn-form" method="post" action="/yonetim/kullanicilar/<%= k.id %>/rol"><%- include("csrf") %>
+        <label class="yn-etiketli">Rol
+          <select class="yn-girdi" name="rol"><% for (const r of roller) { %><option value="<%= r.name %>"<%= r.name === k.rol ? " selected" : "" %>><%= r.name %></option><% } %></select></label>
+        <button class="buton buton-tonal">Rolü değiştir</button>
+      </form>
+      <form class="yn-form" method="post" action="/yonetim/kullanicilar/<%= k.id %>/puan"><%- include("csrf") %>
+        <label class="yn-etiketli">Puan farkı (+ ya da -)<input class="yn-girdi" type="number" name="fark" step="1" required placeholder="örn. 10 ya da -5"></label>
+        <label class="yn-etiketli">Sebep<input class="yn-girdi" name="sebep" minlength="3" maxlength="200" required></label>
+        <button class="buton buton-tonal">Puanı ayarla</button>
+      </form>
+    <% } %>
+  </div>
+  <% } %>
+</section>
+
+<% if (adminMi) { %>
+<section class="yn-izgara-2">
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Rozetler</h3></div>
+    <div class="yn-etiketler">
+      <% if (!rozetler.length) { %><span class="ikincil kucuk">Rozeti yok.</span><% } %>
+      <% for (const r of rozetler) { %>
+        <form method="post" action="/yonetim/kullanicilar/<%= k.id %>/rozet-al" class="yn-cip-form"><%- include("csrf") %><input type="hidden" name="badge_id" value="<%= r.id %>">
+          <span class="rozet-cip"><%= r.name %></span><button class="yn-x" aria-label="<%= r.name %> rozetini geri al" title="Geri al">×</button></form>
+      <% } %>
+    </div>
+    <form class="yn-form yn-satir" method="post" action="/yonetim/kullanicilar/<%= k.id %>/rozet-ver"><%- include("csrf") %>
+      <select class="yn-girdi" name="badge_id" aria-label="Rozet"><% for (const r of tumRozetler) { %><option value="<%= r.id %>"><%= r.name %></option><% } %></select>
+      <button class="buton buton-tonal">Rozet ver</button>
+    </form>
+  </div>
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Hesap işlemleri</h3></div>
+    <% if (islemEngeli) { %><p class="ikincil kucuk"><%= islemEngeli %></p><% } else if (!k.deleted_at) { %>
+      <form class="yn-form" method="post" action="/yonetim/kullanicilar/<%= k.id %>/sifre-sifirla" onsubmit="return confirm('Rastgele bir geçici şifre üretilsin mi? Eski şifre geçersiz olur.')"><%- include("csrf") %>
+        <button class="buton buton-tonal">Şifreyi sıfırla (geçici şifre üret)</button></form>
+      <form class="yn-form" method="post" action="/yonetim/kullanicilar/<%= k.id %>/hesap-kapat"><%- include("csrf") %>
+        <label class="yn-etiketli">Hesabı kapatmak için kullanıcı adını yaz<input class="yn-girdi" name="onay" autocomplete="off" required></label>
+        <button class="buton buton-tehlikeli">Hesabı kapat</button></form>
+    <% } else { %><p class="ikincil kucuk">Hesap kapatılmış.</p><% } %>
+  </div>
+</section>
+<% } %>
+
+<section class="yn-izgara-2">
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Son konuları</h3></div>
+    <% if (!konular.length) { %><p class="ikincil kucuk">Konu yok.</p><% } %>
+    <% for (const t of konular) { %><div class="yn-liste-satir"><a class="yn-kisa" href="/konu/<%= t.id %>"><%= t.title %></a><small class="ikincil"><%= zaman(t.created_at) %><%= t.deleted_at ? " · silinmiş" : "" %></small></div><% } %>
+  </div>
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Son mesajları</h3></div>
+    <% if (!mesajlar.length) { %><p class="ikincil kucuk">Mesaj yok.</p><% } %>
+    <% for (const m of mesajlar) { %><div class="yn-liste-satir"><a class="yn-kisa" href="/konu/<%= m.topic_id %>#mesaj-<%= m.id %>"><%= m.content %></a><small class="ikincil"><%= zaman(m.created_at) %><%= m.deleted_at ? " · silinmiş" : "" %></small></div><% } %>
+  </div>
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Sohbet mesajları</h3></div>
+    <% if (!sohbet.length) { %><p class="ikincil kucuk">Sohbet mesajı yok.</p><% } %>
+    <% for (const m of sohbet) { %><div class="yn-liste-satir"><span class="yn-kisa"><%= m.content %></span><small class="ikincil"><%= zaman(m.created_at) %><%= m.deleted_at ? " · silinmiş" : "" %></small></div><% } %>
+  </div>
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Hakkındaki şikâyetler</h3></div>
+    <% if (!sikayetler.length) { %><p class="ikincil kucuk">Şikâyet yok.</p><% } %>
+    <% for (const s of sikayetler) { %><div class="yn-liste-satir"><span><%= s.sebep %> <span class="etiket"><%= s.hedef_tur.replace("_", " ") %></span></span><small class="ikincil"><%= s.bildiren %> · <%= zaman(s.created_at) %> · <%= s.durum %></small></div><% } %>
+    <a class="baglanti kucuk" href="/yonetim/sikayetler?durum=hepsi">Şikâyet kuyruğu</a>
+  </div>
+</section>
+
+<% if (adminMi) { %>
+<section class="kart yn-kart">
+  <div class="yn-kart-ust"><h3>İşlem geçmişi</h3><a class="baglanti kucuk" href="/yonetim/islem-kaydi?hedef_tur=kullanici&hedef_id=<%= k.id %>">Tümü</a></div>
+  <% if (!gecmis.length) { %><p class="ikincil kucuk">Bu kullanıcı üzerinde işlem yapılmamış.</p><% } %>
+  <% for (const g of gecmis) { %>
+    <div class="yn-liste-satir"><strong><%= eylemEtiketleri[g.eylem] || g.eylem %></strong>
+      <small class="ikincil"><%= g.aktor || "—" %> · <%= zaman(g.created_at) %><%= g.ayrinti ? " · " + JSON.stringify(g.ayrinti) : "" %></small></div>
+  <% } %>
+</section>
+<% } %>
+<%- include("duzen-alt") %>

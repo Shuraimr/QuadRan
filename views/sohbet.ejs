@@ -8,6 +8,7 @@
   hata        string (isteğe bağlı)   örn. "Mesaj boş olamaz."
   locals.kullanici { username } varsa yazma kutusu, yoksa kilitli kutu ve /giris?don=/sohbet bağlantısı
   Form: POST /sohbet  alan: content
+  Şikâyet: başkasının her mesajında bayrak düğmesi (POST /sikayet, alan sohbet_id); silinmiş mesajlar listede yoktur
 %>
 <%- include("partials/bas", { baslik: "Sohbet" }) %>
 <%- include("partials/ust-cubuk") %>
@@ -60,6 +61,9 @@
               <% } %>
               <div class="sohbet-metin"><%= o.m.content %></div>
             </div>
+            <% if (locals.kullanici && o.m.yazar !== locals.kullanici.username) { %>
+              <a class="sohbet-bayrak" href="/sikayet?sohbet_id=<%= o.m.id %>" data-sikayet-ac data-sohbet-id="<%= o.m.id %>" data-baslik="Bu sohbet mesajını şikâyet et" aria-label="<%= o.m.yazar %> kişisinin mesajını şikâyet et" title="Şikâyet et"><%- include("partials/ikon", { ad: "bayrak", boyut: 16 }) %></a>
+            <% } %>
           </div>
         <% } %>
       </div>
@@ -67,7 +71,7 @@
 
     <% if (locals.hata) { %><div class="bilgi-notu hata-notu sohbet-hata" role="alert"><%- include("partials/ikon", { ad: "uyari", boyut: 18 }) %><span><%= hata %></span></div><% } %>
     <% if (locals.kullanici) { %>
-      <form class="sohbet-yaz" method="post" action="/sohbet">
+      <form class="sohbet-yaz" method="post" action="/sohbet"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <textarea name="content" rows="1" maxlength="500" required placeholder="Bir şey yaz" aria-label="Sohbet mesajın"></textarea>
         <button class="buton buton-birincil">Gönder</button>
       </form>
@@ -101,4 +105,5 @@
     </section>
   </aside>
 </main>
+<% if (locals.kullanici) { %><%- include("partials/sikayet-penceresi") %><% } %>
 <%- include("partials/son") %>

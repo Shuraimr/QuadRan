@@ -4,6 +4,7 @@
   Beklenen veriler (include ile verilir):
   post_id   hedef mesajın id'si
   topic_id  hedef konunun id'si
+  kategoriler  (res.locals.tumKategoriler) "Kategoriyi değiştir" açılır listesi için; konu sayfasında konu.category_id seçili gelir
   statik    true ise popover yerine açık kutu (yalnızca önizleme sayfası için)
   Her eylem POST /moderasyon/<eylem> olarak gider: sabitle, kilitle, kategori-degistir, sil, uzaklastir.
 %>
@@ -19,8 +20,23 @@
   <% for (const e of eylemler_) { %>
     <% if (!e) { %>
       <hr class="acilir-ayirici">
+    <% } else if (e.eylem === "kategori-degistir") { %>
+      <%# Kategori seçimi menü öğesinin içinde: liste + "Taşı" düğmesi aynı form, JS gerekmez %>
+      <form class="kategori-degistir-formu" method="post" action="/moderasyon/kategori-degistir"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+        <input type="hidden" name="post_id" value="<%= locals.post_id ?? '' %>">
+        <input type="hidden" name="topic_id" value="<%= locals.topic_id ?? '' %>">
+        <label class="acilir-oge"><%- include("ikon", { ad: e.ikon, boyut: 20 }) %>
+          <select name="category_id" aria-label="Yeni kategori" required>
+            <% const mevcutKat_ = locals.konu ? konu.category_id : null; %>
+            <% for (const c of (locals.tumKategoriler || [])) { %>
+              <option value="<%= c.id %>"<%- c.id === mevcutKat_ ? " selected" : "" %>><%= c.name %></option>
+            <% } %>
+          </select>
+        </label>
+        <button class="buton buton-tonal kategori-degistir-dugme" type="submit">Taşı</button>
+      </form>
     <% } else { %>
-      <form method="post" action="/moderasyon/<%= e.eylem %>">
+      <form method="post" action="/moderasyon/<%= e.eylem %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <input type="hidden" name="post_id" value="<%= locals.post_id ?? '' %>">
         <input type="hidden" name="topic_id" value="<%= locals.topic_id ?? '' %>">
         <button class="acilir-oge<%= e.tehlike ? ' acilir-oge-tehlikeli' : '' %>" type="submit"><%- include("ikon", { ad: e.ikon, boyut: 20 }) %><span class="acilir-ad"><%= e.ad %></span></button>

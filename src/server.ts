@@ -1,15 +1,19 @@
 import express from "express";
-import { oturum, ortakVeriler } from "./oturum.ts";
+import { oturum, ortakVeriler, csrfKoru } from "./oturum.ts";
 import { hesap } from "./rotalar/hesap.ts";
 import { forum } from "./rotalar/forum.ts";
+import { mesaj } from "./rotalar/mesaj.ts";
 import { iletisim } from "./rotalar/iletisim.ts";
 import { moderasyon } from "./rotalar/moderasyon.ts";
+import { yonetim } from "./rotalar/yonetim.ts";
+import { duyuruRotasi } from "./ayarlar.ts";
 import { onizleme } from "./onizleme.ts";
 import { katmanlar } from "./onizleme-katmanlar.ts";
 import { sayfalar } from "./onizleme-sayfalar.ts";
 
 const app = express();
-const PORT = 3000;
+// PORT ortam değişkeniyle değiştirilebilir (aynı anda ikinci bir kopya denemek için); verilmezse 3000
+const PORT = Number(process.env.PORT) || 3000;
 
 app.set("view engine", "ejs");
 app.set("views", "views");
@@ -22,12 +26,17 @@ app.use(express.urlencoded({ extended: false }));
 // Oturum + her sayfada gereken ortak veriler (giriş yapan kullanıcı, bildirim sayıları...)
 app.use(oturum);
 app.use(ortakVeriler);
+// Her POST'ta gizli _csrf alanını doğrular (gövde yukarıda çözümlendiği için burada okunabilir)
+app.use(csrfKoru);
 
 // Gerçek sayfalar
 app.use(hesap);
 app.use(forum);
+app.use(mesaj);
 app.use(iletisim);
 app.use(moderasyon);
+app.use(yonetim);      // /yonetim: gelişmiş yönetim paneli (moderatör + admin)
+app.use(duyuruRotasi); // POST /duyuru/kapat
 
 // Tasarım önizlemesi (örnek veriyle): /onizleme/konu, /onizleme/profil ...
 app.use("/onizleme", onizleme);

@@ -1,8 +1,18 @@
 <%# Beklenen: hedef { id (post id), skor, benim_oyum (1, -1 ya da 0/null) } %>
 <% const o = hedef.benim_oyum || 0; %>
-<form method="post" action="/oy">
+<% if (!locals.kullanici) { %>
+  <%# Misafir oy veremez: form yerine giriş bağlantısı. Form olsaydı CSRF belirteci için her misafire boşuna oturum açılırdı. %>
+  <% const girisAdresi = "/giris?don=" + encodeURIComponent(locals.adres || "/"); %>
+  <div class="oy-misafir">
+    <a class="ikon-dugme" href="<%= girisAdresi %>" aria-label="Oy vermek için giriş yap"><%- include("ikon", { ad: "yukari", boyut: 18 }) %></a>
+    <span class="skor"><%= hedef.skor ?? 0 %></span>
+    <a class="ikon-dugme" href="<%= girisAdresi %>" aria-label="Oy vermek için giriş yap"><%- include("ikon", { ad: "asagi", boyut: 18 }) %></a>
+  </div>
+<% } else { %>
+<form method="post" action="/oy"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
   <input type="hidden" name="post_id" value="<%= hedef.id %>">
   <button class="ikon-dugme <%= o === 1 ? 'secili-yukari' : '' %>" name="value" value="1" aria-label="Yukarı oy ver" aria-pressed="<%= o === 1 %>"><%- include("ikon", { ad: "yukari", boyut: 18 }) %></button>
   <span class="skor <%= o === 1 ? 'yukari' : o === -1 ? 'asagi' : '' %>"><%= hedef.skor ?? 0 %></span>
   <button class="ikon-dugme <%= o === -1 ? 'secili-asagi' : '' %>" name="value" value="-1" aria-label="Aşağı oy ver" aria-pressed="<%= o === -1 %>"><%- include("ikon", { ad: "asagi", boyut: 18 }) %></button>
 </form>
+<% } %>

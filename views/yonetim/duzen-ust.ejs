@@ -1,0 +1,32 @@
+<%#
+  Yönetim paneli ortak düzeni (üst yarı). Her sayfa: duzen-ust ... içerik ... duzen-alt
+  Beklenen veriler: baslik (sayfa başlığı), aktif ("pano" | "kullanicilar" | "icerik" | "sikayetler" | "ayarlar" | "islem-kaydi")
+  locals.kullanici { rol }, locals.bekleyenSikayet (kenar çubuğundaki sayı; yonetim.ts doldurur)
+  sade: true -> sitenin kenar/alt menüleri yok; panelin kendi kenar çubuğu var (telefonda yatay kaydırmalı şeride dönüşür).
+%>
+<%- include("../partials/bas", { sade: true, baslik: "Yönetim · " + locals.baslik }) %>
+<%- include("../partials/ust-cubuk") %>
+<%
+  const yAdmin_ = locals.kullanici && locals.kullanici.rol === "admin";
+  const yOgeler_ = [
+    { id: "pano", ad: "Pano", href: "/yonetim", ikon: "izgara" },
+    { id: "kullanicilar", ad: "Kullanıcılar", href: "/yonetim/kullanicilar", ikon: "kisi", admin: true },
+    { id: "icerik", ad: "İçerik", href: "/yonetim/icerik", ikon: "klasor" },
+    { id: "sikayetler", ad: "Şikâyetler", href: "/yonetim/sikayetler", ikon: "bayrak", sayi: locals.bekleyenSikayet || 0 },
+    { id: "ayarlar", ad: "Site ayarları", href: "/yonetim/ayarlar", ikon: "ayar", admin: true },
+    { id: "islem-kaydi", ad: "İşlem kaydı", href: "/yonetim/islem-kaydi", ikon: "takvim", admin: true }
+  ];
+%>
+<div class="yn">
+  <nav class="yn-yan" aria-label="Yönetim menüsü">
+    <div class="yn-yan-baslik"><%- include("../partials/ikon", { ad: "kalkan", boyut: 18 }) %> Yönetim</div>
+    <% for (const o of yOgeler_) { if (o.admin && !yAdmin_) continue; %>
+      <a class="yn-yan-oge<%= locals.aktif === o.id ? ' aktif' : '' %>" href="<%= o.href %>"<%- locals.aktif === o.id ? ' aria-current="page"' : '' %>>
+        <%- include("../partials/ikon", { ad: o.ikon, boyut: 18 }) %><span><%= o.ad %></span>
+        <% if (o.sayi) { %><b class="yn-sayi"><%= o.sayi %></b><% } %>
+      </a>
+    <% } %>
+    <a class="yn-yan-oge yn-yan-site" href="/"><%- include("../partials/ikon", { ad: "ev", boyut: 18 }) %><span>Siteye dön</span></a>
+  </nav>
+  <main class="yn-icerik">
+    <h1 class="yn-baslik"><%= locals.baslik %></h1>

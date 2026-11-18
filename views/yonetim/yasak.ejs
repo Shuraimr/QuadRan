@@ -1,0 +1,12 @@
+<%# 403: üye yönetim paneline girdi ya da moderatör yalnızca-admin bir sayfaya girdi. Veri sızdırmaz. %>
+<%- include("../partials/bas", { sade: true, baslik: "Erişim yok" }) %>
+<%- include("../partials/ust-cubuk") %>
+<main class="moderasyon-sayfa">
+  <div class="kart moderasyon-erisim">
+    <%- include("../partials/ikon", { ad: "kilit", boyut: 32 }) %>
+    <h1>Bu sayfaya erişimin yok</h1>
+    <p class="ikincil"><%= locals.sadeceYonetici ? "Bu bölümü yalnızca yöneticiler görebilir." : "Yönetim panelini yalnızca moderatörler ve yöneticiler görebilir." %></p>
+    <a class="buton buton-tonal" href="<%= locals.sadeceYonetici ? '/yonetim' : '/' %>"><%= locals.sadeceYonetici ? "Panoya dön" : "Akışa dön" %></a>
+  </div>
+</main>
+<%- include("../partials/son", { sade: true }) %>

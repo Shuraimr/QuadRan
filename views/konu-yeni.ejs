@@ -8,7 +8,7 @@
 <%- include("partials/ust-cubuk") %>
 <% const h = locals.hatalar || {}; const d = locals.degerler || {}; %>
 <div class="govde-iki">
-  <form class="kart form-karti-genis form" method="post" action="/konu/yeni">
+  <form class="kart form-karti-genis form" method="post" action="/konu/yeni"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
     <h1>Yeni konu</h1>
     <label class="alan <%= h.category_id ? 'hatali' : '' %>"><span>Kategori</span>
       <select name="category_id" required>

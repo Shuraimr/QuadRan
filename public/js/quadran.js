@@ -34,12 +34,40 @@
         var form = bul("form", dlg);
         if (form) {
           form.reset();
-          var gizli = bul('input[name="post_id"]', form);
-          if (gizli) gizli.value = sikayet.getAttribute("data-post-id") || "";
+          /* Bağlantı hedefini data- alanlarıyla verir: mesaj (data-post-id), kullanıcı (data-kullanici),
+             sohbet mesajı (data-sohbet-id), özel mesaj (data-mesaj-id). Hepsi gizli alana yazılır, kullanılmayanlar boşalır. */
+          var alanlar = { post_id: "data-post-id", kullanici: "data-kullanici", sohbet_id: "data-sohbet-id", mesaj_id: "data-mesaj-id" };
+          Object.keys(alanlar).forEach(function (ad) {
+            var gizli = bul('input[name="' + ad + '"]', form);
+            if (gizli) gizli.value = sikayet.getAttribute(alanlar[ad]) || "";
+          });
+          var baslik = bul("#sikayet-baslik", dlg);
+          if (baslik) {
+            baslik.textContent = sikayet.getAttribute("data-baslik") ||
+              (sikayet.getAttribute("data-kullanici") ? "Bu kullanıcıyı şikâyet et" : "Bu mesajı şikâyet et");
+          }
         }
         ac(dlg);
         var ilk = bul('input[name="sebep"]', dlg);
         if (ilk) ilk.focus();
+      }
+      return;
+    }
+
+    /* Paylaş: JS yoksa düz bağlantıdır (öğenin sayfasına gider). JS varsa paylaşım menüsü ya da panoya kopyalama. */
+    var paylas = hedef.closest("[data-paylas]");
+    if (paylas) {
+      var adres = paylas.href;
+      if (navigator.share) {
+        e.preventDefault();
+        navigator.share({ title: paylas.getAttribute("data-baslik") || d.title, url: adres }).catch(function () { /* kullanıcı vazgeçti */ });
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        e.preventDefault();
+        navigator.clipboard.writeText(adres).then(function () {
+          var eski = paylas.innerHTML;
+          paylas.textContent = "Bağlantı kopyalandı";
+          window.setTimeout(function () { paylas.innerHTML = eski; }, 2000);
+        }, function () { window.location.href = adres; });
       }
       return;
     }

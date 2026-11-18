@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="tr" data-tema="<%= locals.tema || 'koyu' %>" data-vurgu="<%= locals.vurgu || 'safir' %>" data-menu="<%= locals.menuYonu || 'sol' %>">
+<html lang="tr" data-tema="<%= locals.tema || 'koyu' %>" data-vurgu="<%= locals.vurgu || 'safir' %>" data-menu="<%= locals.menuYonu || 'sol' %>"<%- locals.kompakt ? ' data-kompakt' : '' %><%- locals.azAnimasyon ? ' data-az-animasyon' : '' %>>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,6 +10,9 @@
   <link rel="stylesheet" href="/css/quadran.css">
   <link rel="stylesheet" href="/css/katmanlar.css">
   <link rel="stylesheet" href="/css/sayfalar.css">
+  <link rel="stylesheet" href="/css/yonetim.css">
   <script src="/js/quadran.js" defer></script>
 </head>
 <body class="<%= locals.sade ? 'sade' : '' %>">
+<%# Yönetimin yazdığı duyuru şeridi: menülü (sade olmayan) sayfaların en üstünde %>
+<% if (!locals.sade) { %><%- include("duyuru") %><% } %>

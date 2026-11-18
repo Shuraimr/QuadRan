@@ -8,7 +8,7 @@
 <div class="acilir-menu bildirim-paneli<%= statik_ ? ' katman-statik' : ' acilir-menu-ustte' %>"<%- statik_ ? "" : ' id="bildirim-paneli" popover aria-label="Bildirimler"' %>>
   <div class="bildirim-panel-baslik">
     <h2>Bildirimler</h2>
-    <form method="post" action="/bildirimler/okundu">
+    <form method="post" action="/bildirimler/okundu"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <button class="buton buton-metin bildirim-okundu" type="submit">Tümünü okundu say</button>
     </form>
   </div>

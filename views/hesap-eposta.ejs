@@ -1,0 +1,39 @@
+<%#
+  E-posta değiştir: /hesap/eposta   (giriş gerekli, ayarlar sayfasıyla aynı görünüm)
+  Beklenen veriler:
+  mevcutEposta  string   şu anki adres (yalnızca bilgi için gösterilir)
+  hatalar       { email, sifre }   (isteğe bağlı)
+  degerler      { email }          hata sonrası formu dolu tutmak için
+  Form: POST /hesap/eposta  alanlar: email, sifre
+%>
+<%- include("partials/bas", { baslik: "E-postayı değiştir" }) %>
+<%- include("partials/ust-cubuk") %>
+<% const h = locals.hatalar || {}; const d = locals.degerler || {}; %>
+<div class="ayarlar">
+  <nav aria-label="Ayarlar">
+    <h1>Ayarlar</h1>
+    <div class="kategoriler">
+      <a class="kategori-ogesi" href="/ayarlar#profil"><%- include("partials/ikon", { ad: "kisi" }) %> Profil</a>
+      <a class="kategori-ogesi" href="/ayarlar#gorunum"><%- include("partials/ikon", { ad: "palet" }) %> Görünüm</a>
+      <a class="kategori-ogesi aktif" href="/ayarlar#hesap"><%- include("partials/ikon", { ad: "kalkan" }) %> Hesap ve güvenlik</a>
+    </div>
+  </nav>
+  <div class="bolumler">
+    <form class="kart bolum" method="post" action="/hesap/eposta"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+      <div><h2>E-postayı değiştir</h2><p class="ikincil kucuk">Şu anki adres: <%= mevcutEposta %></p></div>
+      <label class="alan <%= h.email ? 'hatali' : '' %>"><span>Yeni e-posta</span>
+        <input type="email" name="email" value="<%= d.email || '' %>" autocomplete="email" required maxlength="255" autofocus>
+      </label>
+      <div class="yardim"><span><%= h.email || "Profilinde görünmez" %></span></div>
+      <label class="alan <%= h.sifre ? 'hatali' : '' %>"><span>Mevcut şifre</span>
+        <input type="password" name="sifre" autocomplete="current-password" required>
+      </label>
+      <div class="yardim"><span><%= h.sifre || "Kimliğini doğrulamak için gerekli" %></span></div>
+      <div class="satir" style="justify-content: flex-end; gap: 12px">
+        <a class="buton buton-metin" href="/ayarlar#hesap">Vazgeç</a>
+        <button class="buton buton-birincil">E-postayı değiştir</button>
+      </div>
+    </form>
+  </div>
+</div>
+<%- include("partials/son") %>

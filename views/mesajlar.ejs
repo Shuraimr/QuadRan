@@ -5,6 +5,7 @@
   konusmalar  [ { kullanici, rutbe, son_mesaj, son_zaman (Date), okunmamis (sayı), son_benden (bool, isteğe bağlı) } ]
               messages tablosundan karşıdaki kişiye göre gruplanır; son_zaman'a göre yeniden eskiye
   acik        null ya da { kullanici, rutbe, mesajlar: [ { id, benim (bool: sender_id giriş yapan kişi), content, created_at, read_at } ] }
+              (mesajlar[].silindi: moderatör kaldırdıysa true, content yerine bilgi metni gelir)
               mesajlar eskiden yeniye sıralı. null ise "Bir konuşma seç" boş durumu görünür
   Gönderim: POST /mesajlar/<kullanici>  alan: content
 %>
@@ -118,7 +119,7 @@
             <% } else { %>
               <% const son = o.mesajlar[o.mesajlar.length - 1]; %>
               <div class="mesaj-grup <%= o.benim ? 'ben' : '' %>">
-                <% for (const m of o.mesajlar) { %><div class="mesaj-balon" id="m-<%= m.id %>"><%= m.content %></div><% } %>
+                <% for (const m of o.mesajlar) { %><div class="mesaj-balon<%= m.silindi ? ' silindi' : '' %>" id="m-<%= m.id %>"><%= m.content %><%# Yalnızca ALICI şikâyet edebilir: gelen (benim olmayan), silinmemiş mesajlarda bayrak çıkar %><% if (!o.benim && !m.silindi) { %><a class="balon-bayrak" href="/sikayet?mesaj_id=<%= m.id %>" data-sikayet-ac data-mesaj-id="<%= m.id %>" data-baslik="Bu özel mesajı şikâyet et" aria-label="Bu mesajı şikâyet et" title="Şikâyet et"><%- include("partials/ikon", { ad: "bayrak", boyut: 14 }) %> Şikâyet et</a><% } %></div><% } %>
                 <div class="mesaj-alt-not">
                   <span><%= mjSaat(son.created_at) %></span>
                   <% if (o.goruldu) { %><span>· Görüldü <%= mjSaat(o.goruldu) %></span><% } %>
@@ -128,11 +129,12 @@
           <% } %>
         </div>
       </div>
-      <form class="mesaj-yaz" method="post" action="/mesajlar/<%= mjAcik.kullanici %>">
+      <form class="mesaj-yaz" method="post" action="/mesajlar/<%= mjAcik.kullanici %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <textarea name="content" rows="1" maxlength="2000" required placeholder="<%= mjAcik.kullanici %> kişisine mesaj yaz" aria-label="Mesajın"></textarea>
         <button class="buton buton-birincil">Gönder</button>
       </form>
     <% } %>
   </section>
 </main>
+<% if (mjAcik) { %><%- include("partials/sikayet-penceresi") %><% } %>
 <%- include("partials/son") %>

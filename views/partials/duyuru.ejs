@@ -1,0 +1,14 @@
+<%#
+  Duyuru şeridi (yönetim panelinden yazılır: Site ayarları). bas.ejs, sade olmayan sayfalara ekler.
+  Beklenen veri: locals.duyuru { metin, tur: "info" | "uyari" } (oturum.ts doldurur; yoksa ya da kapatılmışsa null)
+  "Kapat" düğmesi oturumda bu duyuru sürümünü saklar (POST /duyuru/kapat); duyuru değişince şerit yeniden çıkar.
+%>
+<% if (locals.duyuru) { %>
+  <div class="duyuru duyuru-<%= duyuru.tur %>" role="status">
+    <%- include("ikon", { ad: duyuru.tur === "uyari" ? "uyari" : "bilgi", boyut: 18 }) %>
+    <span class="duyuru-metin"><%= duyuru.metin %></span>
+    <form method="post" action="/duyuru/kapat"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+      <button class="duyuru-kapat" type="submit" aria-label="Duyuruyu kapat"><%- include("ikon", { ad: "kapat", boyut: 16 }) %></button>
+    </form>
+  </div>
+<% } %>

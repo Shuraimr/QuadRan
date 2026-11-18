@@ -1,6 +1,7 @@
 // Forum: akış (/), konu sayfası, konu açma, cevap, oy, profil, arama, sıralama, şikâyet.
 import express from "express";
 import { pool } from "../db.ts";
+import { yasakliIfade } from "../ayarlar.ts";
 import {
   rutbeSql, skorSql, PUAN, puanEkle, bildirimGonder, rozetVer, bildir, kisalt,
   girisGerekli, geriAdres, sayi, metin,
@@ -72,12 +73,13 @@ forum.get("/", async (req, res) => {
     benimId: res.locals.kullanici?.id,
   });
 
-  const [kategoriler] = await pool.query("SELECT id, name FROM categories ORDER BY id");
+  const [kategoriler] = await pool.query("SELECT id, name FROM categories ORDER BY sort_order, id");
 
   const [sohbet] = await pool.query(`
     SELECT * FROM (
       SELECT chat_messages.id, chat_messages.content, users.username AS yazar
         FROM chat_messages JOIN users ON users.id = chat_messages.user_id
+       WHERE chat_messages.deleted_at IS NULL
        ORDER BY chat_messages.id DESC LIMIT 3
     ) AS son ORDER BY id`);
 
@@ -102,7 +104,7 @@ forum.get("/kategoriler", async (req, res) => {
        FROM categories
        LEFT JOIN topics ON topics.category_id = categories.id AND topics.deleted_at IS NULL
       GROUP BY categories.id
-      ORDER BY categories.id`
+      ORDER BY categories.sort_order, categories.id`
   );
   res.render("kategoriler", { kategoriler, aktifMenu: "kategoriler" });
 });
@@ -112,7 +114,7 @@ forum.get("/kategoriler", async (req, res) => {
 // (Bu route /konu/:id'den ÖNCE tanımlanmalı; yoksa "yeni" bir id sanılırdı.)
 // ---------------------------------------------------------------------------
 forum.get("/konu/yeni", girisGerekli("Konu açmak için giriş yapman gerekiyor."), async (req, res) => {
-  const [kategoriler] = await pool.query("SELECT id, name FROM categories ORDER BY id");
+  const [kategoriler] = await pool.query("SELECT id, name FROM categories ORDER BY sort_order, id");
   res.render("konu-yeni", { kategoriler, degerler: { category_id: req.query.kategori }, aktifMenu: "konu-ac" });
 });
 
@@ -121,11 +123,16 @@ forum.post("/konu/yeni", girisGerekli("Konu açmak için giriş yapman gerekiyor
   const degerler = { category_id: sayi(req.body.category_id), title: metin(req.body.title), content: metin(req.body.content) };
   const hatalar: Record<string, string> = {};
 
-  const [kategoriler]: any = await pool.query("SELECT id, name FROM categories ORDER BY id");
+  const [kategoriler]: any = await pool.query("SELECT id, name FROM categories ORDER BY sort_order, id");
   if (!kategoriler.some((c: any) => c.id === degerler.category_id)) hatalar.category_id = "Bir kategori seç";
   if (degerler.title.length < 5 || degerler.title.length > 120) hatalar.title = "Başlık 5 ile 120 karakter arasında olmalı";
   if (!degerler.content) hatalar.content = "İçerik boş olamaz";
   if (degerler.content.length > 10000) hatalar.content = "İçerik en fazla 10.000 karakter olabilir";
+  // Yasaklı ifade denetimi (yönetim panelinden yönetilir); alan bazında hata verilir
+  const yasakBaslik = await yasakliIfade(degerler.title);
+  if (yasakBaslik && !hatalar.title) hatalar.title = `Başlıkta yasaklı bir ifade var: “${yasakBaslik}”`;
+  const yasakIcerik = await yasakliIfade(degerler.content);
+  if (yasakIcerik && !hatalar.content) hatalar.content = `İçerikte yasaklı bir ifade var: “${yasakIcerik}”`;
 
   if (Object.keys(hatalar).length) {
     return res.status(400).render("konu-yeni", { kategoriler, hatalar, degerler, aktifMenu: "konu-ac" });
@@ -241,6 +248,12 @@ forum.post("/konu/:id/cevap", girisGerekli("Cevap yazmak için giriş yapman ger
   }
   if (!content || content.length > 10000) {
     bildir(req, "hata", content ? "Cevap en fazla 10.000 karakter olabilir." : "Cevap boş olamaz.");
+    return res.redirect("/konu/" + id + "#cevap");
+  }
+
+  const yasak = await yasakliIfade(content);
+  if (yasak) {
+    bildir(req, "hata", `Cevabında yasaklı bir ifade var: “${yasak}”. Düzenleyip tekrar dene.`);
     return res.redirect("/konu/" + id + "#cevap");
   }
 
@@ -361,7 +374,27 @@ forum.get("/profil/:username", async (req, res, next) => {
     "SELECT badges.name FROM user_badges JOIN badges ON badges.id = user_badges.badge_id WHERE user_badges.user_id = ? ORDER BY user_badges.earned_at",
     [profil.id]
   );
-  const konular = await konuKartlari({ kosul: "topics.user_id = ?", parametreler: [profil.id], benimId: res.locals.kullanici?.id });
+  const sekme = req.query.sekme === "yorumlar" ? "yorumlar" : "konular";
+  const konular = sekme === "konular"
+    ? await konuKartlari({ kosul: "topics.user_id = ?", parametreler: [profil.id], benimId: res.locals.kullanici?.id })
+    : [];
+
+  // Yorumlar sekmesi: kullanıcının CEVAPLARI. Konunun ilk mesajı (konu metni) yorum sayılmaz;
+  // o zaten "Konular" sekmesinde kart olarak görünür. Silinmiş mesaj ve silinmiş konu listelenmez.
+  let yorumlar: any[] = [];
+  if (sekme === "yorumlar") {
+    [yorumlar] = (await pool.query(
+      `SELECT posts.id, posts.content, posts.created_at, topics.id AS konu_id, topics.title AS konu_baslik
+         FROM posts
+         JOIN topics ON topics.id = posts.topic_id AND topics.deleted_at IS NULL
+        WHERE posts.user_id = ? AND posts.deleted_at IS NULL
+          AND posts.id <> (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = posts.topic_id)
+        ORDER BY posts.created_at DESC, posts.id DESC
+        LIMIT 50`,
+      [profil.id]
+    )) as any;
+    for (const y of yorumlar) y.content = kisalt(y.content, 300);
+  }
 
   // Bu haftanın (Pazartesi-Pazar) günlük katkı sayısı = o gün yazdığı mesajlar (konu açılışı da bir mesaj).
   // WEEKDAY(): Pazartesi 0 ... Pazar 6
@@ -381,7 +414,7 @@ forum.get("/profil/:username", async (req, res, next) => {
   }));
 
   res.render("profil", {
-    profil, rutbeler, rozetler, konular, haftalik,
+    profil, rutbeler, rozetler, konular, haftalik, sekme, yorumlar,
     kendisi: res.locals.kullanici?.id === profil.id,
     aktifMenu: res.locals.kullanici?.id === profil.id ? "profil" : undefined,
   });
@@ -492,28 +525,41 @@ forum.get("/siralama", async (req, res) => {
   res.render("siralama", { donem, liste: hepsi.slice(0, 50), benim, rutbeler, aktifMenu: "siralama" });
 });
 
-// ---------------------------------------------------------------------------
-// Şikâyet
-//   POST /sikayet  alanlar: post_id, sebep, not
-//   GET  /sikayet?post_id=7  JavaScript kapalıysa pencere yerine bu sayfa açılır
-// ---------------------------------------------------------------------------
 const SEBEPLER = ["Spam veya reklam", "Hakaret veya nefret söylemi", "Konu dışı", "Başka bir sebep"];
 
+// ---------------------------------------------------------------------------
+// Şikâyet: bir konu MESAJI, bir KULLANICI, bir SOHBET mesajı ya da (yalnızca alıcı) bir ÖZEL MESAJ şikâyet edilir.
+//   POST /sikayet  alanlar: post_id | kullanici (kullanıcı adı) | sohbet_id | mesaj_id, sebep, not
+//   GET  /sikayet?post_id=7  ya da  ?kullanici=ayse  ya da  ?sohbet_id=3  ya da  ?mesaj_id=5
+//        JavaScript kapalıysa pencere yerine bu sayfa açılır
+// reports.hedef_tur hangi hedef olduğunu söyler (sql/08_yonetim.sql).
+// ---------------------------------------------------------------------------
 forum.get("/sikayet", girisGerekli("Şikâyet etmek için giriş yapman gerekiyor."), (req, res) => {
   const postId = sayi(req.query.post_id);
-  if (!postId) {
-    // Profildeki "Şikâyet et": şimdilik kullanıcı değil mesaj şikâyet ediliyor
-    bildir(req, "hata", "Şikâyet etmek için kişinin uygunsuz mesajındaki “Şikâyet et” bağlantısını kullan.");
-    return res.redirect(geriAdres(req));
-  }
-  res.render("sikayet", { post_id: postId });
+  const sohbetId = sayi(req.query.sohbet_id);
+  const mesajId = sayi(req.query.mesaj_id);
+  const kullanici = metin(req.query.kullanici);
+  if (postId) return res.render("sikayet", { post_id: postId });
+  if (sohbetId) return res.render("sikayet", { sohbet_id: sohbetId });
+  if (mesajId) return res.render("sikayet", { mesaj_id: mesajId });
+  if (kullanici) return res.render("sikayet", { hedef_kullanici: kullanici });
+  bildir(req, "hata", "Şikâyet edilecek öğe seçilmedi.");
+  res.redirect(geriAdres(req));
 });
 
 forum.post("/sikayet", girisGerekli("Şikâyet etmek için giriş yapman gerekiyor."), async (req, res) => {
   const k = res.locals.kullanici;
   const postId = sayi(req.body.post_id);
+  const sohbetId = sayi(req.body.sohbet_id);
+  const mesajId = sayi(req.body.mesaj_id);
+  const kullaniciAdi = metin(req.body.kullanici);
   const sebep = SEBEPLER.includes(req.body.sebep) ? req.body.sebep : null;
   const aciklama = metin(req.body.not).slice(0, 1000) || null;
+
+  // Form dört gizli alan gönderir; hangisi doluysa o şikâyet edilir (öncelik: konu mesajı, sohbet, özel mesaj, kullanıcı)
+  if (!postId && sohbetId) return sohbetSikayeti(req, res, sohbetId, sebep, aciklama);
+  if (!postId && mesajId) return ozelMesajSikayeti(req, res, mesajId, sebep, aciklama);
+  if (!postId && kullaniciAdi) return kullaniciSikayeti(req, res, kullaniciAdi, sebep, aciklama);
 
   const [mesajlar]: any = postId ? await pool.query("SELECT id, user_id, topic_id FROM posts WHERE id = ? AND deleted_at IS NULL", [postId]) : [[]];
   const mesaj = mesajlar[0];
@@ -530,10 +576,78 @@ forum.post("/sikayet", girisGerekli("Şikâyet etmek için giriş yapman gerekiy
 
   // INSERT IGNORE: aynı kişi aynı mesajı ikinci kez şikâyet ederse UNIQUE kuralı yüzünden eklenmez (hata da vermez)
   const [sonuc]: any = await pool.query(
-    "INSERT IGNORE INTO reports (post_id, reporter_id, sebep, aciklama) VALUES (?, ?, ?, ?)",
+    "INSERT IGNORE INTO reports (hedef_tur, post_id, reporter_id, sebep, aciklama) VALUES ('konu_mesaji', ?, ?, ?, ?)",
     [postId, k.id, sebep, aciklama]
   );
   bildir(req, sonuc.affectedRows ? "basari" : "hata",
     sonuc.affectedRows ? "Şikâyetin moderatörlere iletildi. Teşekkürler." : "Bu mesajı zaten şikâyet etmiştin.");
   res.redirect(geri);
 });
+
+// Genel sohbet mesajı şikâyeti
+async function sohbetSikayeti(req: express.Request, res: express.Response, sohbetId: number, sebep: string | null, aciklama: string | null) {
+  const k = res.locals.kullanici;
+  const [satirlar]: any = await pool.query("SELECT id, user_id FROM chat_messages WHERE id = ? AND deleted_at IS NULL", [sohbetId]);
+  const m = satirlar[0];
+  const geri = m ? `/sohbet#s-${m.id}` : "/sohbet";
+  if (!m || !sebep) {
+    bildir(req, "hata", !m ? "Şikâyet edilecek sohbet mesajı bulunamadı." : "Bir şikâyet sebebi seç.");
+    return res.redirect(geri);
+  }
+  if (m.user_id === k.id) { bildir(req, "hata", "Kendi mesajını şikâyet edemezsin."); return res.redirect(geri); }
+  const [sonuc]: any = await pool.query(
+    "INSERT IGNORE INTO reports (hedef_tur, chat_message_id, reporter_id, sebep, aciklama) VALUES ('sohbet_mesaji', ?, ?, ?, ?)",
+    [sohbetId, k.id, sebep, aciklama]
+  );
+  bildir(req, sonuc.affectedRows ? "basari" : "hata",
+    sonuc.affectedRows ? "Şikâyetin moderatörlere iletildi. Teşekkürler." : "Bu mesajı zaten şikâyet etmiştin.");
+  res.redirect(geri);
+}
+
+// Özel mesaj şikâyeti: YALNIZCA mesajın alıcısı şikâyet edebilir (başkası bir konuşmayı göremez, bu yüzden
+// mesaj id'sini tahmin ederek de şikâyet açamaz; sorgu receiver_id = ben şartını arar).
+async function ozelMesajSikayeti(req: express.Request, res: express.Response, mesajId: number, sebep: string | null, aciklama: string | null) {
+  const k = res.locals.kullanici;
+  const [satirlar]: any = await pool.query(
+    `SELECT messages.id, users.username AS gonderen FROM messages JOIN users ON users.id = messages.sender_id
+      WHERE messages.id = ? AND messages.receiver_id = ? AND messages.deleted_at IS NULL`,
+    [mesajId, k.id]
+  );
+  const m = satirlar[0];
+  const geri = m ? `/mesajlar/${encodeURIComponent(m.gonderen)}#m-${m.id}` : "/mesajlar";
+  if (!m || !sebep) {
+    bildir(req, "hata", !m ? "Şikâyet edilecek mesaj bulunamadı. Yalnızca sana gelen mesajlar şikâyet edilebilir." : "Bir şikâyet sebebi seç.");
+    return res.redirect(geri);
+  }
+  const [sonuc]: any = await pool.query(
+    "INSERT IGNORE INTO reports (hedef_tur, message_id, reporter_id, sebep, aciklama) VALUES ('ozel_mesaj', ?, ?, ?, ?)",
+    [mesajId, k.id, sebep, aciklama]
+  );
+  bildir(req, sonuc.affectedRows ? "basari" : "hata",
+    sonuc.affectedRows ? "Şikâyetin moderatörlere iletildi. Teşekkürler." : "Bu mesajı zaten şikâyet etmiştin.");
+  res.redirect(geri);
+}
+
+// Profildeki "Şikâyet et": mesaj yerine kullanıcı hedeflenir (reports.reported_user_id)
+async function kullaniciSikayeti(req: express.Request, res: express.Response, kullaniciAdi: string, sebep: string | null, aciklama: string | null) {
+  const k = res.locals.kullanici;
+  const [satirlar]: any = await pool.query("SELECT id, username FROM users WHERE username = ? AND deleted_at IS NULL", [kullaniciAdi]);
+  const hedef = satirlar[0];
+  const geri = hedef ? "/profil/" + hedef.username : geriAdres(req);
+
+  if (!hedef || !sebep) {
+    bildir(req, "hata", !hedef ? "Şikâyet edilecek kullanıcı bulunamadı." : "Bir şikâyet sebebi seç.");
+    return res.redirect(geri);
+  }
+  if (hedef.id === k.id) {
+    bildir(req, "hata", "Kendini şikâyet edemezsin.");
+    return res.redirect(geri);
+  }
+  const [sonuc]: any = await pool.query(
+    "INSERT IGNORE INTO reports (hedef_tur, reported_user_id, reporter_id, sebep, aciklama) VALUES ('kullanici', ?, ?, ?, ?)",
+    [hedef.id, k.id, sebep, aciklama]
+  );
+  bildir(req, sonuc.affectedRows ? "basari" : "hata",
+    sonuc.affectedRows ? "Şikâyetin moderatörlere iletildi. Teşekkürler." : "Bu kullanıcıyı zaten şikâyet etmiştin.");
+  res.redirect(geri);
+}

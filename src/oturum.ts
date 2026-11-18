@@ -9,16 +9,21 @@
 //     res.locals.kullanici'ye koyar. Şablonlar locals.kullanici ile üye/misafir ayrımı yapar.
 import session from "express-session";
 import MySQLStoreFactory from "express-mysql-session";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
 import { pool } from "./db.ts";
-import { rutbeSql } from "./yardimci.ts";
+import { rutbeSql, banliSql, bildir, geriAdres } from "./yardimci.ts";
+import { ayarlar } from "./ayarlar.ts";
 
 // req.session içinde hangi alanların olduğunu TypeScript'e anlatıyoruz
 declare module "express-session" {
   interface SessionData {
     userId: number;
+    surum: number; // users.oturum_surumu'nun girişteki değeri
     bildirim: { tur: "basari" | "hata"; metin: string; eylem?: { metin: string; link: string } };
     girisNotu: string;
+    csrf: string;
+    duyuruKapatilan: string; // kapatılan duyuru şeridinin sürümü (ayarlar.ts)
   }
 }
 
@@ -53,6 +58,51 @@ export const oturum = session({
 });
 
 // ---------------------------------------------------------------------------
+// CSRF koruması (sameSite=lax'in üstüne ikinci kilit).
+//
+// Fikir: oturuma rastgele bir belirteç koyarız ve HER POST formuna gizli alan olarak ekleriz.
+// Başka bir sitedeki form bu belirteci bilemez, bu yüzden bizim adımıza POST gönderemez.
+//
+// Belirteç "tembel" üretilir: res.locals.csrf'ye ilk bakıldığında (yani bir şablon formu çizerken).
+// Neden? saveUninitialized=false olduğu için formu olmayan sayfaları gezen misafire oturum açılmaz.
+// Giriş/kayıt gibi formlu sayfalarda ise belirteç oturuma yazılınca express-session oturumu
+// kaydeder ve çerezi gönderir; misafir formu gönderdiğinde belirteç yerinde durur.
+// (Girişte oturum kimliği yenilendiği için eski belirteç gider; bir sonraki sayfa yenisini üretir.)
+// ---------------------------------------------------------------------------
+export function csrfKoru(req: Request, res: Response, next: NextFunction) {
+  // Dikkat: res.locals'a "getter" koymak işe yaramaz. Express sayfayı çizerken res.locals'ı kopyalar,
+  // kopyalama getter'ı çağırır ve formu olmayan sayfada bile belirteç (dolayısıyla oturum) üretilirdi.
+  // Bunun yerine toString'i olan küçük bir nesne veriyoruz: kopyalanınca bir şey olmaz,
+  // belirteç yalnızca şablon <%= locals.csrf %> ile onu sayfaya YAZARKEN üretilir.
+  res.locals.csrf = {
+    toString() {
+      if (!req.session.csrf) req.session.csrf = randomBytes(32).toString("hex");
+      return req.session.csrf;
+    },
+  };
+
+  // Okuma istekleri (GET/HEAD) veri değiştirmez, kontrol gerekmez
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
+
+  const beklenen = req.session.csrf;
+  const gelen = typeof req.body?._csrf === "string" ? req.body._csrf : "";
+  const a = Buffer.from(beklenen ?? "");
+  const b = Buffer.from(gelen);
+  // timingSafeEqual aynı uzunlukta olmayı ister; karşılaştırma süresi, kaç karakterin tuttuğunu ele vermez
+  if (beklenen && a.length === b.length && timingSafeEqual(a, b)) return next();
+
+  // 403: tarayıcı 403 yanıtındaki Location başlığını izlemez; bu yüzden küçük bir sayfa
+  // toast'u oturuma yazıp kullanıcıyı 0 saniyede geldiği sayfaya geri yollar.
+  if (req.session) bildir(req, "hata", "Oturum doğrulaması başarısız oldu. Sayfayı yenileyip tekrar dene.");
+  // Adres HTML içine yazılacağı için özel karakterlerden kaçırılır
+  const geri = geriAdres(req, "/").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  res.status(403).type("html").send(
+    `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=${geri}">` +
+    `<p>İstek doğrulanamadı. <a href="${geri}">Geri dön</a></p>`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Her istekte çalışır: kullanıcıyı, tercihlerini ve üst çubuk verilerini hazırlar.
 // ---------------------------------------------------------------------------
 export async function ortakVeriler(req: Request, res: Response, next: NextFunction) {
@@ -60,7 +110,15 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
   res.locals.tema = "koyu";
   res.locals.vurgu = "safir";
   res.locals.menuYonu = "sol";
+  res.locals.kompakt = false;
+  res.locals.azAnimasyon = false;
   res.locals.adres = req.path; // menülerde aktif öğe için
+
+  // Duyuru şeridi (partials/duyuru.ejs): yalnızca doluysa ve bu oturumda kapatılmadıysa
+  const site = await ayarlar();
+  res.locals.duyuru = site.duyuru && req.session.duyuruKapatilan !== site.duyuruSurum
+    ? { metin: site.duyuru, tur: site.duyuruTur }
+    : null;
 
   // Flash bildirim: bir kez gösterilip silinir
   if (req.session.bildirim) {
@@ -73,7 +131,8 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
 
   const [satirlar]: any = await pool.query(
     `SELECT users.id, users.username, users.points, users.tema, users.vurgu, users.menu_sagda,
-            users.kompakt, users.az_animasyon, users.last_seen_at, users.banned_at, users.deleted_at,
+            users.kompakt, users.az_animasyon, users.last_seen_at, users.banned_at, users.deleted_at, users.oturum_surumu,
+            ${banliSql("users")} AS banli,
             roles.name AS rol,
             ${rutbeSql("users")} AS rutbe
        FROM users
@@ -83,17 +142,32 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
   );
   const k = satirlar[0];
 
-  // Hesap silinmiş ya da uzaklaştırılmışsa oturumu kapat
-  if (!k || k.deleted_at || k.banned_at) {
+  // Süreli ban bitmişse (banned_at dolu ama artık aktif değil) satırı temizle: kullanıcı normal devam eder.
+  if (k && k.banned_at && !k.banli) {
+    await pool.query("UPDATE users SET banned_at = NULL, banned_until = NULL, ban_reason = NULL WHERE id = ?", [k.id]);
+  }
+
+  // Hesap silinmiş, şu an uzaklaştırılmış ya da şifre bu oturum açıldıktan sonra değişmişse oturumu kapat.
+  // (surum yoksa: bu özellikten önce açılmış eski oturum, 0 sayılır)
+  if (!k || k.deleted_at || k.banli || (req.session.surum ?? 0) !== k.oturum_surumu) {
     delete req.session.userId;
     return next();
   }
 
   res.locals.kullanici = k;
-  // "sistem" teması CSS'te henüz yok (prefers-color-scheme gerekiyor), şimdilik koyu gösterilir
-  res.locals.tema = k.tema === "acik" ? "acik" : "koyu";
+  // "sistem": tarayıcının açık/koyu tercihine CSS karar verir (@media prefers-color-scheme),
+  // sunucu bunu bilemez; bu yüzden data-tema="sistem" olarak olduğu gibi gönderiyoruz.
+  res.locals.tema = ["acik", "sistem"].includes(k.tema) ? k.tema : "koyu";
   res.locals.vurgu = k.vurgu;
   res.locals.menuYonu = k.menu_sagda ? "sag" : "sol";
+  res.locals.kompakt = !!k.kompakt;
+  res.locals.azAnimasyon = !!k.az_animasyon;
+
+  // Moderasyon menüsündeki "Kategoriyi değiştir" listesi (yalnızca yetkililer için sorgulanır)
+  if (["admin", "moderator"].includes(k.rol)) {
+    const [kategoriler] = await pool.query("SELECT id, name FROM categories ORDER BY sort_order, id");
+    res.locals.tumKategoriler = kategoriler;
+  }
 
   // Üst çubuk: okunmamış sayıları ve zil panelindeki son 5 bildirim
   const [[sayilar]]: any = await pool.query(

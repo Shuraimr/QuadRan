@@ -1,11 +1,11 @@
 <%#
-  Şikâyet sayfası: /sikayet?post_id=7
+  Şikâyet sayfası: /sikayet?post_id=7  ya da  ?kullanici=ayse  ya da  ?sohbet_id=3  ya da  ?mesaj_id=5
   JavaScript kapalıysa "Şikâyet et" bağlantısı pencere yerine bu sayfayı açar.
-  Beklenen veriler: post_id
+  Beklenen veriler: post_id, hedef_kullanici, sohbet_id ya da mesaj_id (biri dolu olur)
 %>
 <%- include("partials/bas", { baslik: "Şikâyet et" }) %>
 <%- include("partials/ust-cubuk") %>
 <div class="orta-sayfa">
-  <%- include("partials/sikayet-penceresi", { statik: true, post_id }) %>
+  <%- include("partials/sikayet-penceresi", { statik: true, post_id: locals.post_id, hedef_kullanici: locals.hedef_kullanici, sohbet_id: locals.sohbet_id, mesaj_id: locals.mesaj_id }) %>
 </div>
 <%- include("partials/son") %>

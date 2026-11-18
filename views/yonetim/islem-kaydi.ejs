@@ -1,0 +1,37 @@
+<%# İşlem kaydı (admin): kayitlar, sf, eylemler[], turler[], qs, yol %>
+<%- include("duzen-ust", { baslik: "İşlem kaydı", aktif: "islem-kaydi" }) %>
+<form class="yn-filtre kart" method="get" action="/yonetim/islem-kaydi">
+  <select class="yn-girdi" name="eylem" aria-label="Eylem"><option value="">Tüm eylemler</option><% for (const e of eylemler) { %><option value="<%= e %>"<%= qs.eylem === e ? " selected" : "" %>><%= eylemEtiketleri[e] || e %></option><% } %></select>
+  <input class="yn-girdi" name="aktor" value="<%= qs.aktor %>" placeholder="Yapan kişi" aria-label="Yapan kişi">
+  <select class="yn-girdi" name="hedef_tur" aria-label="Hedef türü"><option value="">Tüm hedefler</option><% for (const t of turler) { %><option value="<%= t %>"<%= qs.hedef_tur === t ? " selected" : "" %>><%= t %></option><% } %></select>
+  <input class="yn-girdi yn-dar" name="hedef_id" value="<%= qs.hedef_id %>" placeholder="Hedef #" inputmode="numeric" aria-label="Hedef numarası">
+  <input class="yn-girdi" type="date" name="bas" value="<%= qs.bas %>" aria-label="Başlangıç tarihi">
+  <input class="yn-girdi" type="date" name="son" value="<%= qs.son %>" aria-label="Bitiş tarihi">
+  <input class="yn-girdi" type="search" name="q" value="<%= qs.q %>" placeholder="Ayrıntıda ara" aria-label="Ayrıntıda ara">
+  <button class="buton buton-tonal">Süz</button>
+  <a class="buton buton-cerceveli" href="/yonetim/islem-kaydi">Sıfırla</a>
+</form>
+<div class="kart yn-tablo-kutu">
+  <table class="yn-tablo">
+    <thead><tr><th>Zaman</th><th>Yapan</th><th>Eylem</th><th>Hedef</th><th>Ayrıntı</th><th>IP</th></tr></thead>
+    <tbody>
+      <% if (!kayitlar.length) { %><tr><td colspan="6" class="bos">Kayıt yok.</td></tr><% } %>
+      <% for (const k of kayitlar) { %>
+        <tr>
+          <td data-etiket="Zaman" title="<%= new Date(k.created_at).toLocaleString('tr-TR') %>"><%= zaman(k.created_at) %></td>
+          <td data-etiket="Yapan"><%= k.aktor || "—" %></td>
+          <td data-etiket="Eylem"><strong><%= eylemEtiketleri[k.eylem] || k.eylem %></strong><br><small class="ikincil"><%= k.eylem %></small></td>
+          <td data-etiket="Hedef">
+            <% if (k.hedef_tur === "kullanici" && k.hedef_id) { %><a href="/yonetim/kullanicilar/<%= k.hedef_id %>">kullanici #<%= k.hedef_id %></a>
+            <% } else if (k.hedef_tur === "konu" && k.hedef_id) { %><a href="/konu/<%= k.hedef_id %>">konu #<%= k.hedef_id %></a>
+            <% } else if (k.hedef_tur) { %><%= k.hedef_tur %><%= k.hedef_id ? " #" + k.hedef_id : "" %><% } else { %>—<% } %>
+          </td>
+          <td data-etiket="Ayrıntı" class="yn-kisa yn-mono"><%= k.ayrinti ? JSON.stringify(k.ayrinti) : "" %></td>
+          <td data-etiket="IP"><%= k.ip || "" %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<%- include("sayfalama") %>
+<%- include("duzen-alt") %>

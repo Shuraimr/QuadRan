@@ -19,8 +19,11 @@
     <% if ((locals.okunmamisMesaj || 0) > 0) { %><span class="acilir-rozet" aria-label="<%= locals.okunmamisMesaj %> okunmamış mesaj"><%= locals.okunmamisMesaj %></span><% } %>
   </a>
   <a class="acilir-oge" href="/ayarlar" data-ayarlar-kisayol><%- include("ikon", { ad: "ayar", boyut: 20 }) %><span class="acilir-ad">Ayarlar</span><span class="acilir-kisayol">Ctrl ,</span></a>
+  <% if (["admin", "moderator"].includes(k_.rol)) { %>
+    <a class="acilir-oge" href="/yonetim"><%- include("ikon", { ad: "kalkan", boyut: 20 }) %><span class="acilir-ad">Yönetim</span></a>
+  <% } %>
   <hr class="acilir-ayirici">
-  <form method="post" action="/cikis">
+  <form method="post" action="/cikis"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
     <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("ikon", { ad: "cikis", boyut: 20 }) %><span class="acilir-ad">Çıkış yap</span></button>
   </form>
 </div>

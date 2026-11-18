@@ -1,0 +1,67 @@
+<%#
+  Gelişmiş şikâyet kuyruğu: /yonetim/sikayetler?durum=&tur=&sebep=
+  gruplar [{ tur, hedef_id, adet, bekleyen, son, hedef (src/sikayet.ts hedefOnizleme), sikayetler: [{id, sebep, aciklama, durum, created_at, bildiren, isleyen}] }]
+  Grup işlemi: POST /yonetim/sikayetler/islem  alanlar: tur, hedef_id, eylem (sil|uyar|banla|reddet), sure, sebep
+%>
+<%- include("duzen-ust", { baslik: "Şikâyetler", aktif: "sikayetler" }) %>
+<form class="yn-filtre kart" method="get" action="/yonetim/sikayetler">
+  <select class="yn-girdi" name="durum" aria-label="Durum"><% for (const [d, e] of [["bekliyor","Bekleyen"],["islendi","İşlendi"],["reddedildi","Reddedildi"],["hepsi","Tümü"]]) { %><option value="<%= d %>"<%= qs.durum === d ? " selected" : "" %>><%= e %></option><% } %></select>
+  <select class="yn-girdi" name="tur" aria-label="Hedef türü"><option value="hepsi">Tüm türler</option><% for (const t of turler) { %><option value="<%= t %>"<%= qs.tur === t ? " selected" : "" %>><%= turEtiket[t] %></option><% } %></select>
+  <select class="yn-girdi" name="sebep" aria-label="Sebep"><option value="hepsi">Tüm sebepler</option><% for (const s of sebepler) { %><option value="<%= s %>"<%= qs.sebep === s ? " selected" : "" %>><%= s %></option><% } %></select>
+  <button class="buton buton-tonal">Süz</button>
+</form>
+<% if (!gruplar.length) { %><div class="kart bos">Bu süzgeçle şikâyet yok.</div><% } %>
+<% for (const g of gruplar) { const h = g.hedef; %>
+  <article class="kart yn-kart yn-sikayet">
+    <div class="yn-sikayet-ust">
+      <span class="etiket"><%= turEtiket[g.tur] %></span>
+      <span class="moderasyon-sayi"><%= g.adet %> şikâyet</span>
+      <% if (g.bekleyen > 0) { %><span class="yn-etiket tehlike"><%= g.bekleyen %> bekliyor</span><% } %>
+      <small class="ikincil yn-sag">son: <%= zaman(g.son) %></small>
+    </div>
+    <% if (!h) { %><p class="ikincil">Hedef artık yok.</p><% } else { %>
+    <div class="moderasyon-icerik <%= h.silindi ? 'silinmis-icerik' : '' %>">
+      <div class="gonderi-meta">
+        <span class="avatar"><%= h.yazar[0] %></span>
+        <a class="kullanici" href="/yonetim/kullanicilar/<%= h.yazarId %>"><%= h.yazar %></a>
+        <% if (h.rutbe) { %><span class="rozet"><%= h.rutbe %></span><% } %>
+        <% if (h.yazarRol !== "uye") { %><span class="cip-cerceveli"><%= h.yazarRol %></span><% } %>
+        <% if (h.banli) { %><span class="yn-etiket tehlike">Banlı</span><% } %>
+        <% if (g.tur === "ozel_mesaj") { %><span class="cip-cerceveli">→ <%= h.alici %></span><% } %>
+      </div>
+      <% if (g.tur === "ozel_mesaj") { %>
+        <%# GİZLİLİK: yalnızca şikâyet edilen mesaj ve çevresi (öncesinden 3, sonrasından 2 mesaj) %>
+        <div class="moderasyon-baglam">
+          <% for (const b of h.baglam) { %><div class="moderasyon-baglam-satir<%= b.hedef ? ' hedef' : '' %><%= b.silindi ? ' silinmis-icerik' : '' %>"><strong><%= b.gonderen %></strong> <span><%= b.icerik %></span></div><% } %>
+        </div>
+        <p class="ikincil kucuk">Gizlilik için konuşmanın yalnızca bu bölümü gösterilir.</p>
+      <% } else if (g.tur !== "kullanici") { %>
+        <div class="metin"><%= h.silindi ? "Bu içerik silindi." : h.icerik %></div>
+        <a class="baglanti kucuk" href="<%= h.link %>"><%= h.konu ? "Konu: " + h.konu.title : "Sohbette göster" %></a>
+      <% } else { %><a class="baglanti kucuk" href="/profil/<%= h.yazar %>">Profili aç</a><% } %>
+    </div>
+    <% } %>
+    <details class="yn-detay">
+      <summary><%= g.sikayetler.length %> şikâyetin ayrıntısı</summary>
+      <% for (const s of g.sikayetler) { %>
+        <div class="yn-liste-satir"><span><strong><%= s.bildiren %></strong> · <%= s.sebep %><%= s.aciklama ? ": “" + s.aciklama + "”" : "" %></span>
+          <small class="ikincil"><%= zaman(s.created_at) %> · <%= s.durum %><%= s.isleyen ? " (" + s.isleyen + ")" : "" %></small></div>
+      <% } %>
+    </details>
+    <% if (g.bekleyen > 0 && h) { %>
+      <div class="yn-sikayet-eylem">
+        <% if (g.tur !== "kullanici" && !h.silindi) { %>
+          <form method="post" action="/yonetim/sikayetler/islem"><%- include("csrf") %><input type="hidden" name="tur" value="<%= g.tur %>"><input type="hidden" name="hedef_id" value="<%= g.hedef_id %>"><input type="hidden" name="eylem" value="sil"><button class="buton buton-tehlikeli">İçeriği sil</button></form>
+        <% } %>
+        <form method="post" action="/yonetim/sikayetler/islem"><%- include("csrf") %><input type="hidden" name="tur" value="<%= g.tur %>"><input type="hidden" name="hedef_id" value="<%= g.hedef_id %>"><input type="hidden" name="eylem" value="uyar"><button class="buton buton-tonal">Uyar</button></form>
+        <form method="post" action="/yonetim/sikayetler/islem"><%- include("csrf") %><input type="hidden" name="tur" value="<%= g.tur %>"><input type="hidden" name="hedef_id" value="<%= g.hedef_id %>"><input type="hidden" name="eylem" value="reddet"><button class="buton buton-cerceveli">Reddet</button></form>
+        <form class="yn-satir yn-ban" method="post" action="/yonetim/sikayetler/islem"><%- include("csrf") %><input type="hidden" name="tur" value="<%= g.tur %>"><input type="hidden" name="hedef_id" value="<%= g.hedef_id %>"><input type="hidden" name="eylem" value="banla">
+          <select class="yn-girdi" name="sure" aria-label="Ban süresi"><% for (const [d, s] of Object.entries(sureler)) { %><option value="<%= d %>"><%= s.etiket %></option><% } %></select>
+          <input class="yn-girdi" name="sebep" maxlength="255" placeholder="Ban sebebi" required aria-label="Ban sebebi">
+          <button class="buton buton-tehlikeli">Yazarı banla</button></form>
+      </div>
+    <% } %>
+  </article>
+<% } %>
+<%- include("sayfalama") %>
+<%- include("duzen-alt") %>

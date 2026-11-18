@@ -1,0 +1,38 @@
+<%#
+  Şifre sıfırlama: /sifre-sifirla/<belirteç>   (e-postadaki bağlantıdan gelinir)
+  Beklenen veriler:
+  gecersiz  bool     true ise bağlantı geçersiz/süresi dolmuş/kullanılmış kutusu görünür
+  token     string   formun gideceği adres için (gecersiz değilse gerekli)
+  hata      string   örn. "Şifreler aynı değil." (isteğe bağlı)
+  Form: POST /sifre-sifirla/<token>  alanlar: password, password2
+%>
+<%- include("partials/bas", { sade: true, baslik: "Yeni şifre belirle" }) %>
+<div class="orta-sayfa">
+  <%- include("partials/kontur") %>
+  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <% if (locals.gecersiz) { %>
+    <div class="kart form-karti sifre-basari" role="alert">
+      <span class="sifre-ikon"><%- include("partials/ikon", { ad: "uyari", boyut: 24 }) %></span>
+      <h1>Bağlantı geçersiz</h1>
+      <p class="sifre-aciklama">Bu şifre sıfırlama bağlantısı hatalı, süresi dolmuş ya da daha önce kullanılmış. Bağlantılar bir saat geçerlidir.</p>
+      <a class="buton buton-birincil buton-genis" href="/sifremi-unuttum">Yeni bağlantı iste</a>
+      <p class="orta-yazi"><a href="/giris">Girişe dön</a></p>
+    </div>
+  <% } else { %>
+    <form class="kart form-karti" method="post" action="/sifre-sifirla/<%= token %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+      <span class="sifre-ikon"><%- include("partials/ikon", { ad: "kilit", boyut: 24 }) %></span>
+      <h1>Yeni şifre belirle</h1>
+      <p class="sifre-aciklama">Hesabın için yeni bir şifre yaz. En az 8 karakter olmalı.</p>
+      <% if (locals.hata) { %><div class="bilgi-notu hata-notu" role="alert"><%- include("partials/ikon", { ad: "uyari", boyut: 18 }) %><span><%= hata %></span></div><% } %>
+      <label class="alan"><span>Yeni şifre</span>
+        <input type="password" name="password" autocomplete="new-password" required minlength="8" maxlength="200" autofocus>
+      </label>
+      <label class="alan"><span>Yeni şifre (tekrar)</span>
+        <input type="password" name="password2" autocomplete="new-password" required minlength="8" maxlength="200">
+      </label>
+      <button class="buton buton-birincil buton-genis">Şifreyi değiştir</button>
+      <p class="orta-yazi"><a href="/giris">Girişe dön</a></p>
+    </form>
+  <% } %>
+</div>
+<%- include("partials/son", { sade: true }) %>

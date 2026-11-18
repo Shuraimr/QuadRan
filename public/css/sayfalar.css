@@ -240,3 +240,18 @@
   .moderasyon-kart { padding: 16px; }
   .moderasyon-durum { margin-left: 0; }
 }
+
+/* ---------- Sohbet ve özel mesajda şikâyet bayrağı ---------- */
+.sohbet-mesaj { align-items: flex-start; }
+.sohbet-bayrak { align-self: center; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: var(--yazi-2); opacity: 0; transition: opacity .15s; }
+.sohbet-mesaj:hover .sohbet-bayrak, .sohbet-bayrak:focus-visible { opacity: 1; }
+.sohbet-bayrak:hover { background: var(--yuzey-2); color: var(--hata); }
+.balon-bayrak { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 12px; color: var(--yazi-2); opacity: .7; }
+.balon-bayrak:hover { color: var(--hata); opacity: 1; }
+.mesaj-balon.silindi { font-style: italic; color: var(--yazi-2); }
+@media (pointer: coarse) { .sohbet-bayrak { opacity: .7; width: 40px; height: 40px; } }
+.moderasyon-baglam { display: grid; gap: 4px; }
+.moderasyon-baglam-satir { padding: 6px 10px; border-radius: 8px; font-size: 14px; color: var(--yazi-2); overflow-wrap: anywhere; }
+.moderasyon-baglam-satir strong { color: var(--yazi); }
+.moderasyon-baglam-satir.hedef { background: var(--ton); color: var(--ton-ustu); }
+.moderasyon-baglam-satir.hedef strong { color: inherit; }

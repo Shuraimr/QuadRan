@@ -1,6 +1,7 @@
 // İletişim: özel mesajlar, bildirimler, genel sohbet.
 import express from "express";
 import { pool } from "../db.ts";
+import { yasakliIfade } from "../ayarlar.ts";
 import { rutbeSql, bildirimGonder, bildir, kisalt, girisGerekli, sayi, metin } from "../yardimci.ts";
 
 export const iletisim = express.Router();
@@ -16,7 +17,7 @@ export const iletisim = express.Router();
 async function konusmalar(benId: number, q: string) {
   const [satirlar]: any = await pool.query(
     `SELECT users.username AS kullanici, ${rutbeSql("users")} AS rutbe,
-            son.content AS son_mesaj, son.created_at AS son_zaman, son.sender_id = ? AS son_benden,
+            IF(son.deleted_at IS NULL, son.content, 'Mesaj kaldırıldı') AS son_mesaj, son.created_at AS son_zaman, son.sender_id = ? AS son_benden,
             k.okunmamis
        FROM (
          SELECT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS karsi_id,
@@ -64,7 +65,8 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
     res.locals.okunmamisMesaj = Number(kalan.n);
 
     const [mesajlar]: any = await pool.query(
-      `SELECT id, content, created_at, read_at, sender_id = ? AS benim
+      `SELECT id, IF(deleted_at IS NULL, content, 'Bu mesaj moderatörler tarafından kaldırıldı.') AS content,
+              created_at, read_at, sender_id = ? AS benim, deleted_at IS NOT NULL AS silindi
          FROM messages
         WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
         ORDER BY id DESC LIMIT 200`,
@@ -72,7 +74,7 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
     );
     // Son 200 mesajı yeniden eskiye aldık; şablon eskiden yeniye istiyor
     mesajlar.reverse();
-    for (const m of mesajlar) m.benim = !!m.benim;
+    for (const m of mesajlar) { m.benim = !!m.benim; m.silindi = !!m.silindi; }
     acik = { kullanici: kisi.username, rutbe: kisi.rutbe, mesajlar };
   }
 
@@ -93,6 +95,12 @@ iletisim.post("/mesajlar/:kullanici", girisGerekli("Mesaj göndermek için giri�
   if (kisi.id === ben.id) return res.redirect("/mesajlar");
   if (!content || content.length > 2000) {
     bildir(req, "hata", content ? "Mesaj en fazla 2000 karakter olabilir." : "Mesaj boş olamaz.");
+    return res.redirect(adres);
+  }
+
+  const yasak = await yasakliIfade(content);
+  if (yasak) {
+    bildir(req, "hata", `Mesajında yasaklı bir ifade var: “${yasak}”.`);
     return res.redirect(adres);
   }
 
@@ -159,6 +167,7 @@ async function sohbetVerisi() {
        SELECT chat_messages.id, chat_messages.content, chat_messages.created_at,
               users.username AS yazar, ${rutbeSql("users")} AS rutbe
          FROM chat_messages JOIN users ON users.id = chat_messages.user_id
+        WHERE chat_messages.deleted_at IS NULL
         ORDER BY chat_messages.id DESC LIMIT 50
      ) AS son ORDER BY id`
   );
@@ -181,6 +190,14 @@ iletisim.post("/sohbet", girisGerekli("Sohbete yazmak için giriş yapman gereki
     return res.status(400).render("sohbet", {
       ...(await sohbetVerisi()),
       hata: content ? "Mesaj en fazla 500 karakter olabilir." : "Mesaj boş olamaz.",
+      aktifMenu: "sohbet",
+    });
+  }
+  const yasak = await yasakliIfade(content);
+  if (yasak) {
+    return res.status(400).render("sohbet", {
+      ...(await sohbetVerisi()),
+      hata: `Mesajında yasaklı bir ifade var: “${yasak}”.`,
       aktifMenu: "sohbet",
     });
   }

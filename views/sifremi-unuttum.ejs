@@ -20,7 +20,7 @@
       <p class="orta-yazi">Yanlış adres mi yazdın? <a href="/sifremi-unuttum">Tekrar dene</a></p>
     </div>
   <% } else { %>
-    <form class="kart form-karti" method="post" action="/sifremi-unuttum">
+    <form class="kart form-karti" method="post" action="/sifremi-unuttum"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <span class="sifre-ikon"><%- include("partials/ikon", { ad: "kilit", boyut: 24 }) %></span>
       <h1>Şifreni mi unuttun?</h1>
       <p class="sifre-aciklama">Hesabına bağlı e-posta adresini yaz, şifreni sıfırlaman için bir bağlantı gönderelim.</p>

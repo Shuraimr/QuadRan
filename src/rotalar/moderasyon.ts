@@ -1,8 +1,14 @@
 // Moderasyon: şikâyet kuyruğu (/moderasyon) ve konu/mesaj üzerindeki moderasyon menüsü.
 // Buradaki her şey yalnızca moderator ve admin içindir (yetkiliGerekli).
+// Daha gelişmiş kuyruk (filtre, gruplama) ve toplu işlemler için /yonetim paneline bak (yonetim.ts).
+//
+// Her işlem "işlem kaydı"na (audit_log) da yazılır: kim, neyi, ne zaman yaptı.
 import express from "express";
 import { pool } from "../db.ts";
-import { rutbeSql, bildirimGonder, bildir, kisalt, girisGerekli, yetkiliGerekli, geriAdres, sayi } from "../yardimci.ts";
+import { bildir, girisGerekli, yetkiliGerekli, geriAdres, sayi } from "../yardimci.ts";
+import { denetim } from "../denetim.ts";
+import { mesajiSil, banla } from "../islemler.ts";
+import { hedefOnizleme, sikayetIslemi, type Onizleme } from "../sikayet.ts";
 
 export const moderasyon = express.Router();
 
@@ -30,133 +36,91 @@ moderasyon.get("/moderasyon", async (req, res) => {
   );
   for (const s in ozet) ozet[s] = Number(ozet[s]);
 
+  // Şikâyetin hedefi (hedef_tur) dört türden biri; hedef_id o türe göre farklı sütundan gelir.
+  // Hedefin içeriği (mesaj metni, yazar, özel mesaj bağlamı...) tek yerde, sikayet.ts'teki hedefOnizleme'de toplanır.
   // Durum filtresi sabit listeden seçildiği için ? ile bağlıyoruz, "hepsi" ise koşulu etkisiz yapıyoruz.
   const [satirlar]: any = await pool.query(
-    `SELECT reports.id, reports.durum, reports.sebep, reports.aciklama, reports.created_at,
+    `SELECT reports.id, reports.durum, reports.hedef_tur, reports.sebep, reports.aciklama, reports.created_at,
             bildiren.username AS bildiren,
-            (SELECT COUNT(*) FROM reports r2 WHERE r2.post_id = reports.post_id) AS ayni_post_sayisi,
-            posts.id AS post_id, posts.content, posts.created_at AS post_tarihi, posts.deleted_at,
-            yazar.username AS yazar, ${rutbeSql("yazar")} AS rutbe,
-            topics.id AS konu_id, topics.title AS konu_baslik
+            COALESCE(reports.post_id, reports.reported_user_id, reports.chat_message_id, reports.message_id) AS hedef_id
        FROM reports
        JOIN users AS bildiren ON bildiren.id = reports.reporter_id
-       JOIN posts ON posts.id = reports.post_id
-       JOIN users AS yazar ON yazar.id = posts.user_id
-       JOIN topics ON topics.id = posts.topic_id
       WHERE (? = 'hepsi' OR reports.durum = ?)
       ORDER BY reports.created_at DESC
       LIMIT 100`,
     [durum, durum]
   );
 
-  // Şablon iç içe nesne bekliyor (s.post.yazar, s.konu.title); düz satırı o şekle çeviriyoruz.
-  const sikayetler = satirlar.map((s: any) => ({
-    id: s.id, durum: s.durum, sebep: s.sebep, aciklama: s.aciklama, created_at: s.created_at,
-    bildiren: s.bildiren, ayni_post_sayisi: Number(s.ayni_post_sayisi),
-    post: { id: s.post_id, content: s.content, yazar: s.yazar, rutbe: s.rutbe, created_at: s.post_tarihi, deleted_at: s.deleted_at },
-    konu: { id: s.konu_id, title: s.konu_baslik },
-  }));
+  // Aynı hedefe kaç şikâyet geldi? Tek sorguda hepsini sayıp Map'e koyuyoruz (satır başına sorgu atmayalım).
+  const [sayimlar]: any = await pool.query(
+    `SELECT hedef_tur, COALESCE(post_id, reported_user_id, chat_message_id, message_id) AS hedef_id, COUNT(*) AS n
+       FROM reports GROUP BY hedef_tur, hedef_id`
+  );
+  const sayimHaritasi = new Map<string, number>(sayimlar.map((s: any) => [`${s.hedef_tur}:${s.hedef_id}`, Number(s.n)]));
+
+  // Aynı hedef birkaç satırda geçebilir; önizlemeyi bir kez çek
+  const onbellek = new Map<string, Onizleme | null>();
+  const sikayetler = [];
+  for (const s of satirlar) {
+    const anahtar = `${s.hedef_tur}:${s.hedef_id}`;
+    if (!onbellek.has(anahtar)) onbellek.set(anahtar, await hedefOnizleme(s.hedef_tur, s.hedef_id));
+    const o = onbellek.get(anahtar);
+    if (!o) continue;
+    sikayetler.push({
+      id: s.id, durum: s.durum, sebep: s.sebep, aciklama: s.aciklama, created_at: s.created_at,
+      bildiren: s.bildiren, ayni_post_sayisi: sayimHaritasi.get(anahtar) ?? 1,
+      tur: s.hedef_tur, hedef: o,
+    });
+  }
 
   res.render("moderasyon", { durum, ozet, sikayetler });
 });
 
 // ---------------------------------------------------------------------------
-// Ortak işler
-// ---------------------------------------------------------------------------
-
-// Mesajı yumuşak sil (satır kalır, deleted_at dolar). Konunun ilk mesajıysa konu da silinir.
-// Mesajın bekleyen BÜTÜN şikâyetleri tek seferde "işlendi" olur; aynı mesaj için 5 kişi
-// şikâyet ettiyse moderatör 5 kez uğraşmasın.
-// Dönen değer: silinen mesajın bilgisi, bulunamadıysa null.
-async function mesajiSil(postId: number, moderatorId: number) {
-  const [satirlar]: any = await pool.query(
-    `SELECT posts.id, posts.user_id, posts.topic_id, posts.content,
-            posts.id = (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = posts.topic_id) AS ilk_mi
-       FROM posts WHERE posts.id = ? AND posts.deleted_at IS NULL`,
-    [postId]
-  );
-  const mesaj = satirlar[0];
-  if (!mesaj) return null;
-
-  // Üç yazma işlemi birlikte olmalı: yarım kalırsa (mesaj silinmiş ama şikâyet açık) tutarsızlık olur.
-  const baglanti = await pool.getConnection();
-  try {
-    await baglanti.beginTransaction();
-    await baglanti.query("UPDATE posts SET deleted_at = NOW() WHERE id = ?", [postId]);
-    if (mesaj.ilk_mi) await baglanti.query("UPDATE topics SET deleted_at = NOW() WHERE id = ?", [mesaj.topic_id]);
-    await baglanti.query(
-      "UPDATE reports SET durum = 'islendi', handled_by = ?, handled_at = NOW() WHERE post_id = ? AND durum = 'bekliyor'",
-      [moderatorId, postId]
-    );
-    await baglanti.commit();
-  } catch (hata) {
-    await baglanti.rollback();
-    throw hata;
-  } finally {
-    baglanti.release();
-  }
-
-  // Yapan null: bildirimde moderatörün adı görünmez, "Moderasyon" olarak gelir.
-  await bildirimGonder({
-    alan: mesaj.user_id, yapan: null, tur: "moderasyon",
-    metin: `Mesajın moderatörler tarafından kaldırıldı: “${kisalt(mesaj.content, 50)}”`,
-    link: mesaj.ilk_mi ? "/" : `/konu/${mesaj.topic_id}`,
-  });
-  return mesaj;
-}
-
-// ---------------------------------------------------------------------------
 // Kuyruktaki şikâyet işlemleri: adreste ŞİKÂYET id'si var
 // ---------------------------------------------------------------------------
+const KUYRUK = "/moderasyon";
+
 async function sikayetiBul(id: number | null) {
   if (!id) return null;
   const [satirlar]: any = await pool.query(
-    `SELECT reports.id, reports.post_id, reports.durum, posts.user_id AS yazar_id, posts.topic_id, posts.content
-       FROM reports JOIN posts ON posts.id = reports.post_id WHERE reports.id = ?`,
+    `SELECT id, hedef_tur, COALESCE(post_id, reported_user_id, chat_message_id, message_id) AS hedef_id FROM reports WHERE id = ?`,
     [id]
   );
   return satirlar[0] ?? null;
 }
 
-const KUYRUK = "/moderasyon";
-
-moderasyon.post("/moderasyon/:id/sil", async (req, res) => {
-  const k = res.locals.kullanici;
-  const s = await sikayetiBul(sayi(req.params.id));
-  if (!s) { bildir(req, "hata", "Şikâyet bulunamadı."); return res.redirect(geriAdres(req, KUYRUK)); }
-
-  const silinen = await mesajiSil(s.post_id, k.id);
-  if (!silinen) {
-    // Mesaj zaten silinmişse yalnızca şikâyeti kapat
-    await pool.query("UPDATE reports SET durum = 'islendi', handled_by = ?, handled_at = NOW() WHERE post_id = ? AND durum = 'bekliyor'", [k.id, s.post_id]);
-  }
-  bildir(req, "basari", silinen ? "Mesaj silindi, şikâyetler işlendi." : "Mesaj zaten silinmişti, şikâyet kapatıldı.");
-  res.redirect(geriAdres(req, KUYRUK));
-});
-
-moderasyon.post("/moderasyon/:id/uyar", async (req, res) => {
-  const k = res.locals.kullanici;
-  const s = await sikayetiBul(sayi(req.params.id));
-  if (!s) { bildir(req, "hata", "Şikâyet bulunamadı."); return res.redirect(geriAdres(req, KUYRUK)); }
-
-  await bildirimGonder({
-    alan: s.yazar_id, yapan: null, tur: "moderasyon",
-    metin: `Moderatörler mesajın için seni uyardı: “${kisalt(s.content, 50)}”. Lütfen topluluk kurallarına dikkat et.`,
-    link: `/konu/${s.topic_id}#mesaj-${s.post_id}`,
+// sil / uyar / uzaklastir aynı kalıp: şikâyeti bul, ortak işlemi çalıştır, sonucu toast olarak göster
+function kuyrukRotasi(yol: string, eylem: "sil" | "uyar" | "banla") {
+  moderasyon.post(`/moderasyon/:id/${yol}`, async (req, res) => {
+    const s = await sikayetiBul(sayi(req.params.id));
+    if (!s) { bildir(req, "hata", "Şikâyet bulunamadı."); return res.redirect(geriAdres(req, KUYRUK)); }
+    const sonuc = await sikayetIslemi(req, res, res.locals.kullanici, eylem, s.hedef_tur, s.hedef_id, {
+      sikayetId: s.id, sure: "kalici", sebep: "Moderasyon kuyruğundan uzaklaştırıldı",
+    });
+    bildir(req, sonuc.ok ? "basari" : "hata", sonuc.mesaj);
+    res.redirect(geriAdres(req, KUYRUK));
   });
-  // Aynı mesajın bekleyen bütün şikâyetleri birlikte işlenir
-  await pool.query("UPDATE reports SET durum = 'islendi', handled_by = ?, handled_at = NOW() WHERE post_id = ? AND durum = 'bekliyor'", [k.id, s.post_id]);
-  bildir(req, "basari", "Yazar uyarıldı, şikâyet işlendi.");
-  res.redirect(geriAdres(req, KUYRUK));
-});
+}
+kuyrukRotasi("sil", "sil");
+kuyrukRotasi("uyar", "uyar");
+kuyrukRotasi("uzaklastir", "banla");
 
 moderasyon.post("/moderasyon/:id/reddet", async (req, res) => {
   const k = res.locals.kullanici;
   const s = await sikayetiBul(sayi(req.params.id));
   if (!s) { bildir(req, "hata", "Şikâyet bulunamadı."); return res.redirect(geriAdres(req, KUYRUK)); }
 
-  // Reddet yalnızca bu şikâyeti kapatır; aynı mesaja gelen diğerleri ayrı değerlendirilir.
+  // Moderatör, yöneticiyi ilgilendiren şikâyeti kapatamaz
+  const o = await hedefOnizleme(s.hedef_tur, s.hedef_id);
+  if (k.rol !== "admin" && o?.yazarRol === "admin") {
+    bildir(req, "hata", "Yöneticiler hakkındaki şikâyetleri yalnızca yöneticiler işler.");
+    return res.redirect(geriAdres(req, KUYRUK));
+  }
+
+  // Reddet yalnızca bu şikâyeti kapatır; aynı hedefe gelen diğerleri ayrı değerlendirilir.
   await pool.query("UPDATE reports SET durum = 'reddedildi', handled_by = ?, handled_at = NOW() WHERE id = ? AND durum = 'bekliyor'", [k.id, s.id]);
+  await denetim(req, res, "sikayet.reddet", s.hedef_tur, s.hedef_id, { sikayet: s.id, adet: 1 });
   bildir(req, "basari", "Şikâyet reddedildi.");
   res.redirect(geriAdres(req, KUYRUK));
 });
@@ -176,13 +140,28 @@ async function hedefiBul(req: express.Request) {
   return { topicId, postId };
 }
 
+// Moderatör, yöneticinin konusuna/mesajına dokunamaz (yönetici yazarsa true döner = engelle).
+async function yoneticiyeAitMi(yapanRol: string, tur: "konu" | "mesaj", id: number | null): Promise<boolean> {
+  if (yapanRol === "admin" || !id) return false;
+  const [s]: any = await pool.query(
+    `SELECT roles.name AS rol FROM ${tur === "konu" ? "topics" : "posts"} t
+       JOIN users ON users.id = t.user_id JOIN roles ON roles.id = users.role_id WHERE t.id = ?`,
+    [id]
+  );
+  return s[0]?.rol === "admin";
+}
+
 // sabitle ve kilitle aynı işi yapar: sütun doluysa boşalt, boşsa şimdiki zamanı yaz (aç/kapa).
 // Sütun adı koddan gelir, kullanıcıdan değil; bu yüzden metin birleştirmek güvenli.
-function anahtarRotasi(yol: string, sutun: "pinned_at" | "locked_at", acik: string, kapali: string) {
+function anahtarRotasi(yol: string, sutun: "pinned_at" | "locked_at", acik: string, kapali: string, eylemAcik: string, eylemKapali: string) {
   moderasyon.post("/moderasyon/" + yol, async (req, res) => {
     const { topicId } = await hedefiBul(req);
     const geri = geriAdres(req, "/");
     if (!topicId) { bildir(req, "hata", "Konu bulunamadı."); return res.redirect(geri); }
+    if (await yoneticiyeAitMi(res.locals.kullanici.rol, "konu", topicId)) {
+      bildir(req, "hata", "Yöneticilerin konularına yalnızca yöneticiler dokunabilir.");
+      return res.redirect(geri);
+    }
 
     const [sonuc]: any = await pool.query(
       `UPDATE topics SET ${sutun} = IF(${sutun} IS NULL, NOW(), NULL) WHERE id = ? AND deleted_at IS NULL`,
@@ -191,53 +170,63 @@ function anahtarRotasi(yol: string, sutun: "pinned_at" | "locked_at", acik: stri
     if (!sonuc.affectedRows) { bildir(req, "hata", "Konu bulunamadı."); return res.redirect(geri); }
 
     const [[konu]]: any = await pool.query(`SELECT ${sutun} AS deger FROM topics WHERE id = ?`, [topicId]);
+    await denetim(req, res, konu.deger ? eylemAcik : eylemKapali, "konu", topicId, { kaynak: "moderasyon menüsü" });
     bildir(req, "basari", konu.deger ? acik : kapali);
     res.redirect(geri);
   });
 }
-anahtarRotasi("sabitle", "pinned_at", "Konu sabitlendi.", "Konunun sabiti kaldırıldı.");
-anahtarRotasi("kilitle", "locked_at", "Konu kilitlendi.", "Konunun kilidi açıldı.");
+anahtarRotasi("sabitle", "pinned_at", "Konu sabitlendi.", "Konunun sabiti kaldırıldı.", "konu.sabitle", "konu.sabit_kaldir");
+anahtarRotasi("kilitle", "locked_at", "Konu kilitlendi.", "Konunun kilidi açıldı.", "konu.kilitle", "konu.kilit_ac");
 
-moderasyon.post("/moderasyon/kategori-degistir", (req, res) => {
-  bildir(req, "hata", "Kategori değiştirme henüz yok.");
-  res.redirect(geriAdres(req, "/"));
+// Kategoriyi değiştir: menüdeki açılır listeden seçilen kategoriye taşır.
+// Kategori id'si gelen veridir; gerçekten var mı diye veritabanından kontrol ediyoruz.
+moderasyon.post("/moderasyon/kategori-degistir", async (req, res) => {
+  const { topicId } = await hedefiBul(req);
+  const kategoriId = sayi(req.body.category_id);
+  const geri = geriAdres(req, "/");
+  if (!topicId || !kategoriId) { bildir(req, "hata", "Konu ya da kategori seçilmedi."); return res.redirect(geri); }
+  if (await yoneticiyeAitMi(res.locals.kullanici.rol, "konu", topicId)) {
+    bildir(req, "hata", "Yöneticilerin konularına yalnızca yöneticiler dokunabilir.");
+    return res.redirect(geri);
+  }
+
+  const [kategoriler]: any = await pool.query("SELECT name FROM categories WHERE id = ?", [kategoriId]);
+  if (!kategoriler[0]) { bildir(req, "hata", "Kategori bulunamadı."); return res.redirect(geri); }
+
+  const [sonuc]: any = await pool.query("UPDATE topics SET category_id = ? WHERE id = ? AND deleted_at IS NULL", [kategoriId, topicId]);
+  if (!sonuc.affectedRows) { bildir(req, "hata", "Konu bulunamadı."); return res.redirect(geri); }
+  await denetim(req, res, "konu.tasi", "konu", topicId, { kategori: kategoriler[0].name, kaynak: "moderasyon menüsü" });
+  bildir(req, "basari", `Konu “${kategoriler[0].name}” kategorisine taşındı.`);
+  res.redirect(geri);
 });
 
 moderasyon.post("/moderasyon/sil", async (req, res) => {
   const k = res.locals.kullanici;
   const { postId } = await hedefiBul(req);
+  if (await yoneticiyeAitMi(k.rol, "mesaj", postId)) {
+    bildir(req, "hata", "Yöneticilerin mesajlarını yalnızca yöneticiler silebilir.");
+    return res.redirect(geriAdres(req, "/"));
+  }
   const silinen = postId ? await mesajiSil(postId, k.id) : null;
   if (!silinen) {
     bildir(req, "hata", "Mesaj bulunamadı ya da zaten silinmiş.");
     return res.redirect(geriAdres(req, "/"));
   }
+  await denetim(req, res, "icerik.sil", "konu_mesaji", postId, { konu: silinen.topic_id, konu_silindi: !!silinen.ilk_mi, kaynak: "moderasyon menüsü" });
   bildir(req, "basari", silinen.ilk_mi ? "Konu silindi." : "Mesaj silindi.");
   // Konu silindiyse konu sayfası artık 404 verir; akışa dön
   res.redirect(silinen.ilk_mi ? "/" : geriAdres(req, `/konu/${silinen.topic_id}`));
 });
 
+// Mesaj menüsünden: post_id'nin yazarı uzaklaştırılır (kalıcı). Süreli ban için yönetim panelindeki kullanıcı sayfası var.
 moderasyon.post("/moderasyon/uzaklastir", async (req, res) => {
-  const k = res.locals.kullanici;
   const { postId } = await hedefiBul(req);
   const geri = geriAdres(req, "/");
-  const [satirlar]: any = postId
-    ? await pool.query(
-        `SELECT users.id, users.username, roles.name AS rol
-           FROM posts JOIN users ON users.id = posts.user_id JOIN roles ON roles.id = users.role_id
-          WHERE posts.id = ?`, [postId])
-    : [[]];
-  const hedef = satirlar[0];
-
-  if (!hedef) { bildir(req, "hata", "Kullanıcı bulunamadı."); return res.redirect(geri); }
-  // Kendini ya da yetkili birini uzaklaştırmak yasak: moderatör, admini susturamasın.
-  if (hedef.id === k.id) { bildir(req, "hata", "Kendini uzaklaştıramazsın."); return res.redirect(geri); }
-  if (["admin", "moderator"].includes(hedef.rol)) {
-    bildir(req, "hata", "Yönetici ve moderatörler uzaklaştırılamaz.");
-    return res.redirect(geri);
-  }
-
-  // banned_at dolu olan kullanıcının oturumu bir sonraki istekte düşer (oturum.ts kontrol eder)
-  await pool.query("UPDATE users SET banned_at = COALESCE(banned_at, NOW()) WHERE id = ?", [hedef.id]);
-  bildir(req, "basari", `${hedef.username} uzaklaştırıldı.`);
+  const [satirlar]: any = postId ? await pool.query("SELECT user_id FROM posts WHERE id = ?", [postId]) : [[]];
+  if (!satirlar[0]) { bildir(req, "hata", "Mesaj bulunamadı."); return res.redirect(geri); }
+  const sebep = "Moderasyon menüsünden uzaklaştırıldı";
+  const sonuc = await banla(res.locals.kullanici, satirlar[0].user_id, "kalici", sebep);
+  if (!sonuc.hata) await denetim(req, res, "kullanici.ban", "kullanici", satirlar[0].user_id, { sure: sonuc.etiket, sebep, kaynak: "moderasyon menüsü", mesaj: postId });
+  bildir(req, sonuc.hata ? "hata" : "basari", sonuc.hata ?? `${sonuc.hedef!.username} uzaklaştırıldı.`);
   res.redirect(geri);
 });

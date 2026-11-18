@@ -1,0 +1,30 @@
+<%#
+  Mesaj düzenleme: /mesaj/:id/duzenle
+  Beklenen veriler:
+  m        { id, topic_id, ilk_mi (bool: konunun ilk mesajı mı; öyleyse başlık da düzenlenir) }
+  degerler { title, content }
+  hatalar  { title, content }   (isteğe bağlı)
+%>
+<%- include("partials/bas", { baslik: m.ilk_mi ? "Konuyu düzenle" : "Mesajı düzenle" }) %>
+<%- include("partials/ust-cubuk") %>
+<% const h = locals.hatalar || {}; const d = locals.degerler || {}; %>
+<div class="govde-iki">
+  <form class="kart form-karti-genis form" method="post" action="/mesaj/<%= m.id %>/duzenle"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+    <h1><%= m.ilk_mi ? "Konuyu düzenle" : "Mesajı düzenle" %></h1>
+    <% if (m.ilk_mi) { %>
+      <label class="alan <%= h.title ? 'hatali' : '' %>"><span>Başlık</span>
+        <input name="title" value="<%= d.title || '' %>" required minlength="5" maxlength="120">
+      </label>
+      <div class="yardim"><span><%= h.title || "Sorunu tek cümlede özetle" %></span><span>en fazla 120</span></div>
+    <% } %>
+    <label class="alan <%= h.content ? 'hatali' : '' %>"><span>İçerik</span>
+      <textarea name="content" required maxlength="10000"><%= d.content || '' %></textarea>
+    </label>
+    <div class="yardim"><span><%= h.content || "Kaydedince mesajın yanında “düzenlendi” yazar." %></span><span>en fazla 10.000</span></div>
+    <div class="satir" style="justify-content: flex-end">
+      <a class="buton buton-metin" href="/konu/<%= m.topic_id %>#mesaj-<%= m.id %>">Vazgeç</a>
+      <button class="buton buton-birincil">Kaydet</button>
+    </div>
+  </form>
+</div>
+<%- include("partials/son") %>

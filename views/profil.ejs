@@ -7,6 +7,8 @@
   rozetler [ { name } ]
   haftalik [ { gun: "Pzt", sayi: 2, bugun: false } ]   7 eleman, Pazartesi'den Pazar'a
   kendisi  bool   giriş yapan kişi kendi profiline mi bakıyor
+  sekme    "konular" | "yorumlar"   hangi sekme açık (?sekme=yorumlar)
+  yorumlar [ { id, content, created_at, konu_id, konu_baslik } ]   yalnızca sekme "yorumlar" iken (ilk mesajlar değil, cevaplar)
 %>
 <%- include("partials/bas", { baslik: profil.username }) %>
 <%- include("partials/ust-cubuk") %>
@@ -38,10 +40,10 @@
       <div class="satir">
         <% if (kendisi) { %>
           <a class="buton buton-tonal" href="/ayarlar">Profili düzenle</a>
-          <button class="buton buton-cerceveli">Paylaş</button>
+          <a class="buton buton-cerceveli" href="/profil/<%= profil.username %>" data-paylas data-baslik="<%= profil.username %> · QuadRan">Paylaş</a>
         <% } else { %>
           <a class="buton buton-birincil" href="/mesajlar/<%= profil.username %>">Mesaj gönder</a>
-          <a class="buton buton-cerceveli" href="/sikayet?kullanici=<%= profil.username %>">Şikâyet et</a>
+          <a class="buton buton-cerceveli" href="/sikayet?kullanici=<%= encodeURIComponent(profil.username) %>" data-sikayet-ac data-kullanici="<%= profil.username %>">Şikâyet et</a>
         <% } %>
       </div>
     </div>
@@ -51,12 +53,25 @@
 
   <section class="sutun">
     <div class="siralama">
-      <a class="aktif" href="/profil/<%= profil.username %>">Konular</a>
-      <a href="/profil/<%= profil.username %>?sekme=yorumlar">Yorumlar</a>
+      <a class="<%= sekme === 'yorumlar' ? '' : 'aktif' %>" href="/profil/<%= profil.username %>"<%- sekme === 'yorumlar' ? '' : ' aria-current="page"' %>>Konular</a>
+      <a class="<%= sekme === 'yorumlar' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>?sekme=yorumlar"<%- sekme === 'yorumlar' ? ' aria-current="page"' : '' %>>Yorumlar</a>
     </div>
-    <% if (konular.length === 0) { %><div class="kart bos">Henüz konu açmamış.</div><% } %>
-    <% for (const konu of konular) { %>
-      <%- include("partials/gonderi-karti", { konu }) %>
+    <% if (sekme === "yorumlar") { %>
+      <% if (yorumlar.length === 0) { %><div class="kart bos">Henüz yorum yazmamış.</div><% } %>
+      <% for (const y of yorumlar) { %>
+        <article class="kart profil-yorum">
+          <div class="gonderi-meta">
+            <a class="baglanti" href="/konu/<%= y.konu_id %>#mesaj-<%= y.id %>"><%= y.konu_baslik %></a>
+            <span class="zaman">· <%= zaman(y.created_at) %></span>
+          </div>
+          <p class="metin"><%= y.content %></p>
+        </article>
+      <% } %>
+    <% } else { %>
+      <% if (konular.length === 0) { %><div class="kart bos">Henüz konu açmamış.</div><% } %>
+      <% for (const konu of konular) { %>
+        <%- include("partials/gonderi-karti", { konu }) %>
+      <% } %>
     <% } %>
   </section>
 
@@ -94,4 +109,6 @@
     </div>
   </section>
 </div>
+<%# Kullanıcı şikâyeti penceresi: misafirde yok, "Şikâyet et" bağlantısı /sikayet üzerinden girişe götürür %>
+<% if (locals.kullanici && !kendisi) { %><%- include("partials/sikayet-penceresi", { hedef_kullanici: profil.username }) %><% } %>
 <%- include("partials/son") %>

@@ -26,9 +26,16 @@
         <div class="eylem-satiri">
           <div class="oy-yatay"><%- include("partials/oy", { hedef: ilk }) %></div>
           <a class="eylem" href="#yorumlar"><%- include("partials/ikon", { ad: "yorum", boyut: 18 }) %> <%= yorumlar.length %> yorum</a>
-          <button class="eylem"><%- include("partials/ikon", { ad: "paylas", boyut: 18 }) %> Paylaş</button>
+          <a class="eylem" href="/konu/<%= konu.id %>" data-paylas data-baslik="<%= konu.title %>"><%- include("partials/ikon", { ad: "paylas", boyut: 18 }) %> Paylaş</a>
           <span class="bosluk"></span>
+          <% if (locals.kullanici && kullanici.id === ilk.user_id) { %>
+            <a class="eylem" href="/mesaj/<%= ilk.id %>/duzenle"><%- include("partials/ikon", { ad: "kalem", boyut: 18 }) %> Düzenle</a>
+            <form method="post" action="/mesaj/<%= ilk.id %>/sil" onsubmit="return confirm('Konu ve bütün cevapları silinsin mi? Bu geri alınamaz.')"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+              <button class="eylem"><%- include("partials/ikon", { ad: "cop", boyut: 18 }) %> Sil</button>
+            </form>
+          <% } else { %>
           <a class="eylem" href="/sikayet?post_id=<%= ilk.id %>" data-sikayet-ac data-post-id="<%= ilk.id %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+          <% } %>
           <% if (["moderator", "admin"].includes(locals.kullanici?.rol)) { %>
             <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="moderasyon-menusu-<%= ilk.id %>" data-menu-ac aria-label="Moderasyon işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
             <%- include("partials/moderasyon-menusu", { post_id: ilk.id, topic_id: konu.id }) %>
@@ -42,7 +49,7 @@
         <%- include("partials/ikon", { ad: "kilit", boyut: 16 }) %> Bu konu kilitli, yeni cevap yazılamaz.
       </div>
     <% } else if (locals.kullanici) { %>
-      <form class="kart cevap-kutusu" id="cevap" method="post" action="/konu/<%= konu.id %>/cevap">
+      <form class="kart cevap-kutusu" id="cevap" method="post" action="/konu/<%= konu.id %>/cevap"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <div class="ust">
           <span class="avatar avatar-36"><%= kullanici.username[0] %></span>
           <textarea name="content" placeholder="Cevabını yaz" required maxlength="10000" aria-label="Cevabın"></textarea>
@@ -97,5 +104,6 @@
     <% } %>
   </aside>
 </div>
-<%- include("partials/sikayet-penceresi") %>
+<%# Misafir şikâyet edemez: pencere yoksa "Şikâyet et" bağlantısı /sikayet üzerinden girişe götürür (ayrıca misafir sayfasında oturum açılmaz) %>
+<% if (locals.kullanici) { %><%- include("partials/sikayet-penceresi") %><% } %>
 <%- include("partials/son") %>

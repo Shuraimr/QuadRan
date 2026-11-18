@@ -130,3 +130,15 @@ function refererYolu(req: Request): string | undefined {
     return undefined;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Aktif ban: banned_at dolu VE (banned_until boş = kalıcı, ya da henüz geçmemiş).
+// "banned_at IS NOT NULL" tek başına yetmez: süreli ban bittiğinde satır bir süre dolu kalabilir.
+// Zamanı JavaScript'te değil SQL'de (NOW()) karşılaştırıyoruz: tek saat kaynağı veritabanı olsun.
+// Parametre bir TABLO ADI (kullanıcıdan gelmez), bu yüzden metin birleştirmek güvenli.
+// ---------------------------------------------------------------------------
+export const banliSql = (tablo: string) =>
+  `(${tablo}.banned_at IS NOT NULL AND (${tablo}.banned_until IS NULL OR ${tablo}.banned_until > NOW()))`;
+
+// LIKE içinde % ve _ özel karakterdir; kullanıcı yazarsa harfi harfine aransın diye önlerine \ koyarız.
+export const likeKac = (s: string) => "%" + s.replace(/[\\%_]/g, "\\$&") + "%";

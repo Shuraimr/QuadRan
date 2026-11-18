@@ -190,3 +190,12 @@
 .cubuk-alani.katman-statik { position: static; display: block; padding: 0; }
 .cubuk-alani.katman-statik .cubuk-bildirim { width: 100%; }
 @media (prefers-reduced-motion: reduce) { .menu-hap, .cubuk-bildirim { transition: none; } }
+
+/* Moderasyon menüsünde "Kategoriyi değiştir": liste ve "Taşı" düğmesi yan yana */
+.kategori-degistir-formu { display: flex; align-items: center; gap: 8px; padding-right: 8px; }
+.kategori-degistir-formu .acilir-oge { flex: 1; min-width: 0; }
+.kategori-degistir-formu select {
+  flex: 1; min-width: 0; font: inherit; color: var(--yazi); background: var(--yuzey-3);
+  border: 1px solid var(--kenar); border-radius: 8px; padding: 6px 8px;
+}
+.kategori-degistir-dugme { padding: 6px 12px; min-height: 0; }

@@ -10,7 +10,7 @@
 <div class="orta-sayfa">
   <%- include("partials/kontur") %>
   <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
-  <form class="kart form-karti" method="post" action="/giris">
+  <form class="kart form-karti" method="post" action="/giris"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
     <h1>Giriş yap</h1>
     <% if (locals.not) { %><div class="bilgi-notu"><%- include("partials/ikon", { ad: "bilgi", boyut: 18 }) %><span><%= not %></span></div><% } %>
     <% if (locals.hata) { %><div class="bilgi-notu hata-notu" role="alert"><%- include("partials/ikon", { ad: "uyari", boyut: 18 }) %><span><%= hata %></span></div><% } %>

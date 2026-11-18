@@ -9,12 +9,19 @@
         <a class="kullanici" href="/profil/<%= mesaj.yazar %>"><%= mesaj.yazar %></a>
         <% if (mesaj.rutbe) { %><span class="rozet"><%= mesaj.rutbe %></span><% } %>
         <% if (mesaj.konu_sahibi) { %><span class="cip-cerceveli">Konu sahibi</span><% } %>
-        <span class="zaman">· <%= zaman(mesaj.created_at) %></span>
+        <span class="zaman">· <%= zaman(mesaj.created_at) %><%= mesaj.updated_at ? " · düzenlendi" : "" %></span>
       </div>
       <div class="metin"><%= mesaj.content %></div>
       <div class="satir">
         <a class="eylem" href="#cevap"><%- include("ikon", { ad: "cevap", boyut: 18 }) %> Cevapla</a>
+        <% if (locals.kullanici && kullanici.id === mesaj.user_id) { %>
+          <a class="eylem" href="/mesaj/<%= mesaj.id %>/duzenle"><%- include("ikon", { ad: "kalem", boyut: 18 }) %> Düzenle</a>
+          <form method="post" action="/mesaj/<%= mesaj.id %>/sil" onsubmit="return confirm('Mesajın silinsin mi? Bu geri alınamaz.')"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+            <button class="eylem"><%- include("ikon", { ad: "cop", boyut: 18 }) %> Sil</button>
+          </form>
+        <% } else { %>
         <a class="eylem" href="/sikayet?post_id=<%= mesaj.id %>" data-sikayet-ac data-post-id="<%= mesaj.id %>"><%- include("ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+        <% } %>
         <% if (["moderator", "admin"].includes(locals.kullanici?.rol)) { %>
           <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="moderasyon-menusu-<%= mesaj.id %>" data-menu-ac aria-label="Moderasyon işlemleri"><%- include("ikon", { ad: "daha", boyut: 20 }) %></button>
           <%- include("moderasyon-menusu", { post_id: mesaj.id, topic_id: locals.konu ? konu.id : "" }) %>

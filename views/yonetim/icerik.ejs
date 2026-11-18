@@ -1,0 +1,87 @@
+<%#
+  İçerik listesi: /yonetim/icerik?tur=konu|mesaj|sohbet
+  tur, satirlar, sf, kategoriler, qs { tur, q, yazar, durum, kategori }, yol
+  Toplu işlem formu: POST /yonetim/icerik/toplu  alanlar: tur, eylem, id (çoklu), kategori
+%>
+<%- include("duzen-ust", { baslik: "İçerik", aktif: "icerik" }) %>
+<%- include("icerik-sekmeler", { sekme: tur }) %>
+<form class="yn-filtre kart" method="get" action="/yonetim/icerik">
+  <input type="hidden" name="tur" value="<%= tur %>">
+  <input class="yn-girdi" type="search" name="q" value="<%= qs.q %>" placeholder="<%= tur === 'konu' ? 'Başlıkta ara' : 'Metinde ara' %>" aria-label="Ara">
+  <input class="yn-girdi" name="yazar" value="<%= qs.yazar %>" placeholder="Yazar" aria-label="Yazar">
+  <% if (tur !== "sohbet") { %>
+    <select class="yn-girdi" name="kategori" aria-label="Kategori"><option value="">Tüm kategoriler</option>
+      <% for (const c of kategoriler) { %><option value="<%= c.id %>"<%= String(qs.kategori) === String(c.id) ? " selected" : "" %>><%= c.name %></option><% } %></select>
+  <% } %>
+  <select class="yn-girdi" name="durum" aria-label="Durum"><% for (const [d, e] of [["aktif","Yayında"],["silinmis","Silinmiş"],["hepsi","Hepsi"]]) { %><option value="<%= d %>"<%= qs.durum === d ? " selected" : "" %>><%= e %></option><% } %></select>
+  <button class="buton buton-tonal">Süz</button>
+</form>
+
+<form method="post" action="/yonetim/icerik/toplu" id="toplu-form"><%- include("csrf") %><input type="hidden" name="tur" value="<%= tur %>">
+  <div class="yn-toplu kart">
+    <label class="onay"><input type="checkbox" data-hepsini-sec aria-label="Hepsini seç"> Hepsini seç</label>
+    <select class="yn-girdi" name="eylem" aria-label="Toplu işlem" required>
+      <option value="">Seçilenlere uygula…</option>
+      <option value="sil">Sil</option><option value="geri_al">Geri al (silinmişi geri getir)</option>
+      <% if (tur === "konu") { %>
+        <option value="sabitle">Sabitle</option><option value="sabit_kaldir">Sabiti kaldır</option>
+        <option value="kilitle">Kilitle</option><option value="kilit_ac">Kilidi aç</option>
+        <option value="tasi">Kategoriye taşı →</option>
+      <% } %>
+    </select>
+    <% if (tur === "konu") { %>
+      <select class="yn-girdi" name="kategori" aria-label="Taşınacak kategori"><option value="">Kategori…</option>
+        <% for (const c of kategoriler) { %><option value="<%= c.id %>"><%= c.name %></option><% } %></select>
+    <% } %>
+    <button class="buton buton-birincil" onclick="return confirm('Seçili öğelere işlem uygulansın mı?')">Uygula</button>
+  </div>
+
+  <div class="kart yn-tablo-kutu">
+    <table class="yn-tablo">
+      <thead><tr><th></th><th>#</th>
+        <% if (tur === "konu") { %><th>Başlık</th><th>Kategori</th><th>Yazar</th><th>Mesaj</th><th>Durum</th><th>Tarih</th>
+        <% } else if (tur === "mesaj") { %><th>Mesaj</th><th>Konu</th><th>Yazar</th><th>Durum</th><th>Tarih</th>
+        <% } else { %><th>Mesaj</th><th>Yazar</th><th>Durum</th><th>Tarih</th><% } %>
+      </tr></thead>
+      <tbody>
+      <% if (!satirlar.length) { %><tr><td colspan="9" class="bos">Bu süzgeçle kayıt yok.</td></tr><% } %>
+      <% for (const s of satirlar) { %>
+        <tr>
+          <td><input type="checkbox" name="id" value="<%= s.id %>" aria-label="<%= s.id %> numaralıyı seç"></td>
+          <td data-etiket="#"><%= s.id %></td>
+          <% if (tur === "konu") { %>
+            <td data-etiket="Başlık" class="yn-kisa"><a href="/konu/<%= s.id %>"><%= s.title %></a></td>
+            <td data-etiket="Kategori"><%= s.kategori %></td>
+            <td data-etiket="Yazar"><a href="/yonetim/kullanicilar/<%= s.yazar_id %>"><%= s.yazar %></a></td>
+            <td data-etiket="Mesaj"><%= s.mesaj_sayisi %></td>
+            <td data-etiket="Durum">
+              <% if (s.deleted_at) { %><span class="yn-etiket tehlike">Silinmiş</span><% } %>
+              <% if (s.pinned_at) { %><span class="yn-etiket">Sabit</span><% } %>
+              <% if (s.locked_at) { %><span class="yn-etiket">Kilitli</span><% } %>
+              <% if (!s.deleted_at && !s.pinned_at && !s.locked_at) { %><span class="ikincil">Yayında</span><% } %>
+            </td>
+          <% } else if (tur === "mesaj") { %>
+            <td data-etiket="Mesaj" class="yn-kisa"><a href="/konu/<%= s.topic_id %>#mesaj-<%= s.id %>"><%= s.content %></a></td>
+            <td data-etiket="Konu" class="yn-kisa"><%= s.konu_baslik %></td>
+            <td data-etiket="Yazar"><a href="/yonetim/kullanicilar/<%= s.yazar_id %>"><%= s.yazar %></a></td>
+            <td data-etiket="Durum"><% if (s.deleted_at) { %><span class="yn-etiket tehlike">Silinmiş</span><% } else { %><span class="ikincil">Yayında</span><% } %><% if (s.ilk_mi) { %> <span class="yn-etiket">Konu metni</span><% } %></td>
+          <% } else { %>
+            <td data-etiket="Mesaj" class="yn-kisa"><%= s.content %></td>
+            <td data-etiket="Yazar"><a href="/yonetim/kullanicilar/<%= s.yazar_id %>"><%= s.yazar %></a></td>
+            <td data-etiket="Durum"><% if (s.deleted_at) { %><span class="yn-etiket tehlike">Silinmiş</span><% } else { %><span class="ikincil">Yayında</span><% } %></td>
+          <% } %>
+          <td data-etiket="Tarih"><%= zaman(s.created_at) %></td>
+        </tr>
+      <% } %>
+      </tbody>
+    </table>
+  </div>
+</form>
+<%- include("sayfalama") %>
+<script>
+  /* "Hepsini seç" kutusu: görünen sayfadaki bütün onay kutularını işaretler (JS yoksa tek tek seçilir) */
+  document.querySelector("[data-hepsini-sec]").addEventListener("change", function (e) {
+    document.querySelectorAll('#toplu-form input[name="id"]').forEach(function (k) { k.checked = e.target.checked; });
+  });
+</script>
+<%- include("duzen-alt") %>

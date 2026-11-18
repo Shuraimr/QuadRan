@@ -37,7 +37,7 @@
       <a class="<%= bdFiltre === 'hepsi' ? 'aktif' : '' %>" href="/bildirimler" <% if (bdFiltre === "hepsi") { %>aria-current="page"<% } %>>Tümü</a>
       <a class="<%= bdFiltre === 'okunmamis' ? 'aktif' : '' %>" href="/bildirimler?filtre=okunmamis" <% if (bdFiltre === "okunmamis") { %>aria-current="page"<% } %>>Okunmamış<% if (bdOkunmamis > 0) { %> (<%= bdOkunmamis %>)<% } %></a>
     </nav>
-    <form method="post" action="/bildirimler/okundu">
+    <form method="post" action="/bildirimler/okundu"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <button class="buton buton-tonal" <% if (bdOkunmamis === 0) { %>disabled<% } %>>Tümünü okundu say</button>
     </form>
   </div>

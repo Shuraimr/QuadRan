@@ -18,7 +18,7 @@
     </div>
   </nav>
   <div class="bolumler">
-    <form class="kart bolum" id="profil" method="post" action="/ayarlar/profil">
+    <form class="kart bolum" id="profil" method="post" action="/ayarlar/profil"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <div><h2>Profil</h2><p class="ikincil kucuk">Herkese açık profilinde görünen bilgiler</p></div>
       <p class="ikincil kucuk">Fotoğraf ve banner yükleme daha sonra eklenecek.</p>
       <div class="ust-etiket">BANNER</div>
@@ -48,7 +48,7 @@
       <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
     </form>
 
-    <form class="kart bolum" id="gorunum" method="post" action="/ayarlar/gorunum">
+    <form class="kart bolum" id="gorunum" method="post" action="/ayarlar/gorunum"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <div><h2>Görünüm</h2><p class="ikincil kucuk">Hesabına kaydedilir, her cihazda aynı görünür</p></div>
       <div class="ust-etiket">TEMA</div>
       <div class="siralama" role="radiogroup" aria-label="Tema">
@@ -81,7 +81,7 @@
       <hr class="ayirici">
       <div class="ayar-satiri"><div><strong>Şifre</strong><span class="ikincil kucuk">Güçlü ve başka yerde kullanmadığın bir şifre seç</span></div><a class="buton buton-cerceveli" href="/hesap/sifre">Şifreyi değiştir</a></div>
       <hr class="ayirici">
-      <form class="ayar-satiri tehlike" method="post" action="/hesap/sil">
+      <form class="ayar-satiri tehlike" method="post" action="/hesap/sil"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <div><strong>Hesabı sil</strong><span class="ikincil kucuk">Hesabın kapatılır, gönderilerin “silinmiş kullanıcı” adıyla kalır.</span></div>
         <button class="buton buton-tehlikeli">Hesabı sil</button>
       </form>

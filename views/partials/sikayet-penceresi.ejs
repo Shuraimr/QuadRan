@@ -3,14 +3,22 @@
   Bağlantı biçimi: <a href="/sikayet?post_id=7" data-sikayet-ac data-post-id="7">  (JS yoksa bağlantı olarak çalışır)
   Beklenen veriler (hepsi isteğe bağlı):
   post_id  pencere ilk açıldığında gizli alana yazılacak mesaj id'si
+  hedef_kullanici  kullanıcı şikâyetinde şikâyet edilen kişinin adı (post_id yerine; "kullanici" adı giriş yapan kişiye ayrılı)
+  Kullanıcı şikâyeti bağlantısı: <a href="/sikayet?kullanici=ayse" data-sikayet-ac data-kullanici="ayse">
+  Genel sohbet mesajı: <a href="/sikayet?sohbet_id=3" data-sikayet-ac data-sohbet-id="3" data-baslik="Bu sohbet mesajını şikâyet et">
+  Özel mesaj (yalnızca alıcı): <a href="/sikayet?mesaj_id=5" data-sikayet-ac data-mesaj-id="5" data-baslik="Bu özel mesajı şikâyet et">
+  sohbet_id, mesaj_id  pencere ilk açıldığında ilgili gizli alana yazılacak id (JS yoksa /sikayet sayfası bunları doldurur)
   statik   true ise <dialog> yerine açık kutu (yalnızca önizleme sayfası için)
 %>
 <% const statik_ = !!locals.statik; const etiket_ = statik_ ? "div" : "dialog";
    const sebepler_ = ["Spam veya reklam", "Hakaret veya nefret söylemi", "Konu dışı", "Başka bir sebep"]; %>
 <<%= etiket_ %> class="sikayet-penceresi<%= statik_ ? ' katman-statik' : '' %>"<%- statik_ ? "" : ' id="sikayet-penceresi" aria-labelledby="sikayet-baslik"' %>>
-  <form class="sikayet-form" method="post" action="/sikayet">
+  <form class="sikayet-form" method="post" action="/sikayet"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
     <input type="hidden" name="post_id" value="<%= locals.post_id ?? '' %>">
-    <h2<%- statik_ ? "" : ' id="sikayet-baslik"' %>>Bu mesajı şikâyet et</h2>
+    <input type="hidden" name="kullanici" value="<%= locals.hedef_kullanici ?? '' %>">
+    <input type="hidden" name="sohbet_id" value="<%= locals.sohbet_id ?? '' %>">
+    <input type="hidden" name="mesaj_id" value="<%= locals.mesaj_id ?? '' %>">
+    <h2<%- statik_ ? "" : ' id="sikayet-baslik"' %>><%= locals.hedef_kullanici ? "Bu kullanıcıyı şikâyet et" : locals.sohbet_id ? "Bu sohbet mesajını şikâyet et" : locals.mesaj_id ? "Bu özel mesajı şikâyet et" : "Bu mesajı şikâyet et" %></h2>
     <fieldset class="sikayet-sebepler">
       <legend class="arama-gizli-baslik">Şikâyet sebebi</legend>
       <% sebepler_.forEach((s, i) => { %>

@@ -1,0 +1,12 @@
+<%#
+  Sayfalama. Beklenen: sf { sayfa, sayfaSayisi, toplam }, yol, qs (süzgeçler; her sayfa bağlantısına eklenir), yUrl
+%>
+<% if (sf.sayfaSayisi > 1) { %>
+  <nav class="yn-sayfalar" aria-label="Sayfalar">
+    <% if (sf.sayfa > 1) { %><a class="yn-sayfa" href="<%= yUrl(yol, qs, { sayfa: sf.sayfa - 1 }) %>" rel="prev">‹ Önceki</a><% } %>
+    <span class="yn-sayfa-bilgi"><%= sf.sayfa %> / <%= sf.sayfaSayisi %> · <%= sf.toplam %> kayıt</span>
+    <% if (sf.sayfa < sf.sayfaSayisi) { %><a class="yn-sayfa" href="<%= yUrl(yol, qs, { sayfa: sf.sayfa + 1 }) %>" rel="next">Sonraki ›</a><% } %>
+  </nav>
+<% } else { %>
+  <p class="yn-sayfa-bilgi"><%= sf.toplam %> kayıt</p>
+<% } %>

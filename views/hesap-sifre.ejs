@@ -1,0 +1,41 @@
+<%#
+  Şifre değiştir: /hesap/sifre   (giriş gerekli, ayarlar sayfasıyla aynı görünüm)
+  Beklenen veriler (isteğe bağlı):
+  hatalar  { mevcut, yeni, tekrar }   alan adı -> hata mesajı
+  Form: POST /hesap/sifre  alanlar: mevcut, yeni, tekrar
+%>
+<%- include("partials/bas", { baslik: "Şifreyi değiştir" }) %>
+<%- include("partials/ust-cubuk") %>
+<% const h = locals.hatalar || {}; %>
+<div class="ayarlar">
+  <nav aria-label="Ayarlar">
+    <h1>Ayarlar</h1>
+    <div class="kategoriler">
+      <a class="kategori-ogesi" href="/ayarlar#profil"><%- include("partials/ikon", { ad: "kisi" }) %> Profil</a>
+      <a class="kategori-ogesi" href="/ayarlar#gorunum"><%- include("partials/ikon", { ad: "palet" }) %> Görünüm</a>
+      <a class="kategori-ogesi aktif" href="/ayarlar#hesap"><%- include("partials/ikon", { ad: "kalkan" }) %> Hesap ve güvenlik</a>
+    </div>
+  </nav>
+  <div class="bolumler">
+    <form class="kart bolum" method="post" action="/hesap/sifre"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+      <div><h2>Şifreyi değiştir</h2><p class="ikincil kucuk">Güçlü ve başka yerde kullanmadığın bir şifre seç</p></div>
+      <label class="alan <%= h.mevcut ? 'hatali' : '' %>"><span>Mevcut şifre</span>
+        <input type="password" name="mevcut" autocomplete="current-password" required autofocus>
+      </label>
+      <div class="yardim"><span><%= h.mevcut || "Kimliğini doğrulamak için gerekli" %></span></div>
+      <label class="alan <%= h.yeni ? 'hatali' : '' %>"><span>Yeni şifre</span>
+        <input type="password" name="yeni" autocomplete="new-password" required minlength="8" maxlength="200">
+      </label>
+      <div class="yardim"><span><%= h.yeni || "En az 8 karakter" %></span></div>
+      <label class="alan <%= h.tekrar ? 'hatali' : '' %>"><span>Yeni şifre (tekrar)</span>
+        <input type="password" name="tekrar" autocomplete="new-password" required minlength="8" maxlength="200">
+      </label>
+      <div class="yardim"><span><%= h.tekrar || "Aynı şifreyi bir kez daha yaz" %></span></div>
+      <div class="satir" style="justify-content: flex-end; gap: 12px">
+        <a class="buton buton-metin" href="/ayarlar#hesap">Vazgeç</a>
+        <button class="buton buton-birincil">Şifreyi değiştir</button>
+      </div>
+    </form>
+  </div>
+</div>
+<%- include("partials/son") %>
