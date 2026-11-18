@@ -1,0 +1,72 @@
+<%#
+  Bildirimler: /bildirimler  (notifications: planlanan tablo)
+  Beklenen veriler:
+  filtre       "hepsi" | "okunmamis"   (GET /bildirimler?filtre=okunmamis)
+  okunmamis_sayisi  sayı               okunmamış bildirim sayısı (read_at IS NULL)
+  bildirimler  [ { id, tur, kisi, metin, link, created_at, read_at } ]  yeniden eskiye sıralı
+      tur   "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon"
+            (planlanan notifications tablosunda tur sütunu yok: eklenmeli ya da link'ten türetilmeli)
+      kisi  eylemi yapan kullanıcı adı ya da null. Varsa avatar harfi, yoksa türe göre simge gösterilir
+      metin düz metin (planlanan tablo: metin), link tıklanınca gidilecek adres (planlanan tablo: link)
+      read_at  null ise okunmamış
+  Gruplama şablonda yapılır: Bugün, Bu hafta (son 7 gün), Daha eski.
+  Form: POST /bildirimler/okundu  ("Tümünü okundu say")
+%>
+<%- include("partials/bas", { baslik: "Bildirimler" }) %>
+<%- include("partials/ust-cubuk") %>
+<%
+  const bdFiltre = locals.filtre === "okunmamis" ? "okunmamis" : "hepsi";
+  const bdTum = locals.bildirimler || [];
+  const bdOkunmamis = locals.okunmamis_sayisi || 0;
+  const bdGunBasi = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+  const bdFark = (d) => Math.round((bdGunBasi(new Date()) - bdGunBasi(d)) / 86400000);
+  const bdGruplar = [
+    { baslik: "Bugün", liste: bdTum.filter(b => bdFark(b.created_at) === 0) },
+    { baslik: "Bu hafta", liste: bdTum.filter(b => bdFark(b.created_at) >= 1 && bdFark(b.created_at) < 7) },
+    { baslik: "Daha eski", liste: bdTum.filter(b => bdFark(b.created_at) >= 7) }
+  ].filter(g => g.liste.length > 0);
+  const bdIkonlar = { cevap: "cevap", oy: "yukari", rozet: "kupa", mesaj: "mektup", moderasyon: "kalkan" };
+%>
+<main class="bildirimler-sayfa">
+  <div class="bildirimler-ust">
+    <h1>Bildirimler</h1>
+  </div>
+
+  <div class="bildirimler-arac">
+    <nav class="siralama" aria-label="Bildirim filtresi">
+      <a class="<%= bdFiltre === 'hepsi' ? 'aktif' : '' %>" href="/bildirimler" <% if (bdFiltre === "hepsi") { %>aria-current="page"<% } %>>Tümü</a>
+      <a class="<%= bdFiltre === 'okunmamis' ? 'aktif' : '' %>" href="/bildirimler?filtre=okunmamis" <% if (bdFiltre === "okunmamis") { %>aria-current="page"<% } %>>Okunmamış<% if (bdOkunmamis > 0) { %> (<%= bdOkunmamis %>)<% } %></a>
+    </nav>
+    <form method="post" action="/bildirimler/okundu">
+      <button class="buton buton-tonal" <% if (bdOkunmamis === 0) { %>disabled<% } %>>Tümünü okundu say</button>
+    </form>
+  </div>
+
+  <% if (bdGruplar.length === 0) { %>
+    <div class="kart bos">
+      <%- include("partials/ikon", { ad: "zil", boyut: 28 }) %>
+      <p><%= bdFiltre === "okunmamis" ? "Okunmamış bildirimin yok." : "Henüz bildirimin yok. Biri konularına cevap yazdığında ya da oy verdiğinde burada görünür." %></p>
+    </div>
+  <% } %>
+
+  <% for (const g of bdGruplar) { %>
+    <section class="bildirimler-grup" aria-labelledby="bg-<%= g.baslik.replace(/\s/g, '-') %>">
+      <h2 id="bg-<%= g.baslik.replace(/\s/g, '-') %>"><%= g.baslik %></h2>
+      <div class="kart bildirimler-liste">
+        <% for (const b of g.liste) { %>
+          <a class="bildirimler-satir <%= b.read_at ? '' : 'okunmamis' %>" href="<%= b.link %>">
+            <span class="bildirimler-ikon">
+              <% if (b.kisi) { %><%= b.kisi[0] %><% } else { %><%- include("partials/ikon", { ad: bdIkonlar[b.tur] || "bilgi", boyut: 20 }) %><% } %>
+            </span>
+            <span class="bildirimler-govde">
+              <span class="bildirimler-metin"><%= b.metin %></span>
+              <span class="kucuk ikincil"><%= zaman(b.created_at) %></span>
+            </span>
+            <% if (!b.read_at) { %><span class="bildirimler-nokta" role="img" aria-label="Okunmamış"></span><% } else { %><span class="bildirimler-nokta-yer"></span><% } %>
+          </a>
+        <% } %>
+      </div>
+    </section>
+  <% } %>
+</main>
+<%- include("partials/son") %>

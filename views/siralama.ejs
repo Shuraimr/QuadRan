@@ -1,0 +1,127 @@
+<%#
+  Sıralama (liderlik tablosu): /siralama?donem=hafta|ay|tum
+  Beklenen veriler:
+  donem     "hafta" | "ay" | "tum"   seçili dönem (yoksa tum)
+  liste     [ { sira, username, rutbe, puan, konu_sayisi } ]   puana göre çoktan aza, sira 1'den başlar
+            puan: seçili dönemde kazanılan puan (tum için users.points). rutbe her zaman toplam puandan
+            hesaplanır (ranks.min_points). konu_sayisi: dönemde açılan konu (topics, deleted_at IS NULL)
+  benim     null ya da { sira, username, rutbe, puan, konu_sayisi }   giriş yapan kullanıcının sırası
+            (liste dışında kalsa bile gönderilir). locals.kullanici yoksa gösterilmez
+  rutbeler  [ { name, min_points } ]   ranks tablosu, min_points'e göre küçükten büyüğe
+  Bu sayfada giriş yapan kullanıcı: locals.kullanici { username, rutbe, points }
+%>
+<%- include("partials/bas", { baslik: "Sıralama" }) %>
+<%- include("partials/ust-cubuk") %>
+<%
+  const srDonem = ["hafta", "ay", "tum"].includes(locals.donem) ? locals.donem : "tum";
+  const srListe = locals.liste || [];
+  const srRutbeler = locals.rutbeler || [];
+  const srBenim = locals.kullanici ? (locals.benim || null) : null;
+  const srDonemler = [{ ad: "hafta", etiket: "Bu hafta" }, { ad: "ay", etiket: "Bu ay" }, { ad: "tum", etiket: "Tüm zamanlar" }];
+  const srPodyum = srListe.slice(0, 3);
+  // Podyum görsel sırası: 2., 1., 3.
+  const srPodyumSirali = [srPodyum[1], srPodyum[0], srPodyum[2]].filter(Boolean);
+  const srTablo = srListe.slice(3);
+  const srBenimTabloda = srBenim && srTablo.some(s => s.username === srBenim.username);
+  const srSimdikiRutbe = locals.kullanici ? locals.kullanici.rutbe : null;
+  const srPuanEtiketi = srDonem === "tum" ? "Puan" : "Dönem puanı";
+%>
+<main class="siralama-sayfa">
+  <div class="siralama-ana">
+    <div class="siralama-ust">
+      <h1>Sıralama</h1>
+      <nav class="siralama" aria-label="Dönem">
+        <% for (const d of srDonemler) { %>
+          <a class="<%= srDonem === d.ad ? 'aktif' : '' %>" href="/siralama?donem=<%= d.ad %>" <% if (srDonem === d.ad) { %>aria-current="page"<% } %>><%= d.etiket %></a>
+        <% } %>
+      </nav>
+    </div>
+
+    <% if (srListe.length === 0) { %>
+      <div class="kart bos">Bu dönemde henüz puan kazanan yok. İlk konuyu açan ya da ilk cevabı yazan sen ol.</div>
+    <% } else { %>
+      <section class="siralama-podyum" aria-label="İlk üç">
+        <% for (const s of srPodyumSirali) { %>
+          <a class="kart siralama-kart <%= s.sira === 1 ? 'birinci' : '' %>" href="/profil/<%= s.username %>">
+            <span class="siralama-madalya" aria-label="<%= s.sira %>. sıra"><%= s.sira %></span>
+            <span class="avatar"><%= s.username[0] %></span>
+            <strong><%= s.username %></strong>
+            <% if (s.rutbe) { %><span class="rozet"><%= s.rutbe %></span><% } %>
+            <span class="siralama-puan"><%= s.puan %></span>
+            <span class="kucuk ikincil"><%= s.konu_sayisi %> konu</span>
+          </a>
+        <% } %>
+      </section>
+
+      <div class="kart siralama-tablo-kutu">
+        <table class="siralama-tablo">
+          <caption>Sıralama tablosu</caption>
+          <thead>
+            <tr>
+              <th scope="col">Sıra</th>
+              <th scope="col">Kullanıcı</th>
+              <th scope="col" class="gizle-mobil">Rütbe</th>
+              <th scope="col" class="sayi"><%= srPuanEtiketi %></th>
+              <th scope="col" class="sayi gizle-mobil">Konu</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (srBenim && !srBenimTabloda) { %>
+              <tr class="ben">
+                <td class="sira-no"><%= srBenim.sira %></td>
+                <td><a class="siralama-kisi" href="/profil/<%= srBenim.username %>"><span class="avatar"><%= srBenim.username[0] %></span><span>Senin sıran</span></a></td>
+                <td class="gizle-mobil"><% if (srBenim.rutbe) { %><span class="rozet"><%= srBenim.rutbe %></span><% } %></td>
+                <td class="sayi puan"><%= srBenim.puan %></td>
+                <td class="sayi gizle-mobil"><%= srBenim.konu_sayisi %></td>
+              </tr>
+              <% if (srBenim.sira > 4) { %><tr class="siralama-ben-ayrac" aria-hidden="true"><td colspan="5">···</td></tr><% } %>
+            <% } %>
+            <% for (const s of srTablo) { %>
+              <% const ben = srBenim && s.username === srBenim.username; %>
+              <tr class="<%= ben ? 'ben' : '' %>">
+                <td class="sira-no"><%= s.sira %></td>
+                <td><a class="siralama-kisi" href="/profil/<%= s.username %>"><span class="avatar"><%= s.username[0] %></span><span><%= s.username %><%= ben ? " (sen)" : "" %></span></a></td>
+                <td class="gizle-mobil"><% if (s.rutbe) { %><span class="rozet"><%= s.rutbe %></span><% } %></td>
+                <td class="sayi puan"><%= s.puan %></td>
+                <td class="sayi gizle-mobil"><%= s.konu_sayisi %></td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+        <% if (srTablo.length === 0) { %><p class="bos">İlk üçün dışında sıralamaya giren yok.</p><% } %>
+      </div>
+    <% } %>
+  </div>
+
+  <aside class="siralama-yan">
+    <% if (srBenim) { %>
+      <section class="kart panel panel-20" aria-label="Senin sıran">
+        <h3>Senin sıran</h3>
+        <div class="satir">
+          <span class="siralama-puan">#<%= srBenim.sira %></span>
+          <span class="ikincil kucuk"><%= srBenim.puan %> puan · <%= srBenim.konu_sayisi %> konu</span>
+        </div>
+      </section>
+    <% } else if (!locals.kullanici) { %>
+      <section class="kart panel panel-20">
+        <h3>Sıralamaya katıl</h3>
+        <p class="ikincil kucuk">Konu aç, cevap yaz, oy al. Puanların burada görünsün.</p>
+        <a class="buton buton-birincil" href="/giris?don=/siralama">Giriş yap</a>
+      </section>
+    <% } %>
+    <section class="kart panel panel-20" aria-label="Rütbeler">
+      <h3>Rütbeler</h3>
+      <p class="ikincil kucuk">Rütben toplam puanına göre belirlenir.</p>
+      <div>
+        <% for (const r of srRutbeler) { %>
+          <div class="siralama-rutbe <%= r.name === srSimdikiRutbe ? 'simdiki' : '' %>">
+            <span class="rozet"><%= r.name %></span>
+            <% if (r.name === srSimdikiRutbe) { %><span class="kucuk ikincil">Senin rütben</span><% } %>
+            <span class="esik"><%= r.min_points %> puan</span>
+          </div>
+        <% } %>
+      </div>
+    </section>
+  </aside>
+</main>
+<%- include("partials/son") %>

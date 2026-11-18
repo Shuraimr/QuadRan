@@ -2,15 +2,15 @@
   <%- include("partials/ust-cubuk") %>
 
   <div class="govde">
-    <nav class="sutun" aria-label="Kategoriler">
+    <nav class="sutun" id="kategoriler" aria-label="Kategoriler">
       <div class="bolum-etiketi">KATEGORİLER</div>
       <div class="kategoriler">
-        <a class="kategori-ogesi aktif" href="/">
+        <a class="kategori-ogesi <%= !locals.kategoriId ? 'aktif' : '' %>" href="/?sirala=<%= locals.sirala || 'yeni' %>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           Tümü
         </a>
         <% for (const kategori of kategoriler) { %>
-          <a class="kategori-ogesi" href="/?kategori=<%= kategori.id %>">
+          <a class="kategori-ogesi <%= locals.kategoriId === kategori.id ? 'aktif' : '' %>" href="/?kategori=<%= kategori.id %>&sirala=<%= locals.sirala || 'yeni' %>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>
             <%= kategori.name %>
           </a>
@@ -19,17 +19,25 @@
     </nav>
 
     <main class="sutun">
+      <%
+        // Sıralama sekmeleri seçili kategoriyi korur: /?sirala=eniyi&kategori=2
+        const sekmeler = [["yeni", "Yeni"], ["populer", "Popüler"], ["eniyi", "En iyi"]];
+        const suAnki = locals.sirala || "yeni";
+      %>
       <div class="siralama">
-        <a class="aktif" href="/">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-          Yeni
-        </a>
-        <a href="/">Popüler</a>
-        <a href="/">En iyi</a>
+        <% for (const [ad, etiket] of sekmeler) { %>
+          <a class="<%= suAnki === ad ? 'aktif' : '' %>" href="/?sirala=<%= ad %><%= locals.kategoriId ? '&kategori=' + kategoriId : '' %>">
+            <% if (suAnki === ad) { %><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><% } %>
+            <%= etiket %>
+          </a>
+        <% } %>
       </div>
 
       <% if (konular.length === 0) { %>
-        <div class="kart bos">Henüz konu yok. İlk konuyu sen aç.</div>
+        <div class="kart bos">
+          <%= locals.kategoriId ? "Bu kategoride henüz konu yok." : "Henüz konu yok." %>
+          <a class="baglanti" href="/konu/yeni<%= locals.kategoriId ? '?kategori=' + kategoriId : '' %>">İlk konuyu sen aç.</a>
+        </div>
       <% } %>
       <% for (const konu of konular) { %>
         <%- include("partials/gonderi-karti", { konu }) %>
@@ -37,6 +45,7 @@
     </main>
 
     <aside class="sutun sag-panel">
+      <% if (!locals.kullanici) { %>
       <section class="kart panel katil">
         <span class="logo-isaret">Q</span>
         <h3>QuadRan'a katıl</h3>
@@ -44,6 +53,7 @@
         <a class="buton buton-birincil buton-genis" href="/kayit">Kayıt ol</a>
         <a class="buton buton-cerceveli buton-genis" href="/giris">Giriş yap</a>
       </section>
+      <% } %>
 
       <section class="kart panel">
         <h3>Genel sohbet</h3>
@@ -56,10 +66,14 @@
             </div>
           </div>
         <% } %>
+        <% if (locals.kullanici) { %>
+          <a class="kilitli" href="/sohbet">Sohbete katıl</a>
+        <% } else { %>
         <a class="kilitli" href="/giris">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
           Yazmak için giriş yap
         </a>
+        <% } %>
       </section>
 
       <section class="kart panel">

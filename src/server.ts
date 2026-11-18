@@ -1,6 +1,12 @@
 import express from "express";
-import { pool } from "./db.ts";
+import { oturum, ortakVeriler } from "./oturum.ts";
+import { hesap } from "./rotalar/hesap.ts";
+import { forum } from "./rotalar/forum.ts";
+import { iletisim } from "./rotalar/iletisim.ts";
+import { moderasyon } from "./rotalar/moderasyon.ts";
 import { onizleme } from "./onizleme.ts";
+import { katmanlar } from "./onizleme-katmanlar.ts";
+import { sayfalar } from "./onizleme-sayfalar.ts";
 
 const app = express();
 const PORT = 3000;
@@ -11,8 +17,22 @@ app.set("views", "views");
 // public/ klasöründeki dosyalar (CSS gibi) doğrudan sunulur: /css/quadran.css
 app.use(express.static("public"));
 
+// Form gövdelerini (application/x-www-form-urlencoded) req.body'ye çevirir
+app.use(express.urlencoded({ extended: false }));
+// Oturum + her sayfada gereken ortak veriler (giriş yapan kullanıcı, bildirim sayıları...)
+app.use(oturum);
+app.use(ortakVeriler);
+
+// Gerçek sayfalar
+app.use(hesap);
+app.use(forum);
+app.use(iletisim);
+app.use(moderasyon);
+
 // Tasarım önizlemesi (örnek veriyle): /onizleme/konu, /onizleme/profil ...
 app.use("/onizleme", onizleme);
+app.use("/onizleme", katmanlar); // /onizleme/katmanlar
+app.use("/onizleme", sayfalar);  // /onizleme/mesajlar, /bildirimler, /ara, /siralama, /sohbet, /moderasyon, /sifremi-unuttum
 
 // Bütün şablonlarda kullanılabilen yardımcı: "2 saat önce" gibi yazar
 app.locals.zaman = (tarih: Date) => {
@@ -27,56 +47,15 @@ app.locals.zaman = (tarih: Date) => {
   return new Date(tarih).toLocaleDateString("tr-TR");
 };
 
-app.get("/", async (req, res) => {
-  // Konular: kategori adı, yazar, yazarın rütbesi, ilk mesajın özeti, yorum sayısı
-  const [konular] = await pool.query(`
-    SELECT topics.id, topics.title, topics.created_at,
-           categories.name AS kategori,
-           users.username AS yazar,
-           (SELECT ranks.name FROM ranks
-             WHERE ranks.min_points <= users.points
-             ORDER BY ranks.min_points DESC LIMIT 1) AS rutbe,
-           (SELECT posts.content FROM posts
-             WHERE posts.topic_id = topics.id AND posts.deleted_at IS NULL
-             ORDER BY posts.id LIMIT 1) AS ozet,
-           (SELECT GREATEST(COUNT(*) - 1, 0) FROM posts
-             WHERE posts.topic_id = topics.id AND posts.deleted_at IS NULL) AS yorum_sayisi
-    FROM topics
-    JOIN categories ON categories.id = topics.category_id
-    JOIN users ON users.id = topics.user_id
-    WHERE topics.deleted_at IS NULL
-    ORDER BY topics.created_at DESC
-  `);
-
-  const [kategoriler] = await pool.query(
-    "SELECT id, name FROM categories ORDER BY id"
-  );
-
-  const [sohbet] = await pool.query(`
-    SELECT chat_messages.content, users.username AS yazar
-    FROM chat_messages
-    JOIN users ON users.id = chat_messages.user_id
-    ORDER BY chat_messages.created_at DESC
-    LIMIT 3
-  `);
-
-  const [liderler] = await pool.query(`
-    SELECT users.username, users.points,
-           (SELECT ranks.name FROM ranks
-             WHERE ranks.min_points <= users.points
-             ORDER BY ranks.min_points DESC LIMIT 1) AS rutbe
-    FROM users
-    WHERE users.deleted_at IS NULL
-    ORDER BY users.points DESC
-    LIMIT 3
-  `);
-
-  res.render("konular", { konular, kategoriler, sohbet, liderler });
-});
-
 // Hiçbir adres eşleşmezse 404 sayfası
 app.use((req, res) => {
   res.status(404).render("404");
+});
+
+// Beklenmeyen hata: sunucu çökmez, kullanıcıya kısa bir mesaj gider, ayrıntı konsola yazılır
+app.use((hata: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error(hata);
+  res.status(500).send("Bir şeyler ters gitti. Konsoldaki hataya bak.");
 });
 
 app.listen(PORT, () => {

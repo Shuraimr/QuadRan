@@ -1,2 +1,9 @@
+<%# Sayfanın sonu. "sade" sayfalarda (giriş, kayıt, 404) menüler ve katmanlar gösterilmez. %>
+<% if (!locals.sade) { %>
+  <%- include("kenar-menu") %>
+  <%- include("alt-menu") %>
+  <%- include("arama-penceresi") %>
+<% } %>
+<%- include("bildirim-cubuklari") %>
 </body>
 </html>

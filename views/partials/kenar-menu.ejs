@@ -1,0 +1,35 @@
+<%#
+  Tablet kenar menüsü (801-1180px arası görünür, CSS'te).
+  Beklenen veriler (hepsi isteğe bağlı):
+  aktifMenu   "akis" | "kategoriler" | "sohbet" | "siralama" | "ayarlar" (yoksa "akis")
+  kullanici   giriş yapmışsa { username }; yoksa "Konu aç" ve "Ayarlar" gösterilmez
+  statik      true ise sayfanın içinde sabit olmadan gösterilir (yalnızca önizleme sayfası için)
+%>
+<% const aktifMenu_ = locals.aktifMenu || "akis"; const uye_ = !!locals.kullanici;
+   const ogeler_ = [
+     { id: "akis", ad: "Akış", href: "/", ikon: "ev" },
+     { id: "kategoriler", ad: "Kategoriler", href: "/kategoriler", ikon: "izgara" },
+     { id: "sohbet", ad: "Sohbet", href: "/sohbet", ikon: "sohbet" },
+     { id: "siralama", ad: "Sıralama", href: "/siralama", ikon: "kupa" }
+   ]; %>
+<nav class="kenar-menu<%= locals.statik ? ' katman-statik' : '' %>" aria-label="Ana gezinti">
+  <% if (uye_) { %>
+    <a class="kenar-menu-fab" href="/konu/yeni" aria-label="Konu aç"><%- include("ikon", { ad: "kalem", boyut: 24 }) %></a>
+  <% } %>
+  <div class="kenar-menu-liste">
+    <% for (const o of ogeler_) { %>
+      <a class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" href="<%= o.href %>"<%- aktifMenu_ === o.id ? ' aria-current="page"' : '' %>>
+        <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %></span>
+        <span class="menu-etiket"><%= o.ad %></span>
+      </a>
+    <% } %>
+  </div>
+  <% if (uye_) { %>
+    <div class="kenar-menu-alt">
+      <a class="menu-ogesi<%= aktifMenu_ === 'ayarlar' ? ' aktif' : '' %>" href="/ayarlar"<%- aktifMenu_ === "ayarlar" ? ' aria-current="page"' : '' %>>
+        <span class="menu-hap"><%- include("ikon", { ad: "ayar", boyut: 24 }) %></span>
+        <span class="menu-etiket">Ayarlar</span>
+      </a>
+    </div>
+  <% } %>
+</nav>

@@ -1,0 +1,61 @@
+<%#
+  Arama penceresi (Ctrl+K). Yerel <dialog>; JS yoksa üst çubuktaki düğme /ara bağlantısı olarak çalışır.
+  Beklenen veriler (hepsi isteğe bağlı):
+  aramaOrnek  { sorgu, konular: [{ id, baslik, kategori, oy }], kullanicilar: [{ username, rutbe }], kategoriler: [{ id, ad, konu_sayisi }] }
+              Verilmezse "Aramak için yaz ve Enter’a bas" ipucu gösterilir. (Canlı sonuçlar henüz yok.)
+  statik      true ise <dialog> yerine açık bir kutu çizilir (yalnızca önizleme sayfası için)
+%>
+<% const ornek_ = locals.aramaOrnek; const statik_ = !!locals.statik; const etiket_ = statik_ ? "div" : "dialog"; %>
+<<%= etiket_ %> class="arama-penceresi<%= statik_ ? ' katman-statik' : '' %>"<%- statik_ ? "" : ' id="arama-penceresi" aria-labelledby="arama-baslik"' %>>
+  <h2 class="arama-gizli-baslik"<%- statik_ ? "" : ' id="arama-baslik"' %>>QuadRan'da ara</h2>
+  <form class="arama-form" method="get" action="/ara" role="search">
+    <%- include("ikon", { ad: "ara", boyut: 20 }) %>
+    <input class="arama-girdi" type="search" name="q" autocomplete="off" placeholder="Konu, kullanıcı veya kategori ara" aria-label="Arama" value="<%= ornek_ ? ornek_.sorgu : '' %>">
+    <kbd class="kisayol">Esc</kbd>
+  </form>
+  <div class="arama-sonuclar">
+    <% if (ornek_) { %>
+      <% let ilk_ = true; %>
+      <% if (ornek_.konular && ornek_.konular.length) { %>
+        <section class="arama-grup" aria-label="Konular">
+          <h3 class="arama-grup-baslik">KONULAR</h3>
+          <% for (const k of ornek_.konular) { %>
+            <a class="arama-sonuc<%= ilk_ && statik_ ? ' secili' : '' %>" href="/konu/<%= k.id %>">
+              <%- include("ikon", { ad: "kod", boyut: 18 }) %>
+              <span class="arama-sonuc-ad"><%= k.baslik %></span>
+              <span class="arama-sonuc-not"><%= k.kategori %> · <%= k.oy %> oy</span>
+            </a>
+            <% ilk_ = false; %>
+          <% } %>
+        </section>
+      <% } %>
+      <% if (ornek_.kullanicilar && ornek_.kullanicilar.length) { %>
+        <section class="arama-grup" aria-label="Kullanıcılar">
+          <h3 class="arama-grup-baslik">KULLANICILAR</h3>
+          <% for (const u of ornek_.kullanicilar) { %>
+            <a class="arama-sonuc" href="/profil/<%= u.username %>">
+              <span class="avatar"><%= u.username[0] %></span>
+              <span class="arama-sonuc-ad"><%= u.username %></span>
+              <span class="arama-sonuc-not"><%= u.rutbe %></span>
+            </a>
+          <% } %>
+        </section>
+      <% } %>
+      <% if (ornek_.kategoriler && ornek_.kategoriler.length) { %>
+        <section class="arama-grup" aria-label="Kategoriler">
+          <h3 class="arama-grup-baslik">KATEGORİLER</h3>
+          <% for (const c of ornek_.kategoriler) { %>
+            <a class="arama-sonuc" href="/?kategori=<%= c.id %>">
+              <%- include("ikon", { ad: "etiket", boyut: 18 }) %>
+              <span class="arama-sonuc-ad"><%= c.ad %></span>
+              <span class="arama-sonuc-not"><%= c.konu_sayisi %> konu</span>
+            </a>
+          <% } %>
+        </section>
+      <% } %>
+    <% } else { %>
+      <p class="arama-ipucu">Aramak için yaz ve Enter’a bas</p>
+    <% } %>
+  </div>
+  <div class="arama-alt">↑ ↓ gezin · Enter aç · Esc kapat</div>
+</<%= etiket_ %>>

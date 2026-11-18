@@ -1,0 +1,124 @@
+<%#
+  Arama: /ara?q=...&sekme=konular|kullanicilar|kategoriler
+  Beklenen veriler:
+  q            string   aranan metin (boş olabilir)
+  sekme        "konular" | "kullanicilar" | "kategoriler"   (yoksa konular)
+  sayilar      { konular, kullanicilar, kategoriler }       her sekmenin toplam sonuç sayısı
+  konular      [ gönderi kartı verisi ]   partials/gonderi-karti ile aynı alanlar:
+               { id, title, kategori, yazar, rutbe, created_at, ozet, yorum_sayisi, skor }
+               (topics + ilk post + categories + users; deleted_at IS NULL)
+  kullanicilar [ { username, rutbe, points, konu_sayisi, bio } ]   (users; deleted_at IS NULL)
+  kategoriler  [ { id, name, konu_sayisi } ]                       (categories)
+  Yalnızca seçili sekmenin listesi dolu gelmesi yeterlidir.
+  Vurgulama: konu başlığındaki eşleşmeler <mark> ile sarılır. Önce metin parçalara ayrılıp her parça
+  HTML'den kaçırılır, sonra eşleşen parçalar sarılır (kaçırılmış metnin içinde arama yapılmaz).
+%>
+<%- include("partials/bas", { baslik: locals.q ? "Ara: " + q : "Ara" }) %>
+<%- include("partials/ust-cubuk") %>
+<%
+  const arQ = String(locals.q || "").trim();
+  const arSekme = ["konular", "kullanicilar", "kategoriler"].includes(locals.sekme) ? locals.sekme : "konular";
+  const arSayilar = Object.assign({ konular: 0, kullanicilar: 0, kategoriler: 0 }, locals.sayilar || {});
+  const arToplam = arSayilar.konular + arSayilar.kullanicilar + arSayilar.kategoriler;
+  const arKonular = locals.konular || [];
+  const arKullanicilar = locals.kullanicilar || [];
+  const arKategoriler = locals.kategoriler || [];
+
+  // EJS'in kaçırmalı çıktısıyla (eşittir işaretli etiket) aynı kaçırma tablosu
+  const arKac = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&#34;", "'": "&#39;" }[c]));
+  // Güvenli vurgulama: ham metni sorguya göre böl, her parçayı kaçır, yalnızca eşleşenleri <mark> ile sar
+  const arVurgula = (metin) => {
+    const ham = String(metin);
+    if (!arQ) return arKac(ham);
+    const re = new RegExp("(" + arQ.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+    return ham.split(re).map((parca, i) => i % 2 === 1 ? "<mark>" + arKac(parca) + "</mark>" : arKac(parca)).join("");
+  };
+  const arSekmeLink = (s) => "/ara?q=" + encodeURIComponent(arQ) + "&sekme=" + s;
+  const arSekmeler = [
+    { ad: "konular", etiket: "Konular" },
+    { ad: "kullanicilar", etiket: "Kullanıcılar" },
+    { ad: "kategoriler", etiket: "Kategoriler" }
+  ];
+  const arOneriler = ["Yazım hatası olup olmadığına bak", "Daha kısa ya da daha genel bir kelime dene", "Kullanıcı adı arıyorsan Kullanıcılar sekmesine geç"];
+  const arOnerilenAramalar = ["linux", "docker", "ekran kartı", "ödev"];
+%>
+<main class="ara-sayfa">
+  <form class="ara-form" method="get" action="/ara" role="search">
+    <label class="alan"><span>Ara</span>
+      <input type="search" name="q" value="<%= arQ %>" placeholder="Konu, kullanıcı ya da kategori ara" autocomplete="off">
+    </label>
+    <button class="buton buton-birincil">Ara</button>
+  </form>
+
+  <% if (!arQ) { %>
+    <div class="kart ara-bos">
+      <%- include("partials/ikon", { ad: "ara", boyut: 32 }) %>
+      <h2>Ne aramak istiyorsun?</h2>
+      <p class="ikincil">Konu başlıklarında, kullanıcı adlarında ve kategorilerde arama yapabilirsin.</p>
+      <div class="ara-etiketler">
+        <% for (const o of arOnerilenAramalar) { %><a href="/ara?q=<%= encodeURIComponent(o) %>"><%= o %></a><% } %>
+      </div>
+    </div>
+  <% } else if (arToplam === 0) { %>
+    <div class="kart ara-bos">
+      <%- include("partials/ikon", { ad: "ara", boyut: 32 }) %>
+      <h2>“<%= arQ %>” için sonuç bulunamadı</h2>
+      <ul class="ara-oneriler">
+        <% for (const o of arOneriler) { %><li><%= o %></li><% } %>
+      </ul>
+      <a class="buton buton-tonal" href="/konu/yeni">Bu konuyu sen aç</a>
+    </div>
+  <% } else { %>
+    <p class="ara-ozet"><strong>“<%= arQ %>”</strong> için <strong><%= arToplam %></strong> sonuç bulundu.</p>
+
+    <nav class="ara-sekmeler" aria-label="Sonuç türü">
+      <div class="siralama">
+        <% for (const s of arSekmeler) { %>
+          <a class="<%= arSekme === s.ad ? 'aktif' : '' %>" href="<%= arSekmeLink(s.ad) %>" <% if (arSekme === s.ad) { %>aria-current="page"<% } %>><%= s.etiket %> <span class="ara-sayi"><%= arSayilar[s.ad] %></span></a>
+        <% } %>
+      </div>
+    </nav>
+
+    <% if (arSayilar[arSekme] === 0) { %>
+      <div class="kart bos">“<%= arQ %>” için bu sekmede sonuç yok. Diğer sekmelere bakabilirsin.</div>
+    <% } else if (arSekme === "konular") { %>
+      <div class="ara-liste">
+        <% for (const k of arKonular) { %>
+          <%
+            // Kartı partial ile üret, başlıktaki kaçırılmış metni vurgulu sürümle değiştir
+            const arKart = include("partials/gonderi-karti", { konu: k });
+            const arAranan = ">" + arKac(k.title) + "</a>";
+            const arHtml = arKart.includes(arAranan) ? arKart.replace(arAranan, () => ">" + arVurgula(k.title) + "</a>") : arKart;
+          %>
+          <%- arHtml %>
+        <% } %>
+      </div>
+    <% } else if (arSekme === "kullanicilar") { %>
+      <div class="ara-liste">
+        <% for (const u of arKullanicilar) { %>
+          <a class="kart ara-satir" href="/profil/<%= u.username %>">
+            <span class="avatar avatar-48"><%= u.username[0] %></span>
+            <span class="ara-satir-govde">
+              <span class="satir"><strong><%- arVurgula(u.username) %></strong><% if (u.rutbe) { %><span class="rozet"><%= u.rutbe %></span><% } %></span>
+              <span class="kucuk ikincil"><%= u.konu_sayisi %> konu<% if (u.bio) { %> · <%= u.bio %><% } %></span>
+            </span>
+            <span class="puan"><%= u.points %> puan</span>
+          </a>
+        <% } %>
+      </div>
+    <% } else { %>
+      <div class="ara-liste">
+        <% for (const c of arKategoriler) { %>
+          <a class="kart ara-satir" href="/?kategori=<%= c.id %>">
+            <span class="bildirimler-ikon"><%- include("partials/ikon", { ad: "klasor", boyut: 20 }) %></span>
+            <span class="ara-satir-govde">
+              <strong><%- arVurgula(c.name) %></strong>
+              <span class="kucuk ikincil"><%= c.konu_sayisi %> konu</span>
+            </span>
+          </a>
+        <% } %>
+      </div>
+    <% } %>
+  <% } %>
+</main>
+<%- include("partials/son") %>

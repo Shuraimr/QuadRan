@@ -1,0 +1,35 @@
+<%#
+  Bildirimler paneli (zilden açılır, popover).
+  Beklenen veriler:
+  bildirimler  [ { avatar_harf, metin, zaman (Date), okunmadi (bool), link } ]  (boşsa boş durum gösterilir)
+  statik       true ise popover yerine açık kutu (yalnızca önizleme sayfası için)
+%>
+<% const liste_ = locals.bildirimler || []; const statik_ = !!locals.statik; %>
+<div class="acilir-menu bildirim-paneli<%= statik_ ? ' katman-statik' : ' acilir-menu-ustte' %>"<%- statik_ ? "" : ' id="bildirim-paneli" popover aria-label="Bildirimler"' %>>
+  <div class="bildirim-panel-baslik">
+    <h2>Bildirimler</h2>
+    <form method="post" action="/bildirimler/okundu">
+      <button class="buton buton-metin bildirim-okundu" type="submit">Tümünü okundu say</button>
+    </form>
+  </div>
+  <% if (liste_.length === 0) { %>
+    <div class="bildirim-bos">
+      <%- include("ikon", { ad: "kutu", boyut: 28 }) %>
+      <p>Yeni bildirimin yok</p>
+    </div>
+  <% } else { %>
+    <div class="bildirim-liste">
+      <% for (const n of liste_) { %>
+        <a class="bildirim-satiri<%= n.okunmadi ? ' okunmadi' : '' %>" href="<%= n.link %>">
+          <span class="avatar avatar-36"><%= n.avatar_harf %></span>
+          <span class="bildirim-govde">
+            <span class="bildirim-metin"><%= n.metin %></span>
+            <span class="bildirim-zaman"><%= zaman(n.zaman) %></span>
+          </span>
+          <% if (n.okunmadi) { %><span class="bildirim-nokta" role="img" aria-label="Okunmadı"></span><% } %>
+        </a>
+      <% } %>
+    </div>
+  <% } %>
+  <a class="bildirim-panel-alt" href="/bildirimler">Tümünü gör</a>
+</div>

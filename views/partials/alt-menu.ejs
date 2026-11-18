@@ -1,0 +1,32 @@
+<%#
+  Mobil alt menü (en çok 800px genişlikte görünür, CSS'te).
+  Beklenen veriler (hepsi isteğe bağlı):
+  aktifMenu          "akis" | "kategoriler" | "ara" | "giris" | "konu-ac" | "bildirimler" | "profil" (yoksa "akis")
+  kullanici          giriş yapmışsa { username }
+  okunmamisBildirim  0'dan büyükse Bildirimler üzerinde küçük nokta çıkar
+  statik             true ise sabit olmadan gösterilir (yalnızca önizleme sayfası için)
+%>
+<% const aktifMenu_ = locals.aktifMenu || "akis";
+   const ogeler_ = locals.kullanici ? [
+     { id: "akis", ad: "Akış", href: "/", ikon: "ev" },
+     { id: "ara", ad: "Ara", href: "/ara", ikon: "ara", arama: true },
+     { id: "konu-ac", ad: "Konu aç", href: "/konu/yeni", ikon: "kalem" },
+     { id: "bildirimler", ad: "Bildirimler", href: "/bildirimler", ikon: "zil", nokta: (locals.okunmamisBildirim || 0) > 0 },
+     { id: "profil", ad: "Profil", href: "/profil/" + locals.kullanici.username, ikon: "kisi" }
+   ] : [
+     { id: "akis", ad: "Akış", href: "/", ikon: "ev" },
+     { id: "kategoriler", ad: "Kategoriler", href: "/kategoriler", ikon: "izgara" },
+     { id: "ara", ad: "Ara", href: "/ara", ikon: "ara", arama: true },
+     { id: "giris", ad: "Giriş", href: "/giris", ikon: "giris" }
+   ]; %>
+<nav class="alt-menu<%= locals.statik ? ' katman-statik' : '' %>" aria-label="Alt gezinti">
+  <% for (const o of ogeler_) { %>
+    <a class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" href="<%= o.href %>"<%- o.arama ? ' data-arama-ac' : '' %><%- aktifMenu_ === o.id ? ' aria-current="page"' : '' %>>
+      <span class="menu-hap">
+        <%- include("ikon", { ad: o.ikon, boyut: 24 }) %>
+        <% if (o.nokta) { %><span class="menu-nokta" role="img" aria-label="Okunmamış bildirim var"></span><% } %>
+      </span>
+      <span class="menu-etiket"><%= o.ad %></span>
+    </a>
+  <% } %>
+</nav>

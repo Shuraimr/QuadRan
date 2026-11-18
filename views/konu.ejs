@@ -28,12 +28,20 @@
           <a class="eylem" href="#yorumlar"><%- include("partials/ikon", { ad: "yorum", boyut: 18 }) %> <%= yorumlar.length %> yorum</a>
           <button class="eylem"><%- include("partials/ikon", { ad: "paylas", boyut: 18 }) %> Paylaş</button>
           <span class="bosluk"></span>
-          <a class="eylem" href="/sikayet?post_id=<%= ilk.id %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+          <a class="eylem" href="/sikayet?post_id=<%= ilk.id %>" data-sikayet-ac data-post-id="<%= ilk.id %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+          <% if (["moderator", "admin"].includes(locals.kullanici?.rol)) { %>
+            <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="moderasyon-menusu-<%= ilk.id %>" data-menu-ac aria-label="Moderasyon işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
+            <%- include("partials/moderasyon-menusu", { post_id: ilk.id, topic_id: konu.id }) %>
+          <% } %>
         </div>
       <% } %>
     </article>
 
-    <% if (locals.kullanici) { %>
+    <% if (konu.kilitli) { %>
+      <div class="kart cevap-kutusu kilitli" id="cevap">
+        <%- include("partials/ikon", { ad: "kilit", boyut: 16 }) %> Bu konu kilitli, yeni cevap yazılamaz.
+      </div>
+    <% } else if (locals.kullanici) { %>
       <form class="kart cevap-kutusu" id="cevap" method="post" action="/konu/<%= konu.id %>/cevap">
         <div class="ust">
           <span class="avatar avatar-36"><%= kullanici.username[0] %></span>
@@ -53,8 +61,8 @@
     <div class="yorum-basligi" id="yorumlar">
       <h2><%= yorumlar.length %> yorum</h2>
       <div class="siralama">
-        <a class="aktif" href="?sirala=eniyi">En iyi</a>
-        <a href="?sirala=yeni">Yeni</a>
+        <a class="<%= locals.sirala !== 'yeni' ? 'aktif' : '' %>" href="?sirala=eniyi">En iyi</a>
+        <a class="<%= locals.sirala === 'yeni' ? 'aktif' : '' %>" href="?sirala=yeni">Yeni</a>
       </div>
     </div>
     <% if (yorumlar.length === 0) { %>
@@ -75,7 +83,7 @@
         </div>
       </div>
       <div class="satir">
-        <a class="buton buton-tonal bosluk" href="/mesaj/<%= konu.yazar %>">Mesaj gönder</a>
+        <a class="buton buton-tonal bosluk" href="/mesajlar/<%= konu.yazar %>">Mesaj gönder</a>
         <a class="buton buton-cerceveli" href="/profil/<%= konu.yazar %>">Profil</a>
       </div>
     </section>
@@ -89,4 +97,5 @@
     <% } %>
   </aside>
 </div>
+<%- include("partials/sikayet-penceresi") %>
 <%- include("partials/son") %>

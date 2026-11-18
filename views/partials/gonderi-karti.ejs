@@ -1,16 +1,21 @@
 <article class="kart gonderi">
   <div class="oy">
-    <button class="ikon-dugme" aria-label="Yukarı oy ver">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
-    </button>
-    <span class="skor"><%= konu.skor ?? 0 %></span>
-    <button class="ikon-dugme" aria-label="Aşağı oy ver">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
-    </button>
+    <% if (konu.ilk_post_id) { %>
+      <%- include("oy", { hedef: { id: konu.ilk_post_id, skor: konu.skor, benim_oyum: konu.benim_oyum } }) %>
+    <% } else { %>
+      <button class="ikon-dugme" aria-label="Yukarı oy ver">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>
+      </button>
+      <span class="skor"><%= konu.skor ?? 0 %></span>
+      <button class="ikon-dugme" aria-label="Aşağı oy ver">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+      </button>
+    <% } %>
   </div>
   <div class="gonderi-icerik">
     <div class="gonderi-meta">
       <span class="etiket"><%= konu.kategori %></span>
+      <% if (konu.pinned_at) { %><span class="etiket">Sabit</span><% } %>
       <span class="avatar"><%= konu.yazar[0] %></span>
       <span class="kullanici"><%= konu.yazar %></span>
       <% if (konu.rutbe) { %><span class="rozet"><%= konu.rutbe %></span><% } %>

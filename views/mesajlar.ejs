@@ -1,0 +1,138 @@
+<%#
+  Özel mesajlar: /mesajlar ve /mesajlar/:kullanici
+  Beklenen veriler:
+  q           string (isteğe bağlı)  konuşma listesinde aranan kullanıcı adı (GET /mesajlar?q=)
+  konusmalar  [ { kullanici, rutbe, son_mesaj, son_zaman (Date), okunmamis (sayı), son_benden (bool, isteğe bağlı) } ]
+              messages tablosundan karşıdaki kişiye göre gruplanır; son_zaman'a göre yeniden eskiye
+  acik        null ya da { kullanici, rutbe, mesajlar: [ { id, benim (bool: sender_id giriş yapan kişi), content, created_at, read_at } ] }
+              mesajlar eskiden yeniye sıralı. null ise "Bir konuşma seç" boş durumu görünür
+  Gönderim: POST /mesajlar/<kullanici>  alan: content
+%>
+<%- include("partials/bas", { baslik: "Mesajlar" }) %>
+<%- include("partials/ust-cubuk") %>
+<%
+  const mjAcik = locals.acik || null;
+  const mjListe = locals.konusmalar || [];
+  const mjQ = locals.q || "";
+  const mjGunBasi = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+  const mjFark = (d) => Math.round((mjGunBasi(new Date()) - mjGunBasi(d)) / 86400000);
+  const mjSaat = (d) => new Date(d).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const mjGunEtiketi = (d) => {
+    const f = mjFark(d);
+    if (f === 0) return "Bugün";
+    if (f === 1) return "Dün";
+    return new Date(d).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: f > 300 ? "numeric" : undefined });
+  };
+  const mjListeZaman = (d) => {
+    const f = mjFark(d);
+    if (f === 0) return mjSaat(d);
+    if (f === 1) return "Dün";
+    return new Date(d).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+  };
+
+  // Mesajları günlere ve art arda gelen gruplara ayır (aynı kişi, aynı gün, aralarında 10 dakikadan az)
+  const mjOgeler = [];
+  let mjSonBenim = null;
+  if (mjAcik) {
+    let sonGun = null, sonGrup = null, sonZaman = 0;
+    for (const m of mjAcik.mesajlar) {
+      const gun = mjGunBasi(m.created_at);
+      const t = new Date(m.created_at).getTime();
+      if (gun !== sonGun) { mjOgeler.push({ tur: "gun", etiket: mjGunEtiketi(m.created_at) }); sonGun = gun; sonGrup = null; }
+      if (!sonGrup || sonGrup.benim !== !!m.benim || t - sonZaman > 10 * 60 * 1000) {
+        sonGrup = { tur: "grup", benim: !!m.benim, mesajlar: [], goruldu: null };
+        mjOgeler.push(sonGrup);
+      }
+      sonGrup.mesajlar.push(m);
+      sonZaman = t;
+      if (m.benim) mjSonBenim = { grup: sonGrup, mesaj: m };
+    }
+    // "Görüldü" notu yalnızca benim son mesajımın altında görünür
+    if (mjSonBenim && mjSonBenim.mesaj.read_at) mjSonBenim.grup.goruldu = mjSonBenim.mesaj.read_at;
+  }
+%>
+<main class="mesaj-sayfa <%= mjAcik ? 'mesaj-acik' : '' %>">
+  <section class="kart mesaj-liste" aria-label="Konuşmalar">
+    <div class="mesaj-liste-ust">
+      <h1>Mesajlar</h1>
+      <form class="mesaj-ara" method="get" action="/mesajlar" role="search">
+        <%- include("partials/ikon", { ad: "ara", boyut: 18 }) %>
+        <input type="search" name="q" value="<%= mjQ %>" placeholder="Konuşmalarda ara" aria-label="Konuşmalarda ara">
+      </form>
+    </div>
+    <% if (mjListe.length === 0) { %>
+      <div class="bos">
+        <% if (mjQ) { %>
+          “<%= mjQ %>” ile eşleşen konuşma yok.
+        <% } else { %>
+          Henüz mesajın yok. Bir kullanıcının profilinden “Mesaj gönder” diyerek konuşma başlatabilirsin.
+        <% } %>
+      </div>
+    <% } else { %>
+      <nav class="mesaj-satirlar">
+        <% for (const k of mjListe) { %>
+          <% const aktif = mjAcik && mjAcik.kullanici === k.kullanici; %>
+          <a class="mesaj-satir <%= aktif ? 'aktif' : '' %> <%= k.okunmamis > 0 ? 'okunmamis' : '' %>" href="/mesajlar/<%= k.kullanici %>" <% if (aktif) { %>aria-current="page"<% } %>>
+            <span class="avatar avatar-48"><%= k.kullanici[0] %></span>
+            <span class="mesaj-satir-govde">
+              <span class="mesaj-satir-ust">
+                <strong><%= k.kullanici %></strong>
+                <span class="kucuk ikincil"><%= mjListeZaman(k.son_zaman) %></span>
+              </span>
+              <span class="mesaj-satir-alt">
+                <span class="mesaj-onizleme ikincil"><%= k.son_benden ? "Sen: " : "" %><%= k.son_mesaj %></span>
+                <% if (k.okunmamis > 0) { %><span class="mesaj-rozet" role="img" aria-label="<%= k.okunmamis %> okunmamış mesaj"><%= k.okunmamis %></span><% } %>
+              </span>
+            </span>
+          </a>
+        <% } %>
+      </nav>
+    <% } %>
+  </section>
+
+  <section class="kart mesaj-pano" aria-label="Konuşma">
+    <% if (!mjAcik) { %>
+      <div class="mesaj-bos">
+        <span class="mesaj-bos-ikon"><%- include("partials/ikon", { ad: "mektup", boyut: 28 }) %></span>
+        <h2>Bir konuşma seç</h2>
+        <p>Soldaki listeden bir konuşma aç ya da bir profilden yeni mesaj başlat.</p>
+      </div>
+    <% } else { %>
+      <header class="mesaj-ust">
+        <a class="ikon-dugme mesaj-geri" href="/mesajlar" aria-label="Konuşma listesine dön"><%- include("partials/ikon", { ad: "cevap", boyut: 20 }) %></a>
+        <span class="avatar avatar-48"><%= mjAcik.kullanici[0] %></span>
+        <div class="mesaj-ust-bilgi">
+          <a href="/profil/<%= mjAcik.kullanici %>"><%= mjAcik.kullanici %></a>
+          <% if (mjAcik.rutbe) { %><span><span class="rozet"><%= mjAcik.rutbe %></span></span><% } %>
+        </div>
+        <a class="buton buton-cerceveli mesaj-profil-baglanti" href="/profil/<%= mjAcik.kullanici %>">Profili gör</a>
+      </header>
+      <div class="mesaj-akis" tabindex="0" aria-label="Mesaj geçmişi">
+        <div class="mesaj-akis-ic">
+          <% if (mjOgeler.length === 0) { %>
+            <div class="bos">Henüz mesaj yok. İlk mesajı sen yaz.</div>
+          <% } %>
+          <% for (const o of mjOgeler) { %>
+            <% if (o.tur === "gun") { %>
+              <div class="mesaj-gun"><%= o.etiket %></div>
+            <% } else { %>
+              <% const son = o.mesajlar[o.mesajlar.length - 1]; %>
+              <div class="mesaj-grup <%= o.benim ? 'ben' : '' %>">
+                <% for (const m of o.mesajlar) { %><div class="mesaj-balon" id="m-<%= m.id %>"><%= m.content %></div><% } %>
+                <div class="mesaj-alt-not">
+                  <span><%= mjSaat(son.created_at) %></span>
+                  <% if (o.goruldu) { %><span>· Görüldü <%= mjSaat(o.goruldu) %></span><% } %>
+                </div>
+              </div>
+            <% } %>
+          <% } %>
+        </div>
+      </div>
+      <form class="mesaj-yaz" method="post" action="/mesajlar/<%= mjAcik.kullanici %>">
+        <textarea name="content" rows="1" maxlength="2000" required placeholder="<%= mjAcik.kullanici %> kişisine mesaj yaz" aria-label="Mesajın"></textarea>
+        <button class="buton buton-birincil">Gönder</button>
+      </form>
+    <% } %>
+  </section>
+</main>
+<%- include("partials/son") %>

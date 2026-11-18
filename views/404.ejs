@@ -1,4 +1,4 @@
-<%- include("partials/bas", { baslik: "Sayfa bulunamadı" }) %>
+<%- include("partials/bas", { sade: true, baslik: "Sayfa bulunamadı" }) %>
 <div class="orta-sayfa">
   <%- include("partials/kontur") %>
   <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
@@ -9,4 +9,4 @@
     <a class="buton buton-tonal" href="/" style="margin-top: 12px">Akışa dön</a>
   </div>
 </div>
-<%- include("partials/son") %>
+<%- include("partials/son", { sade: true }) %>

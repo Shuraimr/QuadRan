@@ -3,7 +3,7 @@
   hatalar  { username, email, password, kurallar }   alan adı -> hata mesajı
   degerler { username, email }
 %>
-<%- include("partials/bas", { baslik: "Kayıt ol" }) %>
+<%- include("partials/bas", { sade: true, baslik: "Kayıt ol" }) %>
 <% const h = locals.hatalar || {}; const d = locals.degerler || {}; %>
 <div class="orta-sayfa">
   <%- include("partials/kontur") %>
@@ -28,4 +28,4 @@
     <p class="orta-yazi">Zaten hesabın var mı? <a href="/giris">Giriş yap</a></p>
   </form>
 </div>
-<%- include("partials/son") %>
+<%- include("partials/son", { sade: true }) %>

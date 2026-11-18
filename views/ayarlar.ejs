@@ -3,7 +3,7 @@
   ayar  { username, bio, email, avatar_url, tema ("koyu"|"acik"|"sistem"), vurgu ("safir"|"zumrut"|"kehribar"|"ametist"|"yakut"),
           menu_sagda (bool), kompakt (bool), az_animasyon (bool) }
   hatalar { username, bio }   (isteğe bağlı)
-  Formlar: POST /ayarlar/profil (multipart: banner, avatar, username, bio) · POST /ayarlar/gorunum · POST /hesap/sil
+  Formlar: POST /ayarlar/profil (username, bio) · POST /ayarlar/gorunum · POST /hesap/sil
 %>
 <%- include("partials/bas", { baslik: "Ayarlar" }) %>
 <%- include("partials/ust-cubuk") %>
@@ -18,11 +18,12 @@
     </div>
   </nav>
   <div class="bolumler">
-    <form class="kart bolum" id="profil" method="post" action="/ayarlar/profil" enctype="multipart/form-data">
+    <form class="kart bolum" id="profil" method="post" action="/ayarlar/profil">
       <div><h2>Profil</h2><p class="ikincil kucuk">Herkese açık profilinde görünen bilgiler</p></div>
+      <p class="ikincil kucuk">Fotoğraf ve banner yükleme daha sonra eklenecek.</p>
       <div class="ust-etiket">BANNER</div>
       <label class="yukleme">
-        <input type="file" name="banner" accept="image/png, image/jpeg" aria-label="Banner yükle">
+        <input type="file" name="banner" disabled accept="image/png, image/jpeg" aria-label="Banner yükle">
         <span class="daire"><%- include("partials/ikon", { ad: "yukle", boyut: 22 }) %></span>
         <strong>Banner yüklemek için sürükle ya da tıkla</strong>
         <span class="ikincil kucuk">1500 × 500 önerilir · PNG veya JPG · en fazla 2 MB</span>
@@ -32,9 +33,9 @@
       <div class="satir" style="gap: 16px">
         <span class="avatar avatar-72"><%= ayar.username[0] %></span>
         <label class="buton buton-tonal" style="position: relative; overflow: hidden">Fotoğrafı değiştir
-          <input type="file" name="avatar" accept="image/png, image/jpeg" style="position: absolute; inset: 0; opacity: 0; cursor: pointer">
+          <input type="file" name="avatar" disabled accept="image/png, image/jpeg" style="position: absolute; inset: 0; opacity: 0; cursor: pointer">
         </label>
-        <button class="buton buton-metin" name="avatar_kaldir" value="1">Kaldır</button>
+        <button class="buton buton-metin" name="avatar_kaldir" value="1" type="button" disabled>Kaldır</button>
       </div>
       <label class="alan <%= h.username ? 'hatali' : '' %>" style="margin-top: 8px"><span>Kullanıcı adı</span>
         <input name="username" value="<%= ayar.username %>" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+">

@@ -13,7 +13,7 @@ const kartlar = [
 ];
 
 onizleme.use((req, res, next) => {
-  res.locals.kullanici = req.query.uye ? { username: "shurai" } : null;
+  res.locals.kullanici = req.query.uye ? { username: "shurai", rutbe: "Usta", points: 640, rol: "admin" } : null;
   res.locals.tema = req.query.tema || "koyu";
   res.locals.vurgu = req.query.vurgu || "safir";
   next();
@@ -55,7 +55,7 @@ onizleme.get("/profil", (req, res) => res.render("profil", {
 }));
 
 onizleme.get("/ayarlar", (req, res) => {
-  res.locals.kullanici = { username: "shurai" };
+  res.locals.kullanici = { username: "shurai", rutbe: "Usta", points: 640, rol: "admin" };
   res.render("ayarlar", { ayar: { username: "shurai", bio: "Bilgisayar programcılığı öğrencisi.", email: "shurai@ornek.com", avatar_url: null, tema: res.locals.tema, vurgu: res.locals.vurgu, menu_sagda: false, kompakt: false, az_animasyon: true } });
 });
 

@@ -14,7 +14,11 @@
       <div class="metin"><%= mesaj.content %></div>
       <div class="satir">
         <a class="eylem" href="#cevap"><%- include("ikon", { ad: "cevap", boyut: 18 }) %> Cevapla</a>
-        <a class="eylem" href="/sikayet?post_id=<%= mesaj.id %>"><%- include("ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+        <a class="eylem" href="/sikayet?post_id=<%= mesaj.id %>" data-sikayet-ac data-post-id="<%= mesaj.id %>"><%- include("ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+        <% if (["moderator", "admin"].includes(locals.kullanici?.rol)) { %>
+          <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="moderasyon-menusu-<%= mesaj.id %>" data-menu-ac aria-label="Moderasyon işlemleri"><%- include("ikon", { ad: "daha", boyut: 20 }) %></button>
+          <%- include("moderasyon-menusu", { post_id: mesaj.id, topic_id: locals.konu ? konu.id : "" }) %>
+        <% } %>
       </div>
     </div>
   </article>

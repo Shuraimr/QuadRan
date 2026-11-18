@@ -1,0 +1,30 @@
+<%#
+  Moderasyon menüsü (konu veya mesaj üzerindeki "daha fazla" düğmesinden açılır, popover).
+  Düğme: <button popovertarget="moderasyon-menusu-<post_id>" data-menu-ac> ... </button>
+  Beklenen veriler (include ile verilir):
+  post_id   hedef mesajın id'si
+  topic_id  hedef konunun id'si
+  statik    true ise popover yerine açık kutu (yalnızca önizleme sayfası için)
+  Her eylem POST /moderasyon/<eylem> olarak gider: sabitle, kilitle, kategori-degistir, sil, uzaklastir.
+%>
+<% const statik_ = !!locals.statik; const eylemler_ = [
+  { eylem: "sabitle", ad: "Konuyu sabitle", ikon: "sabitle" },
+  { eylem: "kilitle", ad: "Konuyu kilitle", ikon: "kilit" },
+  { eylem: "kategori-degistir", ad: "Kategoriyi değiştir", ikon: "klasor" },
+  null,
+  { eylem: "sil", ad: "Mesajı sil", ikon: "cop", tehlike: true },
+  { eylem: "uzaklastir", ad: "Kullanıcıyı uzaklaştır", ikon: "yasak", tehlike: true }
+]; %>
+<div class="acilir-menu moderasyon-menusu<%= statik_ ? ' katman-statik' : ' acilir-menu-konumlu' %>"<%- statik_ ? "" : ' id="moderasyon-menusu-' + (locals.post_id ?? "") + '" popover aria-label="Moderasyon işlemleri"' %>>
+  <% for (const e of eylemler_) { %>
+    <% if (!e) { %>
+      <hr class="acilir-ayirici">
+    <% } else { %>
+      <form method="post" action="/moderasyon/<%= e.eylem %>">
+        <input type="hidden" name="post_id" value="<%= locals.post_id ?? '' %>">
+        <input type="hidden" name="topic_id" value="<%= locals.topic_id ?? '' %>">
+        <button class="acilir-oge<%= e.tehlike ? ' acilir-oge-tehlikeli' : '' %>" type="submit"><%- include("ikon", { ad: e.ikon, boyut: 20 }) %><span class="acilir-ad"><%= e.ad %></span></button>
+      </form>
+    <% } %>
+  <% } %>
+</div>

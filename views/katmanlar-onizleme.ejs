@@ -1,0 +1,67 @@
+<%#
+  Katmanlar önizlemesi: her katman açık ve statik olarak yan yana gösterilir (Figma'daki "Katmanlar ve durumlar" panosu gibi).
+  Beklenen veriler: src/onizleme-katmanlar.ts içinde res.locals ile verilir
+  kullanici, okunmamisBildirim, okunmamisMesaj, bildirimler, bildirim, aramaOrnek
+%>
+<%- include("partials/bas", { baslik: "Katmanlar" }) %>
+<%- include("partials/ust-cubuk") %>
+<main class="katman-izgara">
+  <h1>Katmanlar ve durumlar</h1>
+
+  <section class="katman-hucre genis">
+    <h2>Arama penceresi (Ctrl K)</h2>
+    <p class="katman-not">Her sayfadan açılır. Bu sayfada Ctrl+K ile gerçeğini de açabilirsin.</p>
+    <%- include("partials/arama-penceresi", { statik: true }) %>
+  </section>
+
+  <section class="katman-hucre">
+    <h2>Bildirimler (zil)</h2>
+    <p class="katman-not">Okunmamışlarda vurgu noktası var.</p>
+    <%- include("partials/bildirim-paneli", { statik: true }) %>
+  </section>
+
+  <section class="katman-hucre">
+    <h2>Bildirimler (boş durum)</h2>
+    <p class="katman-not">Hiç bildirim yokken.</p>
+    <%- include("partials/bildirim-paneli", { statik: true, bildirimler: [] }) %>
+  </section>
+
+  <section class="katman-hucre">
+    <h2>Hesap menüsü (avatar)</h2>
+    <p class="katman-not">Rütbe, puan ve okunmamış mesaj rozeti.</p>
+    <%- include("partials/avatar-menusu", { statik: true }) %>
+  </section>
+
+  <section class="katman-hucre">
+    <h2>Moderasyon menüsü</h2>
+    <p class="katman-not">Yalnızca moderatör ve admin görür.</p>
+    <%- include("partials/moderasyon-menusu", { statik: true, post_id: 2, topic_id: 1 }) %>
+  </section>
+
+  <section class="katman-hucre">
+    <h2>Şikâyet penceresi</h2>
+    <p class="katman-not">“Şikâyet et” bağlantılarından açılır.</p>
+    <%- include("partials/sikayet-penceresi", { statik: true }) %>
+  </section>
+
+  <section class="katman-hucre">
+    <h2>Bildirim çubukları</h2>
+    <p class="katman-not">Ekranın altında birkaç saniye görünür.</p>
+    <%- include("partials/bildirim-cubuklari", { statik: true }) %>
+    <%- include("partials/bildirim-cubuklari", { statik: true, bildirim: { tur: "hata", metin: "Bağlantı koptu. Cevabın kaydedilmedi.", eylem: { metin: "Tekrar dene", link: "/konu/1#cevap" } } }) %>
+  </section>
+
+  <section class="katman-hucre">
+    <h2>Tablet kenar menüsü</h2>
+    <p class="katman-not">801–1180px arasında sol kenarda sabit durur.</p>
+    <%- include("partials/kenar-menu", { statik: true }) %>
+  </section>
+
+  <section class="katman-hucre">
+    <h2>Mobil alt menü</h2>
+    <p class="katman-not">800px ve altında ekranın altında sabit durur.</p>
+    <%- include("partials/alt-menu", { statik: true }) %>
+  </section>
+</main>
+<%- include("partials/sikayet-penceresi") %>
+<%- include("partials/son") %>

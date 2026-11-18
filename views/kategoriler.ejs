@@ -1,0 +1,29 @@
+<%#
+  Kategoriler: /kategoriler
+  (Tablet ve mobilde akıştaki kategori sütunu gizlendiği için menüdeki "Kategoriler" buraya gelir.)
+  Beklenen veriler:
+  kategoriler [ { id, name, description, konu_sayisi, son_konu } ]   son_konu: en son konunun tarihi ya da null
+%>
+<%- include("partials/bas", { baslik: "Kategoriler" }) %>
+<%- include("partials/ust-cubuk") %>
+<main class="govde-iki" style="display: block; max-width: 808px; margin: 0 auto">
+  <h1 class="baslik-tipi" style="font-size: 28px; margin: 8px 0 16px">Kategoriler</h1>
+  <% if (kategoriler.length === 0) { %>
+    <div class="kart bos">Henüz kategori yok.</div>
+  <% } %>
+  <div class="sutun">
+    <% for (const c of kategoriler) { %>
+      <a class="kart ara-satir" href="/?kategori=<%= c.id %>">
+        <span class="bildirimler-ikon"><%- include("partials/ikon", { ad: "klasor", boyut: 20 }) %></span>
+        <span class="ara-satir-govde">
+          <strong><%= c.name %></strong>
+          <% if (c.description) { %><span class="kucuk ikincil"><%= c.description %></span><% } %>
+        </span>
+        <span class="kucuk ikincil">
+          <%= c.konu_sayisi %> konu<% if (c.son_konu) { %> · son: <%= zaman(c.son_konu) %><% } %>
+        </span>
+      </a>
+    <% } %>
+  </div>
+</main>
+<%- include("partials/son") %>

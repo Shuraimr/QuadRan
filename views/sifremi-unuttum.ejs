@@ -1,0 +1,36 @@
+<%#
+  Şifremi unuttum: /sifremi-unuttum
+  Beklenen veriler (hepsi isteğe bağlı):
+  gonderildi  bool     true ise başarı durumu görünür. Adres kayıtlı olsa da olmasa da AYNI mesaj gösterilir
+  hata        string   örn. "Geçerli bir e-posta adresi yaz."
+  degerler    { email }   hata sonrası formu dolu tutmak için
+  Form: POST /sifremi-unuttum  alan: email
+%>
+<%- include("partials/bas", { sade: true, baslik: "Şifremi unuttum" }) %>
+<% const sfD = locals.degerler || {}; %>
+<div class="orta-sayfa">
+  <%- include("partials/kontur") %>
+  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <% if (locals.gonderildi) { %>
+    <div class="kart form-karti sifre-basari" role="status">
+      <span class="sifre-ikon"><%- include("partials/ikon", { ad: "mektup", boyut: 24 }) %></span>
+      <h1>E-postanı kontrol et</h1>
+      <p class="sifre-aciklama">Bu e-posta adresiyle kayıtlı bir hesap varsa şifreni sıfırlaman için bir bağlantı gönderdik. Bağlantı kısa süre geçerlidir. Gelen kutunda göremezsen spam klasörüne de bak.</p>
+      <a class="buton buton-birincil buton-genis" href="/giris">Girişe dön</a>
+      <p class="orta-yazi">Yanlış adres mi yazdın? <a href="/sifremi-unuttum">Tekrar dene</a></p>
+    </div>
+  <% } else { %>
+    <form class="kart form-karti" method="post" action="/sifremi-unuttum">
+      <span class="sifre-ikon"><%- include("partials/ikon", { ad: "kilit", boyut: 24 }) %></span>
+      <h1>Şifreni mi unuttun?</h1>
+      <p class="sifre-aciklama">Hesabına bağlı e-posta adresini yaz, şifreni sıfırlaman için bir bağlantı gönderelim.</p>
+      <% if (locals.hata) { %><div class="bilgi-notu hata-notu" role="alert"><%- include("partials/ikon", { ad: "uyari", boyut: 18 }) %><span><%= hata %></span></div><% } %>
+      <label class="alan"><span>E-posta</span>
+        <input type="email" name="email" value="<%= sfD.email || '' %>" autocomplete="email" required autofocus>
+      </label>
+      <button class="buton buton-birincil buton-genis">Bağlantı gönder</button>
+      <p class="orta-yazi"><a href="/giris">Girişe dön</a></p>
+    </form>
+  <% } %>
+</div>
+<%- include("partials/son", { sade: true }) %>

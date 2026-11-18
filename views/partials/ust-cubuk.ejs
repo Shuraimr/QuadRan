@@ -1,20 +1,29 @@
+<%#
+  Üst çubuk. kullanici varsa üye, yoksa misafir görünümü.
+  Üyeler için zil bildirim panelini, avatar hesap menüsünü açar (popover; JS gerekmez).
+  İsteğe bağlı veriler: okunmamisBildirim (0 ise zil noktası gizlenir), bildirimler, okunmamisMesaj
+%>
 <header class="ust-cubuk">
   <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
   <div class="arama-alani">
-    <button class="arama" aria-label="QuadRan'da ara">
+    <a class="arama" href="/ara" data-arama-ac aria-label="QuadRan'da ara" aria-keyshortcuts="Control+K">
       <%- include("ikon", { ad: "ara" }) %>
       <span>QuadRan'da ara</span>
       <kbd class="kisayol">Ctrl K</kbd>
-    </button>
+    </a>
   </div>
   <div class="ust-eylemler">
     <% if (locals.kullanici) { %>
       <a class="buton buton-birincil" href="/konu/yeni">Konu aç</a>
-      <a class="ikon-dugme zil" href="/bildirimler" aria-label="Bildirimler"><%- include("ikon", { ad: "zil" }) %></a>
-      <a class="avatar avatar-ust" href="/profil/<%= kullanici.username %>" aria-label="Profilim"><%= kullanici.username[0] %></a>
+      <button class="ikon-dugme<%= locals.okunmamisBildirim === 0 ? '' : ' zil' %>" type="button" popovertarget="bildirim-paneli" aria-label="Bildirimler"><%- include("ikon", { ad: "zil" }) %></button>
+      <button class="avatar avatar-ust" type="button" popovertarget="avatar-menusu" aria-label="Hesap menüsü"><%= kullanici.username[0] %></button>
     <% } else { %>
       <a class="buton buton-cerceveli" href="/giris">Giriş yap</a>
       <a class="buton buton-birincil" href="/kayit">Kayıt ol</a>
     <% } %>
   </div>
 </header>
+<% if (locals.kullanici) { %>
+  <%- include("bildirim-paneli") %>
+  <%- include("avatar-menusu") %>
+<% } %>

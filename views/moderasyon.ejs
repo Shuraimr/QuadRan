@@ -1,0 +1,105 @@
+<%#
+  Moderasyon şikâyet kuyruğu: /moderasyon?durum=bekliyor|islendi|reddedildi|hepsi   (yalnızca moderator ve admin)
+  Beklenen veriler:
+  durum      "bekliyor" | "islendi" | "reddedildi" | "hepsi"   seçili filtre (yoksa bekliyor)
+  ozet       { bekleyen, bugun_islenen, toplam }               reports tablosundan sayılar
+  sikayetler [ {
+      id, durum, sebep, aciklama, created_at,          reports (planlanan tablo): sebep, aciklama, durum, created_at
+      bildiren,                                        reports.reporter_id -> users.username
+      ayni_post_sayisi,                                aynı post_id için kaç şikâyet var (bu dahil)
+      post:  { id, content, yazar, rutbe, created_at, deleted_at },   posts + users
+      konu:  { id, title }                                              topics
+  } ]
+  locals.kullanici { username, rol }  rol "admin" ya da "moderator" değilse erişim yok mesajı gösterilir
+  Formlar (hepsi POST, alan yok, id adreste):
+    /moderasyon/<id>/sil     mesajı siler (posts.deleted_at) ve şikâyeti "islendi" yapar
+    /moderasyon/<id>/uyar    yazarı uyarır ve şikâyeti "islendi" yapar
+    /moderasyon/<id>/reddet  şikâyeti kapatır ("reddedildi")
+%>
+<%- include("partials/bas", { baslik: "Moderasyon" }) %>
+<%- include("partials/ust-cubuk") %>
+<%
+  const mdYetkili = locals.kullanici && ["admin", "moderator"].includes(locals.kullanici.rol);
+  const mdDurum = ["bekliyor", "islendi", "reddedildi", "hepsi"].includes(locals.durum) ? locals.durum : "bekliyor";
+  const mdOzet = Object.assign({ bekleyen: 0, bugun_islenen: 0, toplam: 0 }, locals.ozet || {});
+  const mdListe = locals.sikayetler || [];
+  const mdFiltreler = [
+    { ad: "bekliyor", etiket: "Bekleyen" },
+    { ad: "islendi", etiket: "İşlendi" },
+    { ad: "reddedildi", etiket: "Reddedildi" },
+    { ad: "hepsi", etiket: "Tümü" }
+  ];
+  const mdDurumEtiketi = { bekliyor: "Bekliyor", islendi: "İşlendi", reddedildi: "Reddedildi" };
+  const mdBosMetin = { bekliyor: "Bekleyen şikâyet yok", islendi: "İşlenmiş şikâyet yok", reddedildi: "Reddedilmiş şikâyet yok", hepsi: "Şikâyet yok" };
+%>
+<main class="moderasyon-sayfa">
+  <% if (!mdYetkili) { %>
+    <div class="kart moderasyon-erisim">
+      <%- include("partials/ikon", { ad: "kilit", boyut: 32 }) %>
+      <h1>Bu sayfaya erişimin yok</h1>
+      <p class="ikincil">Moderasyon kuyruğunu yalnızca moderatörler ve yöneticiler görebilir.</p>
+      <a class="buton buton-tonal" href="/">Akışa dön</a>
+    </div>
+  <% } else { %>
+    <h1>Moderasyon</h1>
+
+    <section class="moderasyon-sayaclar" aria-label="Özet">
+      <div class="kart moderasyon-sayac vurgulu"><strong><%= mdOzet.bekleyen %></strong><span>Bekleyen</span></div>
+      <div class="kart moderasyon-sayac"><strong><%= mdOzet.bugun_islenen %></strong><span>Bugün işlenen</span></div>
+      <div class="kart moderasyon-sayac"><strong><%= mdOzet.toplam %></strong><span>Toplam</span></div>
+    </section>
+
+    <nav class="moderasyon-filtre" aria-label="Durum filtresi">
+      <div class="siralama">
+        <% for (const f of mdFiltreler) { %>
+          <a class="<%= mdDurum === f.ad ? 'aktif' : '' %>" href="/moderasyon?durum=<%= f.ad %>" <% if (mdDurum === f.ad) { %>aria-current="page"<% } %>><%= f.etiket %></a>
+        <% } %>
+      </div>
+    </nav>
+
+    <% if (mdListe.length === 0) { %>
+      <div class="kart bos">
+        <%- include("partials/ikon", { ad: "onay", boyut: 28 }) %>
+        <p><%= mdBosMetin[mdDurum] %></p>
+      </div>
+    <% } else { %>
+      <div class="moderasyon-liste">
+        <% for (const s of mdListe) { %>
+          <article class="kart moderasyon-kart" aria-label="Şikâyet <%= s.id %>">
+            <div class="moderasyon-kart-ust">
+              <span class="moderasyon-sebep"><%= s.sebep %></span>
+              <% if (s.ayni_post_sayisi > 1) { %><span class="moderasyon-sayi"><%= s.ayni_post_sayisi %> kişi şikâyet etti</span><% } %>
+              <span class="moderasyon-durum"><%= mdDurumEtiketi[s.durum] || s.durum %></span>
+            </div>
+
+            <div class="moderasyon-icerik <%= s.post.deleted_at ? 'silinmis-icerik' : '' %>">
+              <div class="gonderi-meta">
+                <span class="avatar"><%= s.post.yazar[0] %></span>
+                <a class="kullanici" href="/profil/<%= s.post.yazar %>"><%= s.post.yazar %></a>
+                <% if (s.post.rutbe) { %><span class="rozet"><%= s.post.rutbe %></span><% } %>
+                <span class="zaman">· <%= zaman(s.post.created_at) %></span>
+              </div>
+              <div class="metin"><%= s.post.deleted_at ? "Bu mesaj silindi." : s.post.content %></div>
+              <a class="baglanti kucuk" href="/konu/<%= s.konu.id %>#mesaj-<%= s.post.id %>">Konu: <%= s.konu.title %></a>
+            </div>
+
+            <p class="moderasyon-aciklama">
+              <strong><%= s.bildiren %></strong> <%= zaman(s.created_at) %> bildirdi<% if (s.aciklama) { %>: “<%= s.aciklama %>”<% } %>
+            </p>
+
+            <% if (s.durum === "bekliyor") { %>
+              <div class="moderasyon-eylem">
+                <% if (!s.post.deleted_at) { %>
+                  <form method="post" action="/moderasyon/<%= s.id %>/sil"><button class="buton buton-tehlikeli">Mesajı sil</button></form>
+                <% } %>
+                <form method="post" action="/moderasyon/<%= s.id %>/uyar"><button class="buton buton-tonal">Uyar</button></form>
+                <form method="post" action="/moderasyon/<%= s.id %>/reddet"><button class="buton buton-cerceveli">Reddet</button></form>
+              </div>
+            <% } %>
+          </article>
+        <% } %>
+      </div>
+    <% } %>
+  <% } %>
+</main>
+<%- include("partials/son") %>

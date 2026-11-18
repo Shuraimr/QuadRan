@@ -5,7 +5,7 @@
   degerler { kullanici_adi }   hata sonrası formu dolu tutmak için
   don      string   girişten sonra dönülecek adres
 %>
-<%- include("partials/bas", { baslik: "Giriş yap" }) %>
+<%- include("partials/bas", { sade: true, baslik: "Giriş yap" }) %>
 <% const d = locals.degerler || {}; %>
 <div class="orta-sayfa">
   <%- include("partials/kontur") %>
@@ -29,4 +29,4 @@
     <p class="orta-yazi">Hesabın yok mu? <a href="/kayit">Kayıt ol</a></p>
   </form>
 </div>
-<%- include("partials/son") %>
+<%- include("partials/son", { sade: true }) %>

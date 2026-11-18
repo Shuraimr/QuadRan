@@ -1,0 +1,27 @@
+<%#
+  Hesap menüsü (avatardan açılır, popover). Yalnızca giriş yapmış kullanıcıya çizilir.
+  Beklenen veriler:
+  kullanici     { username, rutbe, points, rol }
+  okunmamisMesaj  0'dan büyükse Mesajlar yanında rozet çıkar
+  statik        true ise popover yerine açık kutu (yalnızca önizleme sayfası için)
+%>
+<% if (locals.kullanici) { const k_ = locals.kullanici; const statik_ = !!locals.statik; %>
+<div class="acilir-menu avatar-menusu<%= statik_ ? ' katman-statik' : ' acilir-menu-ustte' %>"<%- statik_ ? "" : ' id="avatar-menusu" popover aria-label="Hesap menüsü"' %>>
+  <div class="avatar-menusu-baslik">
+    <span class="avatar avatar-48"><%= k_.username[0] %></span>
+    <div>
+      <strong><%= k_.username %></strong>
+      <div class="ikincil kucuk"><%= k_.rutbe || "Çaylak" %> · <%= k_.points ?? 0 %> puan</div>
+    </div>
+  </div>
+  <a class="acilir-oge" href="/profil/<%= k_.username %>"><%- include("ikon", { ad: "kisi", boyut: 20 }) %><span class="acilir-ad">Profilim</span></a>
+  <a class="acilir-oge" href="/mesajlar"><%- include("ikon", { ad: "mektup", boyut: 20 }) %><span class="acilir-ad">Mesajlar</span>
+    <% if ((locals.okunmamisMesaj || 0) > 0) { %><span class="acilir-rozet" aria-label="<%= locals.okunmamisMesaj %> okunmamış mesaj"><%= locals.okunmamisMesaj %></span><% } %>
+  </a>
+  <a class="acilir-oge" href="/ayarlar" data-ayarlar-kisayol><%- include("ikon", { ad: "ayar", boyut: 20 }) %><span class="acilir-ad">Ayarlar</span><span class="acilir-kisayol">Ctrl ,</span></a>
+  <hr class="acilir-ayirici">
+  <form method="post" action="/cikis">
+    <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("ikon", { ad: "cikis", boyut: 20 }) %><span class="acilir-ad">Çıkış yap</span></button>
+  </form>
+</div>
+<% } %>
