@@ -62,7 +62,7 @@
               <div class="sohbet-metin"><%= o.m.content %></div>
             </div>
             <% if (locals.kullanici && o.m.yazar !== locals.kullanici.username) { %>
-              <a class="sohbet-bayrak" href="/sikayet?sohbet_id=<%= o.m.id %>" data-sikayet-ac data-sohbet-id="<%= o.m.id %>" data-baslik="Bu sohbet mesajını şikâyet et" aria-label="<%= o.m.yazar %> kişisinin mesajını şikâyet et" title="Şikâyet et"><%- include("partials/ikon", { ad: "bayrak", boyut: 16 }) %></a>
+              <a class="sohbet-bayrak" href="/sikayet?sohbet_id=<%= o.m.id %>" data-sikayet-ac data-sohbet-id="<%= o.m.id %>" data-yazar="<%= o.m.yazar %>" data-baslik="Bu sohbet mesajını şikâyet et" aria-label="<%= o.m.yazar %> kişisinin mesajını şikâyet et" title="Şikâyet et"><%- include("partials/ikon", { ad: "bayrak", boyut: 16 }) %></a>
             <% } %>
           </div>
         <% } %>

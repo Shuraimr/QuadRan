@@ -1,36 +1,51 @@
 <%#
-  Şikâyet penceresi. Sayfada bir tane olur; "Şikâyet et" bağlantılarındaki data-post-id değerini JS buraya yazar.
-  Bağlantı biçimi: <a href="/sikayet?post_id=7" data-sikayet-ac data-post-id="7">  (JS yoksa bağlantı olarak çalışır)
+  Şikâyet penceresi. Sayfada bir tane olur; "Şikâyet et" bağlantılarındaki data- alanlarını JS buraya yazar.
+  Bağlantı biçimi: <a href="/sikayet?post_id=7" data-sikayet-ac data-post-id="7" data-yazar="ayse">  (JS yoksa bağlantı olarak çalışır)
+  data-yazar: şikâyet edilen mesajın/kişinin yazarı; pencerede "<ad>’i de engelle" kutusu için. Verilmezse kutu gizlenir.
   Beklenen veriler (hepsi isteğe bağlı):
   post_id  pencere ilk açıldığında gizli alana yazılacak mesaj id'si
   hedef_kullanici  kullanıcı şikâyetinde şikâyet edilen kişinin adı (post_id yerine; "kullanici" adı giriş yapan kişiye ayrılı)
-  Kullanıcı şikâyeti bağlantısı: <a href="/sikayet?kullanici=ayse" data-sikayet-ac data-kullanici="ayse">
+  yazar    engelleme kutusundaki ad (JS'siz /sikayet sayfası ve profildeki pencere için sunucudan gelir)
+  Kullanıcı şikâyeti bağlantısı: <a href="/sikayet?kullanici=ayse" data-sikayet-ac data-kullanici="ayse" data-yazar="ayse">
   Genel sohbet mesajı: <a href="/sikayet?sohbet_id=3" data-sikayet-ac data-sohbet-id="3" data-baslik="Bu sohbet mesajını şikâyet et">
   Özel mesaj (yalnızca alıcı): <a href="/sikayet?mesaj_id=5" data-sikayet-ac data-mesaj-id="5" data-baslik="Bu özel mesajı şikâyet et">
   sohbet_id, mesaj_id  pencere ilk açıldığında ilgili gizli alana yazılacak id (JS yoksa /sikayet sayfası bunları doldurur)
-  statik   true ise <dialog> yerine açık kutu (yalnızca önizleme sayfası için)
+  statik   true ise <dialog> yerine açık kutu (yalnızca /sikayet sayfası ve önizleme için)
+  Sebepler: app.locals.sikayetSebepleri (src/sikayet.ts). "Konu dışı" yalnızca konu/sohbet mesajında çıkar:
+  pencerenin data-hedef değeri (konu | sohbet | ozel | kullanici) CSS'e bunu söyler.
 %>
 <% const statik_ = !!locals.statik; const etiket_ = statik_ ? "div" : "dialog";
-   const sebepler_ = ["Spam veya reklam", "Hakaret veya nefret söylemi", "Konu dışı", "Başka bir sebep"]; %>
-<<%= etiket_ %> class="sikayet-penceresi<%= statik_ ? ' katman-statik' : '' %>"<%- statik_ ? "" : ' id="sikayet-penceresi" aria-labelledby="sikayet-baslik"' %>>
+   const hedef_ = locals.hedef_kullanici ? "kullanici" : locals.sohbet_id ? "sohbet" : locals.mesaj_id ? "ozel" : "konu";
+   const yazar_ = locals.yazar || ""; %>
+<<%= etiket_ %> class="sikayet-penceresi<%= statik_ ? ' katman-statik' : '' %>" data-hedef="<%= hedef_ %>"<%- statik_ ? "" : ' id="sikayet-penceresi" aria-labelledby="sikayet-baslik"' %>>
   <form class="sikayet-form" method="post" action="/sikayet"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
     <input type="hidden" name="post_id" value="<%= locals.post_id ?? '' %>">
     <input type="hidden" name="kullanici" value="<%= locals.hedef_kullanici ?? '' %>">
     <input type="hidden" name="sohbet_id" value="<%= locals.sohbet_id ?? '' %>">
     <input type="hidden" name="mesaj_id" value="<%= locals.mesaj_id ?? '' %>">
-    <h2<%- statik_ ? "" : ' id="sikayet-baslik"' %>><%= locals.hedef_kullanici ? "Bu kullanıcıyı şikâyet et" : locals.sohbet_id ? "Bu sohbet mesajını şikâyet et" : locals.mesaj_id ? "Bu özel mesajı şikâyet et" : "Bu mesajı şikâyet et" %></h2>
+    <div class="sikayet-baslik-blok">
+      <h2<%- statik_ ? "" : ' id="sikayet-baslik"' %>><%= hedef_ === "kullanici" ? "Bu kullanıcıyı şikâyet et" : hedef_ === "sohbet" ? "Bu sohbet mesajını şikâyet et" : hedef_ === "ozel" ? "Bu özel mesajı şikâyet et" : "Bu mesajı şikâyet et" %></h2>
+      <p class="ikincil kucuk">Şikâyetini yalnızca moderatörler görür. Şikâyet ettiğin kişi kimin bildirdiğini öğrenmez.</p>
+    </div>
     <fieldset class="sikayet-sebepler">
       <legend class="arama-gizli-baslik">Şikâyet sebebi</legend>
-      <% sebepler_.forEach((s, i) => { %>
-        <label class="sikayet-secenek"><input type="radio" name="sebep" value="<%= s %>"<%- i === 1 && statik_ ? " checked" : "" %> required><span><%= s %></span></label>
+      <% sikayetSebepleri.forEach((s, i) => { %>
+        <label class="sikayet-secenek"<%- s.sadeceMesaj ? " data-sadece-mesaj" : "" %>>
+          <input type="radio" name="sebep" value="<%= s.ad %>" required>
+          <span class="sikayet-secenek-metin"><strong><%= s.ad %></strong><span><%= s.aciklama %></span></span>
+        </label>
       <% }) %>
     </fieldset>
     <label class="alan sikayet-not">
-      <span>Not (isteğe bağlı)</span>
-      <textarea name="not" maxlength="1000" placeholder="Eklemek istediğin bir şey var mı? (isteğe bağlı)"></textarea>
+      <span>Not (isteğe bağlı, “Başka bir sebep”te zorunlu)</span>
+      <textarea name="not" maxlength="1000" placeholder="Eklemek istediğin bir şey var mı?"></textarea>
+    </label>
+    <label class="sikayet-engel"<%- yazar_ ? "" : " hidden" %>>
+      <input type="checkbox" name="engelle" value="1">
+      <span><span data-yazar-ad><%= yazar_ ? belirtme(yazar_) : "" %></span> de engelle (sana mesaj gönderemez)</span>
     </label>
     <div class="sikayet-eylemler">
-      <button class="buton buton-metin" type="button" data-dialog-kapat>Vazgeç</button>
+      <button class="buton buton-cerceveli" type="button" data-dialog-kapat>Vazgeç</button>
       <button class="buton buton-birincil" type="submit">Gönder</button>
     </div>
   </form>

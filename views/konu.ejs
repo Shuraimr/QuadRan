@@ -34,7 +34,7 @@
               <button class="eylem"><%- include("partials/ikon", { ad: "cop", boyut: 18 }) %> Sil</button>
             </form>
           <% } else { %>
-          <a class="eylem" href="/sikayet?post_id=<%= ilk.id %>" data-sikayet-ac data-post-id="<%= ilk.id %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+          <a class="eylem" href="/sikayet?post_id=<%= ilk.id %>" data-sikayet-ac data-post-id="<%= ilk.id %>" data-yazar="<%= ilk.yazar %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
           <% } %>
           <% if (["moderator", "admin"].includes(locals.kullanici?.rol)) { %>
             <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="moderasyon-menusu-<%= ilk.id %>" data-menu-ac aria-label="Moderasyon işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>

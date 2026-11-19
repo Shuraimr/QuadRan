@@ -1,0 +1,27 @@
+<%#
+  Yeni mesaj: kullanıcı arama. İki yerde kullanılır:
+  - pencerede (dialog: true): JS yazdıkça /mesajlar/kisi-ara'dan sonuç getirir (data-kisi-ara, data-kisi-sonuc)
+  - /mesajlar/yeni sayfasında: form GET ile gönderilir, sonuçlar sunucuda çizilir (JS gerekmez)
+  Beklenen veriler: dialog (bool), aramaQ (string), sonuclar [ { username, rutbe } ]
+%>
+<% const dlg_ = !!locals.dialog; const q_ = locals.aramaQ || ""; const sonuclar_ = locals.sonuclar || []; %>
+<form class="kisi-ara-form" method="get" action="/mesajlar/yeni" role="search">
+  <label class="mesaj-ara">
+    <%- include("ikon", { ad: "ara", boyut: 18 }) %>
+    <input type="search" name="q" value="<%= q_ %>" maxlength="32" placeholder="Kullanıcı adı ara" aria-label="Kullanıcı ara" autocomplete="off"<%- dlg_ ? " data-kisi-ara" : "" %>>
+  </label>
+  <button class="buton buton-tonal kisi-ara-gonder" type="submit">Ara</button>
+</form>
+<ul class="kisi-sonuclar"<%- dlg_ ? " data-kisi-sonuc" : "" %>>
+  <% if (dlg_) { %>
+    <li class="kisi-bos">Bir kullanıcı adı yazmaya başla.</li>
+  <% } else if (!q_) { %>
+    <li class="kisi-bos">Bir kullanıcı adı yazıp ara.</li>
+  <% } else if (sonuclar_.length === 0) { %>
+    <li class="kisi-bos">Eşleşen kullanıcı yok.</li>
+  <% } else { %>
+    <% for (const k of sonuclar_) { %>
+      <li><a class="kisi-sonuc" href="/mesajlar/<%= encodeURIComponent(k.username) %>"><span class="avatar avatar-36"><%= k.username[0] %></span><strong><%= k.username %></strong><% if (k.rutbe) { %><span class="rozet"><%= k.rutbe %></span><% } %></a></li>
+    <% } %>
+  <% } %>
+</ul>

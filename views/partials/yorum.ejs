@@ -20,7 +20,7 @@
             <button class="eylem"><%- include("ikon", { ad: "cop", boyut: 18 }) %> Sil</button>
           </form>
         <% } else { %>
-        <a class="eylem" href="/sikayet?post_id=<%= mesaj.id %>" data-sikayet-ac data-post-id="<%= mesaj.id %>"><%- include("ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+        <a class="eylem" href="/sikayet?post_id=<%= mesaj.id %>" data-sikayet-ac data-post-id="<%= mesaj.id %>" data-yazar="<%= mesaj.yazar %>"><%- include("ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
         <% } %>
         <% if (["moderator", "admin"].includes(locals.kullanici?.rol)) { %>
           <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="moderasyon-menusu-<%= mesaj.id %>" data-menu-ac aria-label="Moderasyon işlemleri"><%- include("ikon", { ad: "daha", boyut: 20 }) %></button>

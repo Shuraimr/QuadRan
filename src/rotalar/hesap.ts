@@ -16,6 +16,8 @@ const oturumuYenile = (req: express.Request) =>
   new Promise<void>((tamam, hata) => req.session.regenerate((e) => (e ? hata(e) : tamam())));
 
 const KULLANICI_ADI = /^[A-Za-z0-9_]{3,30}$/;
+// /mesajlar/yeni sayfası bu ada ait profil konuşmasının önüne geçer (src/rotalar/iletisim.ts); alınamasın
+const AYRILMIS_AD = ["yeni"];
 const EPOSTA = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ---------------------------------------------------------------------------
@@ -103,6 +105,7 @@ hesap.post("/kayit", async (req, res) => {
 
   // Tarayıcıdaki required/pattern kuralları atlatılabilir; sunucuda HER ZAMAN yeniden kontrol edilir.
   if (!KULLANICI_ADI.test(username)) hatalar.username = "3-30 karakter; harf, rakam ve alt çizgi kullanılabilir";
+  else if (AYRILMIS_AD.includes(username.toLowerCase())) hatalar.username = "Bu ad ayrılmış, başka bir ad seç";
   if (!EPOSTA.test(email) || email.length > 255) hatalar.email = "Geçerli bir e-posta adresi yaz";
   if (password.length < 8) hatalar.password = "Şifre en az 8 karakter olmalı";
   if (password.length > 200) hatalar.password = "Şifre en fazla 200 karakter olabilir";
@@ -241,10 +244,19 @@ hesap.post("/sifre-sifirla/:token", async (req, res) => {
 // ---------------------------------------------------------------------------
 async function ayarlariOku(userId: number) {
   const [satirlar]: any = await pool.query(
-    "SELECT username, bio, email, avatar_url, tema, vurgu, menu_sagda, kompakt, az_animasyon FROM users WHERE id = ?",
+    "SELECT username, bio, konum, web_sitesi, dm_izni, cevrimici_goster, email, avatar_url, tema, vurgu, menu_sagda, kompakt, az_animasyon FROM users WHERE id = ?",
     [userId]
   );
-  return satirlar[0];
+  const ayar = satirlar[0];
+  ayar.cevrimici_goster = !!ayar.cevrimici_goster;
+  // Gizlilik bölümündeki "Engellenenler" listesi (silinmiş hesaplar gösterilmez)
+  const [engelliler] = await pool.query(
+    `SELECT users.username FROM user_blocks JOIN users ON users.id = user_blocks.blocked_id
+      WHERE user_blocks.blocker_id = ? AND users.deleted_at IS NULL ORDER BY user_blocks.created_at DESC`,
+    [userId]
+  );
+  ayar.engelliler = engelliler;
+  return ayar;
 }
 
 hesap.get("/ayarlar", girisGerekli("Ayarlar için giriş yapman gerekiyor."), async (req, res) => {
@@ -255,21 +267,32 @@ hesap.post("/ayarlar/profil", girisGerekli(), async (req, res) => {
   const k = res.locals.kullanici;
   const username = metin(req.body.username);
   const bio = metin(req.body.bio);
+  const konum = metin(req.body.konum);
+  const webSitesi = metin(req.body.web_sitesi);
   const hatalar: Record<string, string> = {};
 
   if (!KULLANICI_ADI.test(username)) hatalar.username = "3-30 karakter; harf, rakam ve alt çizgi kullanılabilir";
+  else if (AYRILMIS_AD.includes(username.toLowerCase())) hatalar.username = "Bu ad ayrılmış, başka bir ad seç";
   if (bio.length > 280) hatalar.bio = "En fazla 280 karakter";
+  if (konum.length > 60) hatalar.konum = "En fazla 60 karakter";
+  // Web sitesi: yalnızca http(s). "javascript:" gibi şemalar profilde bağlantı olarak çizilirdi (XSS), o yüzden şema denetimi şart.
+  if (webSitesi) {
+    let gecerli = false;
+    try { const u = new URL(webSitesi); gecerli = /^https?:$/.test(u.protocol) && !!u.hostname; } catch { /* geçersiz */ }
+    if (webSitesi.length > 200) hatalar.web_sitesi = "En fazla 200 karakter";
+    else if (!gecerli || !/^https?:\/\//i.test(webSitesi)) hatalar.web_sitesi = "http:// ya da https:// ile başlayan geçerli bir adres yaz";
+  }
   if (!hatalar.username && username.toLowerCase() !== k.username.toLowerCase()) {
     const [var_]: any = await pool.query("SELECT id FROM users WHERE username = ? AND id <> ?", [username, k.id]);
     if (var_.length) hatalar.username = "Bu kullanıcı adı alınmış";
   }
 
   if (Object.keys(hatalar).length) {
-    const ayar = { ...(await ayarlariOku(k.id)), username, bio };
+    const ayar = { ...(await ayarlariOku(k.id)), username, bio, konum, web_sitesi: webSitesi };
     return res.status(400).render("ayarlar", { ayar, hatalar, aktifMenu: "ayarlar" });
   }
 
-  await pool.query("UPDATE users SET username = ?, bio = ? WHERE id = ?", [username, bio || null, k.id]);
+  await pool.query("UPDATE users SET username = ?, bio = ?, konum = ?, web_sitesi = ? WHERE id = ?", [username, bio || null, konum || null, webSitesi || null, k.id]);
   bildir(req, "basari", "Profilin kaydedildi");
   res.redirect("/ayarlar#profil");
 });
@@ -285,6 +308,16 @@ hesap.post("/ayarlar/gorunum", girisGerekli(), async (req, res) => {
   );
   bildir(req, "basari", "Görünüm ayarların kaydedildi");
   res.redirect("/ayarlar#gorunum");
+});
+
+// Gizlilik: özel mesaj izni ve çevrimiçi durumu. Engellenenler listesi aynı kartta, engeli kaldırma POST /engel/:ad/kaldir.
+hesap.post("/ayarlar/gizlilik", girisGerekli(), async (req, res) => {
+  // Yalnızca izin verilen değerler: başka bir şey gelirse varsayılan ("herkes")
+  const dmIzni = req.body.dm_izni === "kimse" ? "kimse" : "herkes";
+  // İşaretlenmemiş checkbox formda hiç gönderilmez
+  await pool.query("UPDATE users SET dm_izni = ?, cevrimici_goster = ? WHERE id = ?", [dmIzni, !!req.body.cevrimici_goster, res.locals.kullanici.id]);
+  bildir(req, "basari", "Gizlilik ayarların kaydedildi");
+  res.redirect("/ayarlar#gizlilik");
 });
 
 // ---------------------------------------------------------------------------

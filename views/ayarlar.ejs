@@ -2,8 +2,10 @@
   Beklenen veriler:
   ayar  { username, bio, email, avatar_url, tema ("koyu"|"acik"|"sistem"), vurgu ("safir"|"zumrut"|"kehribar"|"ametist"|"yakut"),
           menu_sagda (bool), kompakt (bool), az_animasyon (bool) }
-  hatalar { username, bio }   (isteğe bağlı)
-  Formlar: POST /ayarlar/profil (username, bio) · POST /ayarlar/gorunum · POST /hesap/sil
+  ayar.konum, ayar.web_sitesi, ayar.dm_izni ("herkes"|"kimse"), ayar.cevrimici_goster (bool), ayar.engelliler [ { username } ]
+  hatalar { username, bio, konum, web_sitesi }   (isteğe bağlı)
+  Formlar: POST /ayarlar/profil (username, bio, konum, web_sitesi) · POST /ayarlar/gorunum · POST /ayarlar/gizlilik (dm_izni, cevrimici_goster)
+           · POST /engel/<ad>/kaldir · POST /hesap/sil
 %>
 <%- include("partials/bas", { baslik: "Ayarlar" }) %>
 <%- include("partials/ust-cubuk") %>
@@ -14,6 +16,7 @@
     <div class="kategoriler">
       <a class="kategori-ogesi aktif" href="#profil" data-bolum-bag><%- include("partials/ikon", { ad: "kisi" }) %> Profil</a>
       <a class="kategori-ogesi" href="#gorunum" data-bolum-bag><%- include("partials/ikon", { ad: "palet" }) %> Görünüm</a>
+      <a class="kategori-ogesi" href="#gizlilik" data-bolum-bag><%- include("partials/ikon", { ad: "kilit" }) %> Gizlilik</a>
       <a class="kategori-ogesi" href="#hesap" data-bolum-bag><%- include("partials/ikon", { ad: "kalkan" }) %> Hesap ve güvenlik</a>
     </div>
   </nav>
@@ -45,6 +48,14 @@
         <textarea name="bio" maxlength="280" style="min-height: 104px"><%= ayar.bio || '' %></textarea>
       </label>
       <div class="yardim"><span><%= h.bio || "Profilinde görünür" %></span><span>en fazla 280</span></div>
+      <label class="alan <%= h.konum ? 'hatali' : '' %>"><span>Konum</span>
+        <input name="konum" value="<%= ayar.konum || '' %>" maxlength="60" placeholder="Şehir, ülke">
+      </label>
+      <div class="yardim"><span><%= h.konum || "Profilinde görünür · en fazla 60 karakter" %></span></div>
+      <label class="alan <%= h.web_sitesi ? 'hatali' : '' %>"><span>Web sitesi</span>
+        <input name="web_sitesi" type="url" value="<%= ayar.web_sitesi || '' %>" maxlength="200" placeholder="https://ornek.com" pattern="https?://.+">
+      </label>
+      <div class="yardim"><span><%= h.web_sitesi || "http:// ya da https:// ile başlamalı" %></span></div>
       <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
     </form>
 
@@ -75,6 +86,44 @@
       <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
     </form>
 
+    <section class="kart bolum" id="gizlilik">
+      <div><h2>Gizlilik</h2><p class="ikincil kucuk">Sana kimlerin yazabileceğini ve nasıl göründüğünü belirle</p></div>
+      <form class="bolum-ici" method="post" action="/ayarlar/gizlilik"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+        <div class="ust-etiket">ÖZEL MESAJLARI KİMDEN AL</div>
+        <label class="alan"><span class="arama-gizli-baslik">Özel mesajları kimden al</span>
+          <select name="dm_izni">
+            <option value="herkes" <%= (ayar.dm_izni || "herkes") === "herkes" ? "selected" : "" %>>Herkesten</option>
+            <option value="kimse" <%= ayar.dm_izni === "kimse" ? "selected" : "" %>>Kimseden</option>
+          </select>
+        </label>
+        <label class="ayar-satiri anahtar">
+          <div><strong>Çevrimiçi durumumu göster</strong><span class="ikincil kucuk">Kapalıysa sohbetteki çevrimiçi listesinde ve mesajlarda görünmezsin.</span></div>
+          <input type="checkbox" name="cevrimici_goster" value="1" <%= ayar.cevrimici_goster !== false ? "checked" : "" %>><span class="ray"></span>
+        </label>
+        <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
+      </form>
+      <hr class="ayirici">
+      <div class="engelliler">
+        <div class="ust-etiket">ENGELLENENLER</div>
+        <% const engelliler_ = ayar.engelliler || []; %>
+        <% if (engelliler_.length === 0) { %>
+          <p class="ikincil kucuk">Kimseyi engellemedin. Bir kullanıcıyı profilinden ya da mesaj ekranındaki ⋮ menüsünden engelleyebilirsin.</p>
+        <% } else { %>
+          <ul class="engelli-liste">
+            <% for (const e of engelliler_) { %>
+              <li class="engelli-satir">
+                <span class="avatar avatar-36"><%= e.username[0] %></span>
+                <strong><%= e.username %></strong>
+                <form method="post" action="/engel/<%= encodeURIComponent(e.username) %>/kaldir"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+                  <button class="buton buton-cerceveli">Engeli kaldır</button>
+                </form>
+              </li>
+            <% } %>
+          </ul>
+        <% } %>
+      </div>
+    </section>
+
     <section class="kart bolum" id="hesap">
       <div><h2>Hesap ve güvenlik</h2><p class="ikincil kucuk">Sadece sen görürsün</p></div>
       <div class="ayar-satiri"><div><strong>E-posta</strong><span class="ikincil kucuk"><%= ayar.email %></span></div><a class="buton buton-cerceveli" href="/hesap/eposta">Değiştir</a></div>
@@ -92,6 +141,7 @@
   <nav class="ayar-dok" aria-label="Ayarlar bölümleri" data-alt-cubuk>
     <a href="#profil" data-bolum-bag aria-current="true"><%- include("partials/ikon", { ad: "kisi", boyut: 20 }) %><span>Profil</span></a>
     <a href="#gorunum" data-bolum-bag><%- include("partials/ikon", { ad: "palet", boyut: 20 }) %><span>Görünüm</span></a>
+    <a href="#gizlilik" data-bolum-bag><%- include("partials/ikon", { ad: "kilit", boyut: 20 }) %><span>Gizlilik</span></a>
     <a href="#hesap" data-bolum-bag><%- include("partials/ikon", { ad: "kalkan", boyut: 20 }) %><span>Hesap ve güvenlik</span></a>
   </nav>
 </div>

@@ -2,7 +2,8 @@
 import express from "express";
 import { pool } from "../db.ts";
 import { yasakliIfade } from "../ayarlar.ts";
-import { rutbeSql, bildirimGonder, bildir, kisalt, girisGerekli, sayi, metin } from "../yardimci.ts";
+import { rutbeSql, bildirimGonder, bildir, kisalt, girisGerekli, sayi, metin, likeKac, geriAdres } from "../yardimci.ts";
+import { mesajDurumu, cevrimiciSql } from "../gizlilik.ts";
 
 export const iletisim = express.Router();
 
@@ -48,7 +49,8 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
 
   if (req.params.kullanici) {
     const [kisiler]: any = await pool.query(
-      `SELECT users.id, users.username, ${rutbeSql("users")} AS rutbe FROM users WHERE username = ? AND deleted_at IS NULL`,
+      `SELECT users.id, users.username, ${rutbeSql("users")} AS rutbe, ${cevrimiciSql("users")} AS cevrimici
+         FROM users WHERE username = ? AND deleted_at IS NULL`,
       [req.params.kullanici]
     );
     const kisi = kisiler[0];
@@ -65,7 +67,7 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
     res.locals.okunmamisMesaj = Number(kalan.n);
 
     const [mesajlar]: any = await pool.query(
-      `SELECT id, IF(deleted_at IS NULL, content, 'Bu mesaj moderatörler tarafından kaldırıldı.') AS content,
+      `SELECT id, IF(deleted_at IS NULL, content, '') AS content,
               created_at, read_at, sender_id = ? AS benim, deleted_at IS NOT NULL AS silindi
          FROM messages
         WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
@@ -75,11 +77,39 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
     // Son 200 mesajı yeniden eskiye aldık; şablon eskiden yeniye istiyor
     mesajlar.reverse();
     for (const m of mesajlar) { m.benim = !!m.benim; m.silindi = !!m.silindi; }
-    acik = { kullanici: kisi.username, rutbe: kisi.rutbe, mesajlar };
+    // durum: yazı kutusu mu, engel/izin kartı mı (mesajDurumu, src/gizlilik.ts)
+    acik = { kullanici: kisi.username, rutbe: kisi.rutbe, cevrimici: !!kisi.cevrimici, durum: await mesajDurumu(ben.id, kisi.id), mesajlar };
   }
 
   res.render("mesajlar", { q, konusmalar: await konusmalar(ben.id, q), acik, aktifMenu: "mesajlar" });
 }
+
+// Yeni mesaj için kullanıcı ara: kendim, silinmiş hesaplar ve aramızda engel olan (iki yönde de) kişiler çıkmaz.
+async function kisiAra(benId: number, q: string) {
+  if (!q) return [];
+  const [satirlar]: any = await pool.query(
+    `SELECT users.username, ${rutbeSql("users")} AS rutbe FROM users
+      WHERE users.username LIKE ? AND users.deleted_at IS NULL AND users.id <> ?
+        AND NOT EXISTS (SELECT 1 FROM user_blocks b
+                         WHERE (b.blocker_id = ? AND b.blocked_id = users.id) OR (b.blocker_id = users.id AND b.blocked_id = ?))
+      ORDER BY users.username LIMIT 8`,
+    [likeKac(q), benId, benId, benId]
+  );
+  return satirlar as { username: string; rutbe: string | null }[];
+}
+
+// JS'in kullandığı JSON ucu. NOT: "yeni" geçerli bir kullanıcı adı biçimidir ama /mesajlar/yeni bu sayfaya gider;
+// bu yüzden hesap.ts "yeni"yi ayrılmış ad sayar ("kisi-ara" tire içerdiği için zaten kullanıcı adı olamaz).
+iletisim.get("/mesajlar/kisi-ara", girisGerekli("Mesaj göndermek için giriş yapman gerekiyor."), async (req, res) => {
+  res.json(await kisiAra(res.locals.kullanici.id, metin(req.query.q).slice(0, 32)));
+});
+
+// JS yokken aynı arama bir sayfa olarak açılır (mesajlar.ejs "yeni" bayrağı)
+iletisim.get("/mesajlar/yeni", girisGerekli("Mesaj göndermek için giriş yapman gerekiyor."), async (req, res) => {
+  const ben = res.locals.kullanici;
+  const aramaQ = metin(req.query.q).slice(0, 32);
+  res.render("mesajlar", { q: "", konusmalar: await konusmalar(ben.id, ""), acik: null, yeni: true, aramaQ, sonuclar: await kisiAra(ben.id, aramaQ), aktifMenu: "mesajlar" });
+});
 
 iletisim.get("/mesajlar", girisGerekli("Mesajların için giriş yapman gerekiyor."), mesajlarSayfasi);
 iletisim.get("/mesajlar/:kullanici", girisGerekli("Mesaj göndermek için giriş yapman gerekiyor."), mesajlarSayfasi);
@@ -98,6 +128,14 @@ iletisim.post("/mesajlar/:kullanici", girisGerekli("Mesaj göndermek için giri�
     return res.redirect(adres);
   }
 
+  // Engel / özel mesaj izni: sayfa yazı kutusunu zaten gizler ama asıl koruma burası (form elle de gönderilebilir).
+  // Hangi sebep olduğunu söylemiyoruz (bkz. src/gizlilik.ts).
+  const durum = await mesajDurumu(ben.id, kisi.id);
+  if (durum !== "izinli") {
+    bildir(req, "hata", durum === "ben_engelledim" ? "Engellediğin birine mesaj gönderemezsin. Önce engeli kaldır." : "Bu kişiye şu an mesaj gönderemezsin.");
+    return res.redirect(adres);
+  }
+
   const yasak = await yasakliIfade(content);
   if (yasak) {
     bildir(req, "hata", `Mesajında yasaklı bir ifade var: “${yasak}”.`);
@@ -111,6 +149,54 @@ iletisim.post("/mesajlar/:kullanici", girisGerekli("Mesaj göndermek için giri�
     link: "/mesajlar/" + encodeURIComponent(ben.username),
   });
   res.redirect(`${adres}#m-${sonuc.insertId}`);
+});
+
+// Kendi mesajını sil: yumuşak silme (deleted_at). Başkasının mesajına dokunamaz: sorgu sender_id = ben şartını arar.
+// Satır kalır, böylece konuşmada "Bu mesaj silindi" yer tutucusu görünür ve şikâyet kaydı bozulmaz.
+iletisim.post("/mesajlar/mesaj/:id/sil", girisGerekli(), async (req, res, next) => {
+  const ben = res.locals.kullanici;
+  const id = sayi(req.params.id);
+  const [satirlar]: any = id
+    ? await pool.query(
+        `SELECT messages.id, users.username AS karsi FROM messages JOIN users ON users.id = messages.receiver_id
+          WHERE messages.id = ? AND messages.sender_id = ?`, [id, ben.id])
+    : [[]];
+  const m = satirlar[0];
+  if (!m) return next(); // yok ya da başkasının: 404 (varlığını da söylemiyoruz)
+  await pool.query("UPDATE messages SET deleted_at = COALESCE(deleted_at, NOW()) WHERE id = ?", [m.id]);
+  bildir(req, "basari", "Mesajın silindi");
+  res.redirect("/mesajlar/" + encodeURIComponent(m.karsi));
+});
+
+// Engelle / engeli kaldır. Adres kullanıcı adıyla; geldiği sayfaya (profil, mesajlar, ayarlar) döner.
+async function engelHedefi(req: express.Request, res: express.Response) {
+  const [satirlar]: any = await pool.query("SELECT id, username FROM users WHERE username = ? AND deleted_at IS NULL", [req.params.kullanici]);
+  const hedef = satirlar[0];
+  if (!hedef) return null;
+  if (hedef.id === res.locals.kullanici.id) {
+    bildir(req, "hata", "Kendini engelleyemezsin.");
+    res.redirect(geriAdres(req, "/mesajlar"));
+    return undefined;
+  }
+  return hedef;
+}
+
+iletisim.post("/engel/:kullanici", girisGerekli(), async (req, res, next) => {
+  const hedef = await engelHedefi(req, res);
+  if (hedef === undefined) return;
+  if (!hedef) return next();
+  await pool.query("INSERT IGNORE INTO user_blocks (blocker_id, blocked_id) VALUES (?, ?)", [res.locals.kullanici.id, hedef.id]);
+  bildir(req, "basari", `${hedef.username} engellendi`);
+  res.redirect(geriAdres(req, "/mesajlar"));
+});
+
+iletisim.post("/engel/:kullanici/kaldir", girisGerekli(), async (req, res, next) => {
+  const hedef = await engelHedefi(req, res);
+  if (hedef === undefined) return;
+  if (!hedef) return next();
+  await pool.query("DELETE FROM user_blocks WHERE blocker_id = ? AND blocked_id = ?", [res.locals.kullanici.id, hedef.id]);
+  bildir(req, "basari", `${hedef.username} için engel kaldırıldı`);
+  res.redirect(geriAdres(req, "/mesajlar"));
 });
 
 // ---------------------------------------------------------------------------
@@ -174,7 +260,7 @@ async function sohbetVerisi() {
   // Son 5 dakikada herhangi bir sayfa açanlar (oturum.ts last_seen_at'i günceller)
   const [cevrimici] = await pool.query(
     `SELECT username FROM users
-      WHERE deleted_at IS NULL AND last_seen_at >= NOW() - INTERVAL 5 MINUTE
+      WHERE deleted_at IS NULL AND ${cevrimiciSql("users")}
       ORDER BY username`
   );
   return { mesajlar, cevrimici };

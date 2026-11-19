@@ -27,10 +27,7 @@
 
 .mesaj-ust { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--kenar-ince); }
 .mesaj-ust-bilgi { display: grid; gap: 2px; min-width: 0; }
-.mesaj-ust-bilgi a { font-weight: 600; font-size: 16px; }
-.mesaj-ust-bilgi a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .mesaj-geri { display: none; }
-.mesaj-profil-baglanti { margin-left: auto; }
 .mesaj-akis { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column-reverse; }
 .mesaj-akis-ic { display: grid; gap: 4px; padding: 16px; }
 .mesaj-gun { justify-self: center; margin: 12px 0 8px; padding: 4px 12px; border-radius: 12px; background: var(--yuzey-2); color: var(--yazi-2); font-size: 12px; font-weight: 600; }
@@ -251,12 +248,75 @@
 .sohbet-bayrak { align-self: center; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: var(--yazi-2); opacity: 0; transition: opacity .15s; }
 .sohbet-mesaj:hover .sohbet-bayrak, .sohbet-bayrak:focus-visible { opacity: 1; }
 .sohbet-bayrak:hover { background: var(--yuzey-2); color: var(--hata); }
-.balon-bayrak { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 12px; color: var(--yazi-2); opacity: .7; }
-.balon-bayrak:hover { color: var(--hata); opacity: 1; }
-.mesaj-balon.silindi { font-style: italic; color: var(--yazi-2); }
 @media (pointer: coarse) { .sohbet-bayrak { opacity: .7; width: 40px; height: 40px; } }
 .moderasyon-baglam { display: grid; gap: 4px; }
 .moderasyon-baglam-satir { padding: 6px 10px; border-radius: 8px; font-size: 14px; color: var(--yazi-2); overflow-wrap: anywhere; }
 .moderasyon-baglam-satir strong { color: var(--yazi); }
 .moderasyon-baglam-satir.hedef { background: var(--ton); color: var(--ton-ustu); }
 .moderasyon-baglam-satir.hedef strong { color: inherit; }
+
+/* ---------- Özel mesajlar: yeni mesaj, mesaj menüsü, üst bilgi, engel kartı ---------- */
+.mesaj-liste-baslik { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.yeni-mesaj-dugme { flex: none; height: 40px; padding: 0 16px; gap: 8px; border-radius: 20px; font-size: 14px; }
+
+/* Üst bilgi: avatar + ad tek bağlantı (profile giden tek yol); durum satırı adın altında */
+.mesaj-ust-kimlik { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border-radius: 12px; }
+.mesaj-ust-bilgi strong { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mesaj-ust-kimlik:hover .mesaj-ust-bilgi strong { text-decoration: underline; text-underline-offset: 3px; }
+.mesaj-durum { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+.mesaj-durum.cevrimici { color: var(--d-islendi); }
+.mesaj-durum .sohbet-nokta { background: var(--d-islendi); }
+.mesaj-ust-menu-dugme { flex: none; }
+.mesaj-yeni-baslik { font-family: var(--baslik-tipi); font-size: 20px; }
+
+/* Balon + ⋮ düğmesi yan yana; kendi mesajımda düğme balonun soluna geçer */
+.mesaj-satiri { display: flex; align-items: center; gap: 4px; max-width: min(82%, 600px); }
+.mesaj-grup.ben .mesaj-satiri { flex-direction: row-reverse; }
+.mesaj-satiri .mesaj-balon { max-width: 100%; min-width: 0; }
+.mesaj-menu-dugme {
+  flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--yazi-2);
+  opacity: 0; transition: opacity var(--sure-orta, .15s) ease, background-color var(--sure-orta, .15s) ease;
+}
+.mesaj-menu-dugme:hover { background: var(--yuzey-2); color: var(--yazi); }
+/* Masaüstünde üzerine gelince ya da odaklanınca görünür; menü açıkken de görünür kalır */
+.mesaj-satiri:hover .mesaj-menu-dugme, .mesaj-menu-dugme:focus-visible, .mesaj-satiri:has(.mesaj-menusu:popover-open) .mesaj-menu-dugme { opacity: 1; }
+/* Dokunmatikte üzerine gelme yok: hep görünür */
+@media (hover: none) { .mesaj-menu-dugme { opacity: 1; } }
+.mesaj-menusu { min-width: 200px; }
+/* Kopyala yalnızca JS'le çalışır: JS yokken menüde hiç görünmez */
+.mesaj-kopyala { display: none; }
+.js .mesaj-kopyala { display: flex; }
+/* Silinmiş mesaj: kesikli çerçeveli, dolgusuz yer tutucu */
+.mesaj-grup .mesaj-balon.silindi, .mesaj-grup.ben .mesaj-balon.silindi { background: transparent; border: 1px dashed var(--kenar); color: var(--yazi-2); font-style: italic; }
+
+/* Engel / izin yok: yazı kutusunun yerine ortalı kart */
+.mesaj-kilit { display: grid; justify-items: center; gap: 6px; padding: 20px 16px; border-top: 1px solid var(--kenar-ince); text-align: center; }
+.mesaj-kilit strong { font-size: 15px; }
+.mesaj-kilit p { margin: 0; font-size: 14px; color: var(--yazi-2); }
+.mesaj-kilit .mesaj-bos-ikon { width: 48px; height: 48px; border-radius: 16px; }
+.mesaj-kilit form { margin-top: 8px; }
+
+/* Yeni mesaj: arama (pencerede ve /mesajlar/yeni sayfasında aynı parça) */
+.mesaj-yeni { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 12px; padding: 16px; }
+.kisi-ara-form { display: flex; align-items: center; gap: 8px; }
+.kisi-ara-form .mesaj-ara { flex: 1; min-width: 0; }
+.kisi-sonuclar { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.kisi-sonuc { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border-radius: 14px; }
+.kisi-sonuc strong { flex: 1; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kisi-sonuc:hover, .kisi-sonuc:focus-visible { background: var(--yuzey-2); }
+.kisi-bos { padding: 20px 12px; text-align: center; font-size: 14px; color: var(--yazi-2); }
+.yeni-mesaj-penceresi {
+  width: min(440px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; overflow: hidden;
+  background: var(--yuzey-3); color: var(--yazi); border: 1px solid var(--kenar-ince); border-radius: 24px;
+  box-shadow: var(--kat-2), 0 24px 60px -16px rgb(0 0 0 / .55);
+}
+.yeni-mesaj-ic { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 12px; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 20px; }
+.yeni-mesaj-ust { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.yeni-mesaj-ust h2 { font-family: var(--baslik-tipi); font-size: 20px; }
+/* Pencerede arama yazdıkça çalışır: "Ara" düğmesi gereksiz (Enter de /mesajlar/yeni'ye gider) */
+.yeni-mesaj-penceresi .kisi-ara-gonder { display: none; }
+@media (max-width: 800px) {
+  .mesaj-satiri { max-width: 94%; }
+  .yeni-mesaj-dugme { height: 48px; }
+  .mesaj-ust-menu-dugme { width: 48px; height: 48px; }
+}

@@ -16,6 +16,7 @@ docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' 
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/07_hesap.sql       # yalnızca çalışan veritabanı 07'yi görmediyse
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/08_yonetim.sql      # yönetim paneli tabloları (bir kez; ALTER TABLE tekrar çalışmaz)
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/10_panel.sql         # puan kuralları ayarı + 'duyuru' bildirim türü (tekrar çalıştırmak zararsız)
+docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/11_gizlilik.sql       # konum, web sitesi, gizlilik tercihleri, user_blocks (bir kez; ALTER TABLE tekrar çalışmaz)
 node --env-file=.env src/server.ts
 ```
 
@@ -25,9 +26,9 @@ Deneme kullanıcıları (şifre hepsinde `test1234`): `shurai` (admin), `ayse` (
 
 | Dosya | Adresler |
 |---|---|
-| `src/rotalar/hesap.ts` | `GET/POST /giris`, `/kayit`, `POST /cikis`, `/sifremi-unuttum`, `GET/POST /sifre-sifirla/:token`, `GET /ayarlar`, `POST /ayarlar/profil`, `/ayarlar/gorunum`, `GET/POST /hesap/sifre`, `GET/POST /hesap/eposta`, `POST /hesap/sil` |
-| `src/rotalar/forum.ts` | `/` (`?kategori=&sirala=yeni\|populer\|eniyi`), `/konu/yeni`, `/konu/:id` (`?sirala=eniyi\|yeni`), `POST /konu/:id/cevap`, `POST /oy`, `/profil/:username` (`?sekme=yorumlar`), `/ara?q=&sekme=`, `/siralama?donem=hafta\|ay\|tum`, `GET/POST /sikayet` (alanlar `post_id` ya da `kullanici`) |
-| `src/rotalar/iletisim.ts` | `/mesajlar`, `/mesajlar/:kullanici` (GET/POST), `/bildirimler`, `/bildirimler/:id`, `POST /bildirimler/okundu`, `/sohbet` (GET herkese açık, POST üyeye) |
+| `src/rotalar/hesap.ts` | `GET/POST /giris`, `/kayit`, `POST /cikis`, `/sifremi-unuttum`, `GET/POST /sifre-sifirla/:token`, `GET /ayarlar`, `POST /ayarlar/profil` (kullanıcı adı, hakkında, konum, web sitesi), `/ayarlar/gorunum`, `/ayarlar/gizlilik`, `GET/POST /hesap/sifre`, `GET/POST /hesap/eposta`, `POST /hesap/sil` |
+| `src/rotalar/forum.ts` | `/` (`?kategori=&sirala=yeni\|populer\|eniyi`), `/konu/yeni`, `/konu/:id` (`?sirala=eniyi\|yeni`), `POST /konu/:id/cevap`, `POST /oy`, `/profil/:username` (`?sekme=yorumlar`), `/ara?q=&sekme=`, `/siralama?donem=hafta\|ay\|tum`, `GET/POST /sikayet` (alanlar `post_id`, `kullanici`, `sohbet_id` ya da `mesaj_id`; isteğe bağlı `engelle=1`) |
+| `src/rotalar/iletisim.ts` | `/mesajlar`, `GET /mesajlar/yeni?q=` (JS'siz kullanıcı arama), `GET /mesajlar/kisi-ara?q=` (JSON, en fazla 8), `/mesajlar/:kullanici` (GET/POST), `POST /mesajlar/mesaj/:id/sil` (kendi mesajını yumuşak sil), `POST /engel/:kullanici`, `POST /engel/:kullanici/kaldir`, `/bildirimler`, `/bildirimler/:id`, `POST /bildirimler/okundu`, `/sohbet` (GET herkese açık, POST üyeye) |
 | `src/rotalar/moderasyon.ts` | `GET /moderasyon` (301 → `/yonetim/sikayetler`), `POST /moderasyon/:id/sil\|uyar\|reddet\|uzaklastir` (şikâyet id'si; kullanıcı şikâyetinde `sil` yok), `POST /moderasyon/sabitle\|kilitle\|kategori-degistir\|sil\|uzaklastir` (alanlar `post_id`, `topic_id`, kategori için `category_id`) |
 | `src/rotalar/yonetim*.ts` | Yönetim paneli, aşağıdaki "Yönetim paneli" bölümüne bak |
 | `src/oturum.ts`, `src/yardimci.ts`, `src/sifre.ts` | Oturum (MySQL'de saklanır), ortak yardımcılar (puan, bildirim, rozet, toast), scrypt ile şifre özeti |
@@ -122,6 +123,29 @@ CHECK tam olarak ilgili sütunun dolu olmasını ister. Grup/oda sohbeti gelince
 `POST /sikayet` alanları: `post_id | kullanici | sohbet_id | mesaj_id`. Özel mesajı yalnızca alıcı şikâyet edebilir; moderatör yalnızca o mesajı ve çevresini
 (öncesinden 3, sonrasından 2 mesaj) görür. Sohbet ve özel mesajlar da yumuşak silinir (`deleted_at`).
 Eylemler: sil (silinen mesajın bekleyen şikâyetleri kapanır), uyar (bildirim), banla, reddet.
+
+## Profil seçenekleri, gizlilik ve engelleme (sql/11_gizlilik.sql)
+
+- `users`: `konum VARCHAR(60)`, `web_sitesi VARCHAR(200)` (yalnızca `http://` / `https://`; sunucu `new URL` ile doğrular, profilde `rel="nofollow noopener ugc" target="_blank"` ile çizilir),
+  `dm_izni ENUM('herkes','kimse')` (kimler özel mesaj atabilir), `cevrimici_goster BOOLEAN` (kapalıysa sohbetteki çevrimiçi listesinde ve mesajlarda görünmez).
+- `user_blocks (blocker_id, blocked_id, created_at)`: PK ikisi birden, FK'ler CASCADE, `CHECK (blocker_id <> blocked_id)`. Engel iki yönlü etkir: ikisi de birbirine yazamaz.
+- Kural tek yerde: `src/gizlilik.ts` `mesajDurumu(ben, kisi)` -> `izinli` | `ben_engelledim` | `kapali`. `kapali` = karşı taraf beni engellemiş YA DA `dm_izni = 'kimse'`;
+  hangisi olduğu bilerek söylenmez. Sayfa yazı kutusu yerine kart çizer, `POST /mesajlar/:kullanici` aynı kontrolü yapıp reddeder (asıl koruma).
+  `cevrimiciSql()` "çevrimiçi" tanımıdır (son 5 dk + `cevrimici_goster`), hem sohbet listesi hem DM üst bilgisi kullanır.
+- Özel mesajlar: "Yeni mesaj" düğmesi (JS varsa pencere + `/mesajlar/kisi-ara`, yoksa `/mesajlar/yeni` sayfası; sonuçlar kendini, silinmişleri ve aramızda engel olanları saymaz).
+  Her balonda ⋮ menüsü: Kopyala (yalnızca JS), gelen mesajda Şikâyet et, kendi mesajında Sil (`messages.deleted_at`; silinen mesaj kesikli çerçeveli yer tutucu olur:
+  gönderene "Bu mesajı sildin", alıcıya "Bu mesaj silindi"; moderatör silmesi de aynı yer tutucuyu gösterir). Üst bilgideki avatar + ad profile giden TEK bağlantıdır;
+  altında "Çevrimiçi" ya da rütbe. Üst ⋮ menüsü: `<ad>'i engelle` ve "Kullanıcıyı şikâyet et"; zaten engelliysen "Engeli kaldır" yalnızca yazı kutusunun yerindeki kartta durur (aynı eylem iki yerde çıkmasın).
+- Profil: konum + web sitesi meta satırında; ziyaretçide "Mesaj gönder" (yazamıyorsa gizli) ve tek ⋮ menüsü (Engelle / Engeli kaldır, Şikâyet et). Ayarlar'da yeni "Gizlilik" bölümü
+  (`#gizlilik`; sol menü, tablet dock'u ve telefon şeridinde `data-bolum-bag`) ve "Engellenenler" listesi.
+- `/mesajlar/yeni` adı rota olduğu için `yeni` kullanıcı adı olarak ayrılmıştır (`hesap.ts` `AYRILMIS_AD`).
+
+## Şikâyet sebepleri ve pencere
+
+Sebepler `src/sikayet.ts` `SEBEP_LISTESI`'nde (etiket + açıklama); `reports.sebep`'e ETİKET yazılır (VARCHAR(64) yetti, genişletilmedi). Eski satırlardaki "Hakaret veya nefret söylemi"
+olduğu gibi okunur, yalnızca yeni şikâyetler yeni listeyle doğrulanır. Yönetim paneli süzgeci de aynı listeyi kullanır. "Konu dışı" yalnızca konu ve sohbet mesajında seçilebilir
+(pencere `data-hedef` ile CSS'ten gizler, `sebepHatasi()` sunucuda da reddeder). "Başka bir sebep" seçilince not zorunludur (JS `required` yapar, sunucu da reddeder, toast).
+Pencerede "<ad>'i de engelle" kutusu çıkar: her şikâyet bağlantısı `data-yazar` taşır, işaretliyse şikâyetle birlikte `user_blocks` kaydı da açılır. Pencere kısa ekranda kendi içinde kayar.
 
 ## Puan kuralı
 

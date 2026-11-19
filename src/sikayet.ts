@@ -18,7 +18,31 @@ export const TUR_ETIKET: Record<string, string> = {
   ozel_mesaj: "Özel mesaj",
 };
 export const TURLER = Object.keys(TUR_ETIKET);
-export const SEBEPLER = ["Spam veya reklam", "Hakaret veya nefret söylemi", "Konu dışı", "Başka bir sebep"];
+// Şikâyet sebepleri: reports.sebep'e ETİKET yazılır (kod yok), yönetim paneli de aynı etiketle süzer.
+// sadeceMesaj: "Konu dışı" bir kullanıcı ya da özel mesaj için anlamsız, yalnızca konu/sohbet mesajında çıkar.
+// Eski satırlarda "Hakaret veya nefret söylemi" gibi artık listede olmayan etiketler durabilir; tablo olduğu gibi okur,
+// yalnızca yeni şikâyetlerde bu listedekiler kabul edilir.
+export const SEBEP_LISTESI = [
+  { ad: "Spam veya reklam", aciklama: "Tekrarlayan, alakasız ya da tanıtım amaçlı içerik" },
+  { ad: "Taciz veya zorbalık", aciklama: "Bir kişiyi hedef alan, rahatsız eden davranış" },
+  { ad: "Nefret söylemi", aciklama: "Bir gruba kimliği nedeniyle saldırı" },
+  { ad: "Müstehcen içerik", aciklama: "Cinsel ya da rahatsız edici görseller, metin" },
+  { ad: "Kişisel bilgi paylaşımı", aciklama: "Adres, telefon gibi izinsiz paylaşılan bilgiler" },
+  { ad: "Yanıltıcı içerik", aciklama: "Kasıtlı yanlış bilgi, dolandırıcılık" },
+  { ad: "Konu dışı", aciklama: "Konuyla ilgisi olmayan mesaj", sadeceMesaj: true },
+  { ad: "Başka bir sebep", aciklama: "Not yazman gerekir" },
+] as { ad: string; aciklama: string; sadeceMesaj?: boolean }[];
+export const SEBEPLER = SEBEP_LISTESI.map((s) => s.ad);
+export const SEBEP_DIGER = "Başka bir sebep";
+
+// Şikâyet formunu doğrular; sorun varsa kullanıcıya gösterilecek metni, yoksa null döner.
+// hedefTur: reports.hedef_tur değeri ("kullanici" ve "ozel_mesaj" için "Konu dışı" geçersiz).
+export function sebepHatasi(sebep: string | null, aciklama: string | null, hedefTur: string): string | null {
+  if (!sebep) return "Bir şikâyet sebebi seç.";
+  if (sebep === "Konu dışı" && (hedefTur === "kullanici" || hedefTur === "ozel_mesaj")) return "Bu sebep yalnızca konu ve sohbet mesajları için seçilebilir.";
+  if (sebep === SEBEP_DIGER && !aciklama) return "“Başka bir sebep” için bir not yazman gerekiyor.";
+  return null;
+}
 
 export type Onizleme = {
   tur: string; id: number;

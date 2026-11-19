@@ -7,7 +7,9 @@
   acik        null ya da { kullanici, rutbe, mesajlar: [ { id, benim (bool: sender_id giriş yapan kişi), content, created_at, read_at } ] }
               (mesajlar[].silindi: moderatör kaldırdıysa true, content yerine bilgi metni gelir)
               mesajlar eskiden yeniye sıralı. null ise "Bir konuşma seç" boş durumu görünür
-  Gönderim: POST /mesajlar/<kullanici>  alan: content
+  acik.cevrimici (bool: son 5 dk içinde görüldü VE durumunu gizlemiyor), acik.durum ("izinli" | "ben_engelledim" | "kapali")
+  yeni        true ise sağ tarafta "Yeni mesaj" araması (JS'siz yol: GET /mesajlar/yeni?q=); aramaQ, sonuclar [ { username, rutbe } ]
+  Gönderim: POST /mesajlar/<kullanici>  alan: content · Sil: POST /mesajlar/mesaj/<id>/sil · Engel: POST /engel/<kullanici>[/kaldir]
 %>
 <%- include("partials/bas", { baslik: "Mesajlar" }) %>
 <%- include("partials/ust-cubuk") %>
@@ -52,10 +54,14 @@
     if (mjSonBenim && mjSonBenim.mesaj.read_at) mjSonBenim.grup.goruldu = mjSonBenim.mesaj.read_at;
   }
 %>
-<main class="mesaj-sayfa <%= mjAcik ? 'mesaj-acik' : '' %>">
+<main class="mesaj-sayfa <%= mjAcik || locals.yeni ? 'mesaj-acik' : '' %>">
   <section class="kart mesaj-liste" aria-label="Konuşmalar">
     <div class="mesaj-liste-ust">
-      <h1>Mesajlar</h1>
+      <div class="mesaj-liste-baslik">
+        <h1>Mesajlar</h1>
+        <%# "Yeni mesaj" yalnızca yeni mesaj sayfasında yok: orada zaten aynı arama açık, aynı eylem iki yerde durmasın %>
+        <% if (!locals.yeni) { %><a class="buton buton-tonal yeni-mesaj-dugme" href="/mesajlar/yeni" data-yeni-mesaj-ac><%- include("partials/ikon", { ad: "kalem", boyut: 18 }) %> Yeni mesaj</a><% } %>
+      </div>
       <form class="mesaj-ara" method="get" action="/mesajlar" role="search">
         <%- include("partials/ikon", { ad: "ara", boyut: 18 }) %>
         <input type="search" name="q" value="<%= mjQ %>" placeholder="Konuşmalarda ara" aria-label="Konuşmalarda ara">
@@ -66,7 +72,7 @@
         <% if (mjQ) { %>
           “<%= mjQ %>” ile eşleşen konuşma yok.
         <% } else { %>
-          Henüz mesajın yok. Bir kullanıcının profilinden “Mesaj gönder” diyerek konuşma başlatabilirsin.
+          Henüz mesajın yok. “Yeni mesaj” ile ya da bir kullanıcının profilinden konuşma başlatabilirsin.
         <% } %>
       </div>
     <% } else { %>
@@ -92,26 +98,48 @@
   </section>
 
   <section class="kart mesaj-pano" aria-label="Konuşma">
-    <% if (!mjAcik) { %>
+    <% if (locals.yeni) { %>
+      <header class="mesaj-ust">
+        <a class="ikon-dugme mesaj-geri" href="/mesajlar" aria-label="Konuşma listesine dön"><%- include("partials/ikon", { ad: "cevap", boyut: 20 }) %></a>
+        <h2 class="mesaj-yeni-baslik">Yeni mesaj</h2>
+      </header>
+      <div class="mesaj-yeni"><%- include("partials/kisi-ara", { dialog: false, aramaQ: locals.aramaQ, sonuclar: locals.sonuclar }) %></div>
+    <% } else if (!mjAcik) { %>
       <div class="mesaj-bos">
         <span class="mesaj-bos-ikon"><%- include("partials/ikon", { ad: "mektup", boyut: 28 }) %></span>
         <h2>Bir konuşma seç</h2>
-        <p>Soldaki listeden bir konuşma aç ya da bir profilden yeni mesaj başlat.</p>
+        <p>Soldaki listeden bir konuşma aç ya da yeni bir mesaj başlat.</p>
       </div>
     <% } else { %>
       <header class="mesaj-ust">
         <a class="ikon-dugme mesaj-geri" href="/mesajlar" aria-label="Konuşma listesine dön"><%- include("partials/ikon", { ad: "cevap", boyut: 20 }) %></a>
-        <span class="avatar avatar-48"><%= mjAcik.kullanici[0] %></span>
-        <div class="mesaj-ust-bilgi">
-          <a href="/profil/<%= mjAcik.kullanici %>"><%= mjAcik.kullanici %></a>
-          <% if (mjAcik.rutbe) { %><span><span class="rozet"><%= mjAcik.rutbe %></span></span><% } %>
+        <%# Profile giden TEK bağlantı: avatar ve ad birlikte; durum satırı da bağlantının içinde, ikinci bağlantı yok %>
+        <a class="mesaj-ust-kimlik" href="/profil/<%= mjAcik.kullanici %>">
+          <span class="avatar avatar-48"><%= mjAcik.kullanici[0] %></span>
+          <span class="mesaj-ust-bilgi">
+            <strong><%= mjAcik.kullanici %></strong>
+            <% if (mjAcik.cevrimici) { %>
+              <span class="mesaj-durum cevrimici"><span class="sohbet-nokta" aria-hidden="true"></span>Çevrimiçi</span>
+            <% } else if (mjAcik.rutbe) { %>
+              <span><span class="rozet"><%= mjAcik.rutbe %></span></span>
+            <% } %>
+          </span>
+        </a>
+        <button class="ikon-dugme mesaj-ust-menu-dugme" type="button" popovertarget="mesaj-ust-menusu" data-menu-ac aria-label="Konuşma işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
+        <div class="acilir-menu acilir-menu-konumlu" id="mesaj-ust-menusu" popover aria-label="Konuşma işlemleri">
+          <%# "Engeli kaldır" yalnızca aşağıdaki kartta durur (aynı eylem iki yerde çıkmasın); menüde engellemek yalnızca engelli değilsen var %>
+          <% if (mjAcik.durum !== "ben_engelledim") { %>
+            <form method="post" action="/engel/<%= encodeURIComponent(mjAcik.kullanici) %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+              <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("partials/ikon", { ad: "yasak", boyut: 20 }) %><span class="acilir-ad"><%= belirtme(mjAcik.kullanici) %> engelle</span></button>
+            </form>
+          <% } %>
+          <a class="acilir-oge acilir-oge-tehlikeli" href="/sikayet?kullanici=<%= encodeURIComponent(mjAcik.kullanici) %>" data-sikayet-ac data-kullanici="<%= mjAcik.kullanici %>" data-yazar="<%= mjAcik.kullanici %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 20 }) %><span class="acilir-ad">Kullanıcıyı şikâyet et</span></a>
         </div>
-        <a class="buton buton-cerceveli mesaj-profil-baglanti" href="/profil/<%= mjAcik.kullanici %>">Profili gör</a>
       </header>
       <div class="mesaj-akis" tabindex="0" aria-label="Mesaj geçmişi">
         <div class="mesaj-akis-ic">
           <% if (mjOgeler.length === 0) { %>
-            <div class="bos">Henüz mesaj yok. İlk mesajı sen yaz.</div>
+            <div class="bos">Henüz mesaj yok. <%= mjAcik.durum === "izinli" ? "İlk mesajı sen yaz." : "" %></div>
           <% } %>
           <% for (const o of mjOgeler) { %>
             <% if (o.tur === "gun") { %>
@@ -119,7 +147,28 @@
             <% } else { %>
               <% const son = o.mesajlar[o.mesajlar.length - 1]; %>
               <div class="mesaj-grup <%= o.benim ? 'ben' : '' %>">
-                <% for (const m of o.mesajlar) { %><div class="mesaj-balon<%= m.silindi ? ' silindi' : '' %>" id="m-<%= m.id %>"><%= m.content %><%# Yalnızca ALICI şikâyet edebilir: gelen (benim olmayan), silinmemiş mesajlarda bayrak çıkar %><% if (!o.benim && !m.silindi) { %><a class="balon-bayrak" href="/sikayet?mesaj_id=<%= m.id %>" data-sikayet-ac data-mesaj-id="<%= m.id %>" data-baslik="Bu özel mesajı şikâyet et" aria-label="Bu mesajı şikâyet et" title="Şikâyet et"><%- include("partials/ikon", { ad: "bayrak", boyut: 14 }) %> Şikâyet et</a><% } %></div><% } %>
+                <% for (const m of o.mesajlar) { %>
+                  <div class="mesaj-satiri" id="m-<%= m.id %>">
+                    <% if (m.silindi) { %>
+                      <div class="mesaj-balon silindi"><%= o.benim ? "Bu mesajı sildin" : "Bu mesaj silindi" %></div>
+                    <% } else { %>
+                      <div class="mesaj-balon" id="mt-<%= m.id %>"><%= m.content %></div>
+                      <button class="mesaj-menu-dugme" type="button" popovertarget="mesaj-menusu-<%= m.id %>" data-menu-ac aria-label="Mesaj işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 18 }) %></button>
+                      <div class="acilir-menu acilir-menu-konumlu mesaj-menusu" id="mesaj-menusu-<%= m.id %>" popover aria-label="Mesaj işlemleri">
+                        <%# Kopyala yalnızca JS'le çalışır; JS yokken CSS gizler (.js sınıfı yoksa görünmez) %>
+                        <button class="acilir-oge mesaj-kopyala" type="button" data-kopyala="#mt-<%= m.id %>"><%- include("partials/ikon", { ad: "kopyala", boyut: 20 }) %><span class="acilir-ad">Kopyala</span></button>
+                        <% if (o.benim) { %>
+                          <form method="post" action="/mesajlar/mesaj/<%= m.id %>/sil" onsubmit="return confirm('Bu mesaj silinsin mi?')"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+                            <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("partials/ikon", { ad: "cop", boyut: 20 }) %><span class="acilir-ad">Sil</span></button>
+                          </form>
+                        <% } else { %>
+                          <%# Yalnızca ALICI şikâyet edebilir: gelen (benim olmayan), silinmemiş mesajlarda çıkar %>
+                          <a class="acilir-oge" href="/sikayet?mesaj_id=<%= m.id %>" data-sikayet-ac data-mesaj-id="<%= m.id %>" data-yazar="<%= mjAcik.kullanici %>" data-baslik="Bu özel mesajı şikâyet et"><%- include("partials/ikon", { ad: "bayrak", boyut: 20 }) %><span class="acilir-ad">Şikâyet et</span></a>
+                        <% } %>
+                      </div>
+                    <% } %>
+                  </div>
+                <% } %>
                 <div class="mesaj-alt-not">
                   <span><%= mjSaat(son.created_at) %></span>
                   <% if (o.goruldu) { %><span>· Görüldü <%= mjSaat(o.goruldu) %></span><% } %>
@@ -129,12 +178,39 @@
           <% } %>
         </div>
       </div>
-      <form class="mesaj-yaz" method="post" action="/mesajlar/<%= mjAcik.kullanici %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
-        <textarea name="content" rows="1" maxlength="2000" required placeholder="<%= mjAcik.kullanici %> kişisine mesaj yaz" aria-label="Mesajın"></textarea>
-        <button class="buton buton-birincil">Gönder</button>
-      </form>
+      <% if (mjAcik.durum === "izinli") { %>
+        <form class="mesaj-yaz" method="post" action="/mesajlar/<%= mjAcik.kullanici %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+          <textarea name="content" rows="1" maxlength="2000" required placeholder="<%= mjAcik.kullanici %> kişisine mesaj yaz" aria-label="Mesajın"></textarea>
+          <button class="buton buton-birincil">Gönder</button>
+        </form>
+      <% } else if (mjAcik.durum === "ben_engelledim") { %>
+        <div class="mesaj-kilit">
+          <span class="mesaj-bos-ikon"><%- include("partials/ikon", { ad: "yasak", boyut: 24 }) %></span>
+          <strong><%= mjAcik.kullanici %> kullanıcısını engelledin</strong>
+          <p>Sana mesaj gönderemez, sen de ona yazamazsın.</p>
+          <form method="post" action="/engel/<%= encodeURIComponent(mjAcik.kullanici) %>/kaldir"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+            <button class="buton buton-cerceveli">Engeli kaldır</button>
+          </form>
+        </div>
+      <% } else { %>
+        <div class="mesaj-kilit">
+          <span class="mesaj-bos-ikon"><%- include("partials/ikon", { ad: "kilit", boyut: 24 }) %></span>
+          <strong>Bu kişiye şu an mesaj gönderemezsin.</strong>
+        </div>
+      <% } %>
     <% } %>
   </section>
 </main>
 <% if (mjAcik) { %><%- include("partials/sikayet-penceresi") %><% } %>
+<% if (!locals.yeni) { %>
+<dialog class="yeni-mesaj-penceresi" id="yeni-mesaj-penceresi" aria-labelledby="yeni-mesaj-baslik">
+  <div class="yeni-mesaj-ic">
+    <div class="yeni-mesaj-ust">
+      <h2 id="yeni-mesaj-baslik">Yeni mesaj</h2>
+      <button class="ikon-dugme" type="button" data-dialog-kapat aria-label="Kapat"><%- include("partials/ikon", { ad: "kapat", boyut: 20 }) %></button>
+    </div>
+    <%- include("partials/kisi-ara", { dialog: true, aramaQ: "", sonuclar: [] }) %>
+  </div>
+</dialog>
+<% } %>
 <%- include("partials/son") %>

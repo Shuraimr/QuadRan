@@ -6,6 +6,6 @@
 <%- include("partials/bas", { baslik: "Şikâyet et" }) %>
 <%- include("partials/ust-cubuk") %>
 <div class="orta-sayfa">
-  <%- include("partials/sikayet-penceresi", { statik: true, post_id: locals.post_id, hedef_kullanici: locals.hedef_kullanici, sohbet_id: locals.sohbet_id, mesaj_id: locals.mesaj_id }) %>
+  <%- include("partials/sikayet-penceresi", { statik: true, post_id: locals.post_id, hedef_kullanici: locals.hedef_kullanici, yazar: locals.yazar, sohbet_id: locals.sohbet_id, mesaj_id: locals.mesaj_id }) %>
 </div>
 <%- include("partials/son") %>

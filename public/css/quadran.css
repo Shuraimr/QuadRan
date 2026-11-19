@@ -507,3 +507,18 @@ html { scroll-behavior: smooth; }
 .ayarlar .siralama label { flex: 1 1 0; min-width: 0; justify-content: center; }
 /* --alt-yer için JS'ten bağımsız yedek: tablette ayar dock'u (24px boşluk + 58px dock). JS ölçünce <html>'e satır içi yazar ve bunun önüne geçer. */
 @media (min-width: 801px) and (max-width: 1180px) { :root:has(.ayar-dok) { --alt-yer: 82px; } }
+
+/* ---------- Profil meta satırı, profil ⋮ menüsü, ayarlar: gizlilik ---------- */
+.kimlik-meta { gap: 4px 16px; }
+.meta-oge { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+a.meta-oge:hover { color: var(--yazi); text-decoration: underline; text-underline-offset: 3px; }
+.profil-menu-dugme { width: 48px; padding: 0; }
+.bolum-ici { display: grid; gap: 20px; }
+.engelliler { display: grid; gap: 12px; }
+.engelli-liste { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.engelli-satir { display: flex; align-items: center; gap: 12px; }
+.engelli-satir strong { flex: 1; min-width: 0; font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ayarlar .bolum-ici { grid-template-columns: minmax(0, 1fr); }
+/* Telefonda konum / web sitesi eklenince meta satırları avatarın yanına sığmaz ve ad bannerın üstüne taşar:
+   o durumda ad bloğu avatarın altına, tam genişliğe iner */
+@media (max-width: 800px) { .kimlik-bilgi:has(.meta-oge + .meta-oge) { flex: 1 1 100%; } }

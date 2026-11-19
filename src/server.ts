@@ -1,3 +1,5 @@
+import { SEBEP_LISTESI } from "./sikayet.ts";
+import { belirtme } from "./gizlilik.ts";
 import express from "express";
 import { oturum, ortakVeriler, csrfKoru } from "./oturum.ts";
 import { hesap } from "./rotalar/hesap.ts";
@@ -45,6 +47,10 @@ if (process.env.NODE_ENV !== "production") {
   app.use("/onizleme", katmanlar); // /onizleme/katmanlar
   app.use("/onizleme", sayfalar);  // /onizleme/mesajlar, /bildirimler, /ara, /siralama, /sohbet, /moderasyon, /sifremi-unuttum
 }
+
+// Şikâyet penceresi (partials/sikayet-penceresi.ejs) birçok sayfada yer alır; sebep listesi ve Türkçe "-i hâli" yardımcısı her şablonda hazır olsun
+app.locals.sikayetSebepleri = SEBEP_LISTESI;
+app.locals.belirtme = belirtme;
 
 // Bütün şablonlarda kullanılabilen yardımcı: "2 saat önce" gibi yazar
 app.locals.zaman = (tarih: Date) => {

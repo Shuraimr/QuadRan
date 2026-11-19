@@ -19,6 +19,25 @@
   function ac(dlg) { if (acilabilir(dlg) && !dlg.open) dlg.showModal(); return acilabilir(dlg); }
   function kapat(dlg) { if (dlg && dlg.open && typeof dlg.close === "function") dlg.close(); }
 
+  /* Türkçe belirtme hâli: ayse -> ayse’yi, ahmet -> ahmet’i. (src/gizlilik.ts belirtme() ile aynı kural.) */
+  function belirtme(ad) {
+    var k = ad.toLocaleLowerCase("tr"), sesli = "aeıioöuü", son = "";
+    for (var i = 0; i < k.length; i++) if (sesli.indexOf(k[i]) > -1) son = k[i];
+    var ek = !son ? "i" : "aı".indexOf(son) > -1 ? "ı" : "ei".indexOf(son) > -1 ? "i" : "ou".indexOf(son) > -1 ? "u" : "ü";
+    return ad + "’" + (sesli.indexOf(k[k.length - 1]) > -1 ? "y" : "") + ek;
+  }
+
+  /* Şikâyet formu: "Başka bir sebep" seçiliyse not zorunlu olur (sunucu da aynısını ister) */
+  function notZorunlu(form) {
+    var diger = bul('input[name="sebep"][value="Başka bir sebep"]', form);
+    var not = bul('textarea[name="not"]', form);
+    if (not) not.required = !!(diger && diger.checked);
+  }
+  d.addEventListener("change", function (e) {
+    var f = e.target && e.target.closest ? e.target.closest(".sikayet-form") : null;
+    if (f && e.target.name === "sebep") notZorunlu(f);
+  });
+
   /* ---------- Arama penceresi ---------- */
   function aramaAc() {
     var dlg = bul("#arama-penceresi");
@@ -41,6 +60,9 @@
       var dlg = bul("#sikayet-penceresi");
       if (acilabilir(dlg)) {
         e.preventDefault();
+        /* Bağlantı bir ⋮ menüsünün içindeyse menü açık kalmasın (pencere açılınca arkada asılı durmasın) */
+        var acikMenu = sikayet.closest("[popover]");
+        if (acikMenu && acikMenu.hidePopover) { try { acikMenu.hidePopover(); } catch (x) { /* zaten kapalı */ } }
         var form = bul("form", dlg);
         if (form) {
           form.reset();
@@ -51,11 +73,23 @@
             var gizli = bul('input[name="' + ad + '"]', form);
             if (gizli) gizli.value = sikayet.getAttribute(alanlar[ad]) || "";
           });
+          /* Hedef türü: CSS buna bakıp "Konu dışı"yı kullanıcı ve özel mesaj şikâyetinde gizler */
+          dlg.setAttribute("data-hedef", sikayet.getAttribute("data-kullanici") ? "kullanici"
+            : sikayet.getAttribute("data-sohbet-id") ? "sohbet" : sikayet.getAttribute("data-mesaj-id") ? "ozel" : "konu");
           var baslik = bul("#sikayet-baslik", dlg);
           if (baslik) {
             baslik.textContent = sikayet.getAttribute("data-baslik") ||
               (sikayet.getAttribute("data-kullanici") ? "Bu kullanıcıyı şikâyet et" : "Bu mesajı şikâyet et");
           }
+          /* "<ad>’i de engelle" kutusu: yazar verilmediyse hiç gösterme */
+          var yazar = sikayet.getAttribute("data-yazar") || "";
+          var engelEtiket = bul(".sikayet-engel", form);
+          if (engelEtiket) {
+            engelEtiket.hidden = !yazar;
+            var adYeri = bul("[data-yazar-ad]", engelEtiket);
+            if (adYeri) adYeri.textContent = yazar ? belirtme(yazar) : "";
+          }
+          notZorunlu(form);
         }
         ac(dlg);
         var ilk = bul('input[name="sebep"]', dlg);
@@ -573,5 +607,80 @@
     }
     form.addEventListener("change", function () { window.setTimeout(say, 0); });
     say();
+  });
+
+  /* ---------- Yeni mesaj: kullanıcı ara ----------
+     Düğme JS yokken /mesajlar/yeni sayfasına giden bir bağlantıdır; JS varsa aynı arama pencerede açılır.
+     Yazdıkça (250 ms bekleyip) /mesajlar/kisi-ara?q= JSON uç noktasından en fazla 8 kişi gelir. */
+  (function () {
+    var dlg = bul("#yeni-mesaj-penceresi");
+    if (!acilabilir(dlg)) return;
+    var girdi = bul("[data-kisi-ara]", dlg), liste = bul("[data-kisi-sonuc]", dlg);
+    var zamanlayici = null, sayac = 0;
+    function yaz(metin) {
+      liste.textContent = "";
+      var p = d.createElement("li"); p.className = "kisi-bos"; p.textContent = metin; liste.appendChild(p);
+    }
+    function goster(kisiler) {
+      if (!kisiler.length) { yaz("Eşleşen kullanıcı yok."); return; }
+      liste.textContent = "";
+      kisiler.forEach(function (k) {
+        var li = d.createElement("li"), a = d.createElement("a"), av = d.createElement("span"), ad = d.createElement("strong");
+        a.className = "kisi-sonuc"; a.href = "/mesajlar/" + encodeURIComponent(k.username);
+        av.className = "avatar avatar-36"; av.textContent = k.username[0];
+        ad.textContent = k.username;
+        a.appendChild(av); a.appendChild(ad);
+        if (k.rutbe) { var r = d.createElement("span"); r.className = "rozet"; r.textContent = k.rutbe; a.appendChild(r); }
+        li.appendChild(a); liste.appendChild(li);
+      });
+    }
+    function ara() {
+      var q = girdi.value.trim(), benim = ++sayac;
+      if (!q) { yaz("Bir kullanıcı adı yazmaya başla."); return; }
+      fetch("/mesajlar/kisi-ara?q=" + encodeURIComponent(q), { headers: { Accept: "application/json" }, credentials: "same-origin" })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        /* Geç gelen eski cevap yenisini ezmesin: yalnızca son isteğin cevabı çizilir */
+        .then(function (k) { if (benim === sayac) goster(k); })
+        .catch(function () { if (benim === sayac) yaz("Arama şu an yapılamadı."); });
+    }
+    girdi.addEventListener("input", function () { window.clearTimeout(zamanlayici); zamanlayici = window.setTimeout(ara, 250); });
+    d.addEventListener("click", function (e) {
+      var dugme = e.target && e.target.closest ? e.target.closest("[data-yeni-mesaj-ac]") : null;
+      if (!dugme) return;
+      e.preventDefault();
+      girdi.value = ""; yaz("Bir kullanıcı adı yazmaya başla.");
+      ac(dlg); girdi.focus();
+    });
+  })();
+
+  /* ---------- Mesaj menüsü: Kopyala ----------
+     Öğe JS yokken CSS ile gizlidir (.js sınıfı gelince görünür). data-kopyala = kopyalanacak metnin elemanını gösteren seçici. */
+  d.addEventListener("click", function (e) {
+    var dugme = e.target && e.target.closest ? e.target.closest("[data-kopyala]") : null;
+    if (!dugme) return;
+    var kaynak = bul(dugme.getAttribute("data-kopyala"));
+    var ad = bul(".acilir-ad", dugme), eski = ad ? ad.textContent : "";
+    var menu = dugme.closest("[popover]");
+    function bitti(basarili) {
+      if (ad) ad.textContent = basarili ? "Kopyalandı" : "Kopyalanamadı";
+      window.setTimeout(function () {
+        if (ad) ad.textContent = eski;
+        if (menu && menu.hidePopover) { try { menu.hidePopover(); } catch (x) { /* kapalı */ } }
+      }, hareketAzMi() ? 400 : 700);
+    }
+    if (!kaynak) { bitti(false); return; }
+    var metin = kaynak.textContent.trim();
+    /* Eski/güvensiz bağlamlarda ya da izin verilmediğinde yedek yol: gizli bir alana yazıp seç + kopyala */
+    function yedek() {
+      var t = d.createElement("textarea");
+      t.value = metin; t.setAttribute("readonly", ""); t.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+      d.body.appendChild(t); t.select();
+      var tamam = false;
+      try { tamam = d.execCommand("copy"); } catch (x) { tamam = false; }
+      d.body.removeChild(t);
+      bitti(tamam);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(metin).then(function () { bitti(true); }, yedek);
+    else yedek();
   });
 })();

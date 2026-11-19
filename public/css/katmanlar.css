@@ -62,7 +62,7 @@
 }
 
 /* ---------- Dialog ortakları ---------- */
-.arama-penceresi::backdrop, .sikayet-penceresi::backdrop { background: rgb(0 0 0 / .55); }
+.arama-penceresi::backdrop, .sikayet-penceresi::backdrop, .yeni-mesaj-penceresi::backdrop { background: rgb(0 0 0 / .55); }
 
 /* ---------- Arama penceresi ---------- */
 .arama-penceresi {
@@ -139,18 +139,37 @@
 
 /* ---------- Şikâyet penceresi ---------- */
 .sikayet-penceresi {
-  width: min(440px, calc(100vw - 24px)); margin: auto; padding: 0;
+  width: min(480px, calc(100vw - 24px)); margin: auto; padding: 0;
+  /* Kısa ekranda pencere ekrandan taşmasın: kendi içinde kayar */
+  max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain;
   background: var(--yuzey-3); color: var(--yazi);
   border: 1px solid var(--kenar-ince); border-radius: 24px;
   box-shadow: var(--kat-2), 0 24px 60px -16px rgb(0 0 0 / .55);
 }
 .sikayet-form { display: grid; gap: 14px; padding: 24px; }
 .sikayet-form h2 { font-family: var(--baslik-tipi); font-size: 20px; }
-.sikayet-sebepler { display: grid; gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
-.sikayet-secenek { display: flex; align-items: center; gap: 14px; min-height: 48px; font-size: 15px; cursor: pointer; }
-.sikayet-secenek input { width: 20px; height: 20px; margin: 0; accent-color: var(--vurgu); }
-.sikayet-not { --alan-zemin: var(--yuzey-3); margin-top: 6px; }
+.sikayet-baslik-blok { display: grid; gap: 4px; }
+.sikayet-sebepler { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+/* Sebepler seçilebilir kartlar: radio kartın içinde; seçili kart ton zemini + vurgu çerçevesi alır */
+.sikayet-secenek {
+  display: flex; align-items: flex-start; gap: 12px; min-height: 56px; padding: 12px 14px; cursor: pointer;
+  border: 1px solid var(--kenar); border-radius: 14px;
+  transition: background-color var(--sure-orta, .15s) ease, border-color var(--sure-orta, .15s) ease;
+}
+.sikayet-secenek:hover { background: var(--yuzey-2); }
+.sikayet-secenek input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--vurgu); }
+.sikayet-secenek-metin { display: grid; gap: 2px; min-width: 0; font-size: 12px; color: var(--yazi-2); }
+.sikayet-secenek-metin strong { font-size: 14px; font-weight: 600; color: var(--yazi); }
+.sikayet-secenek:has(input:checked) { background: var(--ton); border-color: var(--vurgu); }
+.sikayet-secenek:has(input:checked) .sikayet-secenek-metin, .sikayet-secenek:has(input:checked) .sikayet-secenek-metin strong { color: var(--ton-ustu); }
+.sikayet-secenek:has(input:focus-visible) { outline: 2px solid var(--vurgu); outline-offset: 2px; }
+/* "Konu dışı" yalnızca konu ve sohbet mesajlarında anlamlı: kullanıcı ve özel mesaj şikâyetinde gizli (sunucu da reddeder) */
+[data-hedef="kullanici"] .sikayet-secenek[data-sadece-mesaj], [data-hedef="ozel"] .sikayet-secenek[data-sadece-mesaj] { display: none; }
+.sikayet-not { --alan-zemin: var(--yuzey-3); margin-top: 2px; }
 .sikayet-not textarea { min-height: 88px; font-size: 14px; }
+.sikayet-engel { display: flex; align-items: center; gap: 12px; min-height: 44px; font-size: 14px; cursor: pointer; }
+.sikayet-engel[hidden] { display: none; }
+.sikayet-engel input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--vurgu); }
 .sikayet-eylemler { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .sikayet-eylemler .buton { height: 48px; }
 

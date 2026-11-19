@@ -6,6 +6,8 @@
   konular  [ gönderi kartı verisi ]    partials/gonderi-karti ile aynı alanlar
   rozetler [ { name } ]
   haftalik [ { gun: "Pzt", sayi: 2, bugun: false } ]   7 eleman, Pazartesi'den Pazar'a
+  konum, web_sitesi  (profil içinde, isteğe bağlı) meta satırında gösterilir
+  mesajAtabilir (bool), engelledim (bool)  ziyaretçi için: "Mesaj gönder" görünsün mü, menüde Engelle mi Engeli kaldır mı
   kendisi  bool   giriş yapan kişi kendi profiline mi bakıyor
   sekme    "konular" | "yorumlar"   hangi sekme açık (?sekme=yorumlar)
   yorumlar [ { id, content, created_at, konu_id, konu_baslik } ]   yalnızca sekme "yorumlar" iken (ilk mesajlar değil, cevaplar)
@@ -13,6 +15,8 @@
 <%- include("partials/bas", { baslik: profil.username }) %>
 <%- include("partials/ust-cubuk") %>
 <%
+  // Sekme verilmediyse (örn. /onizleme/profil) Konular açık sayılır; tanımsız değişken sayfayı çökertmesin
+  const sekme = locals.sekme === "yorumlar" ? "yorumlar" : "konular";
   // Rütbe çubuğu: etiketler eşit aralıklı olduğu için dolgu da basamak basamak hesaplanır
   let oran = 1;
   for (let i = 0; i < rutbeler.length - 1; i++) {
@@ -35,7 +39,12 @@
       <span class="avatar avatar-buyuk" <% if (profil.avatar_url) { %>style="background-image: url('<%= profil.avatar_url %>')"<% } %>><%= profil.avatar_url ? "" : profil.username[0] %></span>
       <div class="kimlik-bilgi">
         <div class="satir"><h1><%= profil.username %></h1><% if (profil.rutbe) { %><span class="rozet"><%= profil.rutbe %></span><% } %></div>
-        <div class="satir ikincil kucuk"><%- include("partials/ikon", { ad: "takvim", boyut: 16 }) %> <%= profil.rol %> · <%= new Date(profil.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %> tarihinden beri üye</div>
+        <div class="satir ikincil kucuk kimlik-meta">
+          <span class="meta-oge"><%- include("partials/ikon", { ad: "takvim", boyut: 16 }) %> <%= profil.rol %> · <%= new Date(profil.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %> tarihinden beri üye</span>
+          <% if (profil.konum) { %><span class="meta-oge"><%- include("partials/ikon", { ad: "konum", boyut: 16 }) %> <%= profil.konum %></span><% } %>
+          <%# Kullanıcının yazdığı adres: yalnızca http(s) kabul edilir (hesap.ts); arama motorlarına güven aktarma (nofollow ugc) ve yeni sekmede güvenli aç (noopener) %>
+          <% if (profil.web_sitesi) { %><a class="meta-oge baglanti" href="<%= profil.web_sitesi %>" rel="nofollow noopener ugc" target="_blank"><%- include("partials/ikon", { ad: "baglanti", boyut: 16 }) %> <%= profil.web_sitesi.replace(/^https?:\/\//i, "").replace(/\/$/, "") %></a><% } %>
+        </div>
       </div>
       <div class="satir">
         <% if (locals.kullanici && ["admin", "moderator"].includes(locals.kullanici.rol)) { %>
@@ -45,8 +54,25 @@
           <a class="buton buton-tonal" href="/ayarlar">Profili düzenle</a>
           <a class="buton buton-cerceveli" href="/profil/<%= profil.username %>" data-paylas data-baslik="<%= profil.username %> · QuadRan">Paylaş</a>
         <% } else { %>
-          <a class="buton buton-birincil" href="/mesajlar/<%= profil.username %>">Mesaj gönder</a>
-          <a class="buton buton-cerceveli" href="/sikayet?kullanici=<%= encodeURIComponent(profil.username) %>" data-sikayet-ac data-kullanici="<%= profil.username %>">Şikâyet et</a>
+          <% if (locals.kullanici) { %>
+            <% if (locals.mesajAtabilir) { %><a class="buton buton-birincil" href="/mesajlar/<%= profil.username %>">Mesaj gönder</a><% } %>
+            <%# Engelle ve Şikâyet et tek ⋮ menüsünde (ayrı bir "Şikâyet et" düğmesi yok: aynı eylem iki yerde durmasın) %>
+            <button class="buton buton-cerceveli profil-menu-dugme" type="button" popovertarget="profil-menusu" data-menu-ac aria-label="Diğer işlemler"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
+            <div class="acilir-menu acilir-menu-konumlu" id="profil-menusu" popover aria-label="Kullanıcı işlemleri">
+              <% if (locals.engelledim) { %>
+                <form method="post" action="/engel/<%= encodeURIComponent(profil.username) %>/kaldir"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+                  <button class="acilir-oge" type="submit"><%- include("partials/ikon", { ad: "yasak", boyut: 20 }) %><span class="acilir-ad">Engeli kaldır</span></button>
+                </form>
+              <% } else { %>
+                <form method="post" action="/engel/<%= encodeURIComponent(profil.username) %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+                  <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("partials/ikon", { ad: "yasak", boyut: 20 }) %><span class="acilir-ad">Engelle</span></button>
+                </form>
+              <% } %>
+              <a class="acilir-oge acilir-oge-tehlikeli" href="/sikayet?kullanici=<%= encodeURIComponent(profil.username) %>" data-sikayet-ac data-kullanici="<%= profil.username %>" data-yazar="<%= profil.username %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 20 }) %><span class="acilir-ad">Şikâyet et</span></a>
+            </div>
+          <% } else { %>
+            <a class="buton buton-birincil" href="/mesajlar/<%= profil.username %>">Mesaj gönder</a>
+          <% } %>
         <% } %>
       </div>
     </div>
@@ -113,5 +139,5 @@
   </section>
 </div>
 <%# Kullanıcı şikâyeti penceresi: misafirde yok, "Şikâyet et" bağlantısı /sikayet üzerinden girişe götürür %>
-<% if (locals.kullanici && !kendisi) { %><%- include("partials/sikayet-penceresi", { hedef_kullanici: profil.username }) %><% } %>
+<% if (locals.kullanici && !kendisi) { %><%- include("partials/sikayet-penceresi", { hedef_kullanici: profil.username, yazar: profil.username }) %><% } %>
 <%- include("partials/son") %>
