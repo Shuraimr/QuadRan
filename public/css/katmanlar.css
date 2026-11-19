@@ -271,3 +271,23 @@ select.secici-yerel, .alan select.secici-yerel {
 
 /* Süz düğmesi: JS açıkken seçim değişince form kendiliğinden gönderilir. Metin/tarih alanı olan formlar düğmesini korur (JS .yn-suz-kalsin ekler). */
 .js .yn-filtre:not(.yn-suz-kalsin) .yn-suz-dugme { display: none; }
+
+/* =====================================================================
+   Tekrarı önleme: bir eylem aynı ekranda iki yerde durmaz.
+   Masaüstü: üst çubuk + hesap menüsü. Tablet: kenar menü "Konu aç" (kalem) ve "Ayarlar"ı taşır.
+   Telefon: alt menü ana gezinmedir; üst çubukta yalnızca logo ve alt menüde olmayan Mesajlar kalır.
+   ===================================================================== */
+.ust-mesajlar { display: none; }
+@media (min-width: 801px) and (max-width: 1180px) {
+  .ust-konu-ac { display: none; }
+  .avatar-menu-ayarlar { display: none; }
+}
+@media (max-width: 800px) {
+  .arama-alani { visibility: hidden; }                 /* yer tutmaya devam eder, logo solda kalır */
+  .ust-konu-ac, .avatar-ust, .ust-eylemler .ikon-dugme:not(.ust-mesajlar) { display: none; }
+  .ust-eylemler .ust-mesajlar { display: inline-flex; } /* eski ".ust-eylemler .ikon-dugme" gizleme kuralından daha özgül */
+  .avatar-menu-mesajlar, .acilir-kisayol { display: none; } /* telefonda klavye kısayolu ipucu anlamsız */
+  /* Hesap menüsü alt menüdeki Profil'den açılır: ekranın altında, menünün hemen üstünde */
+  .avatar-menusu.acilir-menu-ustte { inset: auto 8px calc(88px + env(safe-area-inset-bottom, 0px)) auto; width: min(320px, calc(100vw - 16px)); transform-origin: bottom right; }
+  .alt-menu button.menu-ogesi { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+}

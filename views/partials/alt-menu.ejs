@@ -12,7 +12,8 @@
      { id: "ara", ad: "Ara", href: "/ara", ikon: "ara", arama: true },
      { id: "konu-ac", ad: "Konu aç", href: "/konu/yeni", ikon: "kalem" },
      { id: "bildirimler", ad: "Bildirimler", href: "/bildirimler", ikon: "zil", nokta: (locals.okunmamisBildirim || 0) > 0 },
-     { id: "profil", ad: "Profil", href: "/profil/" + locals.kullanici.username, ikon: "kisi" }
+     /* Profil hesap menüsünü açar (Profilim, Ayarlar, Yönetim, Çıkış): bu menüler telefonda başka yerde yok */
+     { id: "profil", ad: "Profil", href: "/profil/" + locals.kullanici.username, ikon: "kisi", hesapMenusu: true }
    ] : [
      { id: "akis", ad: "Akış", href: "/", ikon: "ev" },
      { id: "kategoriler", ad: "Kategoriler", href: "/kategoriler", ikon: "izgara" },
@@ -21,6 +22,12 @@
    ]; %>
 <nav class="alt-menu<%= locals.statik ? ' katman-statik' : '' %>" aria-label="Alt gezinti">
   <% for (const o of ogeler_) { %>
+    <% if (o.hesapMenusu) { %>
+    <button class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" type="button" popovertarget="avatar-menusu" aria-label="Hesap menüsü">
+      <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %></span>
+      <span class="menu-etiket"><%= o.ad %></span>
+    </button>
+    <% continue; } %>
     <a class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" href="<%= o.href %>"<%- o.arama ? ' data-arama-ac' : '' %><%- aktifMenu_ === o.id ? ' aria-current="page"' : '' %>>
       <span class="menu-hap">
         <%- include("ikon", { ad: o.ikon, boyut: 24 }) %>

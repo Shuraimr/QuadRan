@@ -16,10 +16,10 @@
     </div>
   </div>
   <a class="acilir-oge" href="/profil/<%= k_.username %>"><%- include("ikon", { ad: "kisi", boyut: 20 }) %><span class="acilir-ad">Profilim</span></a>
-  <a class="acilir-oge" href="/mesajlar"><%- include("ikon", { ad: "mektup", boyut: 20 }) %><span class="acilir-ad">Mesajlar</span>
+  <a class="acilir-oge avatar-menu-mesajlar" href="/mesajlar"><%- include("ikon", { ad: "mektup", boyut: 20 }) %><span class="acilir-ad">Mesajlar</span>
     <% if ((locals.okunmamisMesaj || 0) > 0) { %><span class="acilir-rozet" aria-label="<%= locals.okunmamisMesaj %> okunmamış mesaj"><%= locals.okunmamisMesaj %></span><% } %>
   </a>
-  <a class="acilir-oge" href="/ayarlar" data-ayarlar-kisayol><%- include("ikon", { ad: "ayar", boyut: 20 }) %><span class="acilir-ad">Ayarlar</span><span class="acilir-kisayol">Ctrl ,</span></a>
+  <a class="acilir-oge avatar-menu-ayarlar" href="/ayarlar" data-ayarlar-kisayol><%- include("ikon", { ad: "ayar", boyut: 20 }) %><span class="acilir-ad">Ayarlar</span><span class="acilir-kisayol">Ctrl ,</span></a>
   <% if (["admin", "moderator"].includes(k_.rol)) { %>
     <a class="acilir-oge" href="/yonetim"><%- include("ikon", { ad: "kalkan", boyut: 20 }) %><span class="acilir-ad">Yönetim</span>
       <% if ((locals.bekleyenSikayet || 0) > 0) { %><span class="acilir-rozet" aria-label="<%= locals.bekleyenSikayet %> bekleyen şikâyet"><%= locals.bekleyenSikayet %></span><% } %>
