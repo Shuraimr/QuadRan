@@ -472,6 +472,31 @@
     guncelle();
   }
 
+  /* ---------- Alt çubuk yüksekliği (--alt-yer) ----------
+     Ekranın altına sabitlenen çubuklar (telefonda alt menü, tablette ayar dock'u, paneldeki seçim ve karar çubukları)
+     data-alt-cubuk ile işaretlenir. O an görünen ve ekranın dibine değenlerin kapladığı yükseklik ölçülüp
+     <html>'e --alt-yer olarak yazılır; bildirim çubuğu (toast) bunun üstünde durur, böylece hiçbir zaman üst üste binmez.
+     Yeni bir alt çubuk eklemek için yalnızca data-alt-cubuk yeterli. */
+  var altBekleyen = false;
+  function altYerOlc() {
+    altBekleyen = false;
+    var yer = 0, h = window.innerHeight;
+    hepsi("[data-alt-cubuk]").forEach(function (el) {
+      var st = window.getComputedStyle(el);
+      if (st.display === "none" || st.visibility === "hidden" || (st.position !== "fixed" && st.position !== "sticky")) return;
+      var r = el.getBoundingClientRect();
+      /* Yüzen çubuklar (dock gibi) dibe tam değmez; alt bölgede (son 160px) duranlar sayılır */
+      if (r.height === 0 || r.bottom < h - 160 || r.top >= h) return;
+      yer = Math.max(yer, h - r.top);
+    });
+    d.documentElement.style.setProperty("--alt-yer", Math.round(yer) + "px");
+  }
+  function altYerPlanla() { if (!altBekleyen) { altBekleyen = true; window.requestAnimationFrame(altYerOlc); } }
+  ["resize", "scroll", "change", "toggle", "transitionend", "animationend"].forEach(function (olay) {
+    window.addEventListener(olay, altYerPlanla, { passive: true, capture: true });
+  });
+  altYerOlc(); /* ilk ölçüm hemen: requestAnimationFrame arka plandaki/yeni sekmede gecikebilir */
+
   hepsi("select").forEach(seciciKur);
 
   /* Süz düğmesi yalnızca seçicilerden oluşan formlarda gizlenir; yazı/tarih/sayı kutusu olan formlarda kalır (Enter'a basmayı bilmeyen için) */

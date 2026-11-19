@@ -20,7 +20,7 @@
      { id: "ara", ad: "Ara", href: "/ara", ikon: "ara", arama: true },
      { id: "giris", ad: "Giriş", href: "/giris", ikon: "giris" }
    ]; %>
-<nav class="alt-menu<%= locals.statik ? ' katman-statik' : '' %>" aria-label="Alt gezinti">
+<nav class="alt-menu<%= locals.statik ? ' katman-statik' : '' %>" aria-label="Alt gezinti"<%- locals.statik ? "" : " data-alt-cubuk" %>>
   <% for (const o of ogeler_) { %>
     <% if (o.hesapMenusu) { %>
     <button class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" type="button" popovertarget="avatar-menusu" aria-label="Hesap menüsü">

@@ -19,7 +19,7 @@
 </form>
 
 <form method="post" action="/yonetim/toplu" id="toplu-form"><%- include("csrf") %><input type="hidden" name="tur" value="<%= tur %>">
-  <div class="yn-toplu kart">
+  <div class="yn-toplu kart" data-alt-cubuk>
     <label class="onay"><input type="checkbox" data-hepsini-sec aria-label="Hepsini seç"> Hepsini seç</label>
     <select class="yn-girdi" name="eylem" aria-label="Toplu işlem" required>
       <option value="">Seçilenlere uygula…</option>

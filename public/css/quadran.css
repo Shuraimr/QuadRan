@@ -505,3 +505,5 @@ html { scroll-behavior: smooth; }
 /* Tema seçimi (Koyu/Açık/Sistem): üç etiket genişliği paylaşır, dar ekranda taşmaz */
 .ayarlar .siralama { max-width: 100%; }
 .ayarlar .siralama label { flex: 1 1 0; min-width: 0; justify-content: center; }
+/* --alt-yer için JS'ten bağımsız yedek: tablette ayar dock'u (24px boşluk + 58px dock). JS ölçünce <html>'e satır içi yazar ve bunun önüne geçer. */
+@media (min-width: 801px) and (max-width: 1180px) { :root:has(.ayar-dok) { --alt-yer: 82px; } }

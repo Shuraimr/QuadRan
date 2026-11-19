@@ -155,7 +155,7 @@
 .sikayet-eylemler .buton { height: 48px; }
 
 /* ---------- Bildirim çubukları (toast) ---------- */
-.cubuk-alani { position: fixed; left: 0; right: 0; bottom: 24px; z-index: 30; display: flex; justify-content: center; padding: 0 12px; pointer-events: none; }
+.cubuk-alani { position: fixed; left: 0; right: 0; bottom: calc(var(--alt-yer, 8px) + 16px); z-index: 30; display: flex; justify-content: center; padding: 0 12px; pointer-events: none; }
 .cubuk-bildirim {
   display: flex; align-items: center; gap: 12px; width: min(480px, 100%); min-height: 48px; padding: 8px 8px 8px 16px;
   background: var(--yuzey-3); color: var(--yazi); border: 1px solid var(--kenar); border-radius: 12px;
@@ -170,7 +170,8 @@
 .cubuk-bildirim.gizleniyor { opacity: 0; transform: translateY(8px); }
 .cubuk-bildirim.gizli { display: none; }
 @media (max-width: 800px) {
-  .cubuk-alani { bottom: calc(76px + env(safe-area-inset-bottom, 0px) + 12px); }
+  /* JS yoksa yedek: telefonda alt menü her zaman vardır. JS --alt-yer'i <html>'e satır içi yazar ve bunun önüne geçer. */
+  :root { --alt-yer: calc(76px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* ---------- Önizleme sayfası: açık kopyalar ---------- */
@@ -290,4 +291,13 @@ select.secici-yerel, .alan select.secici-yerel {
   /* Hesap menüsü alt menüdeki Profil'den açılır: ekranın altında, menünün hemen üstünde */
   .avatar-menusu.acilir-menu-ustte { inset: auto 8px calc(88px + env(safe-area-inset-bottom, 0px)) auto; width: min(320px, calc(100vw - 16px)); transform-origin: bottom right; }
   .alt-menu button.menu-ogesi { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
+}
+
+/* Bildirim çubuğunun yanı sıra klavyeyle odaklanan öğeler de alt çubukların altında kalmasın */
+html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
+.cubuk-alani { transition: bottom var(--sure-orta) var(--egri-cikis); }
+/* Tablette bildirim çubuğu da dock gibi içerik alanının ortasında durur (kenar menü 88px yer kaplar) */
+@media (min-width: 801px) and (max-width: 1180px) {
+  body:not(.sade) .cubuk-alani { padding-left: 100px; }
+  [data-menu="sag"] body:not(.sade) .cubuk-alani { padding-left: 12px; padding-right: 100px; }
 }
