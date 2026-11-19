@@ -1,12 +1,13 @@
 <%#
-  İçerik listesi: /yonetim/icerik?tur=konu|mesaj|sohbet
-  tur, satirlar, sf, kategoriler, qs { tur, q, yazar, durum, kategori }, yol
-  Toplu işlem formu: POST /yonetim/icerik/toplu  alanlar: tur, eylem, id (çoklu), kategori
+  Forum (Konular, Mesajlar) ve Sohbet listesi: /yonetim/forum, /yonetim/forum/mesajlar, /yonetim/sohbet
+  tur, satirlar, sf, kategoriler, qs { q, yazar, durum, kategori }, yol, filtreli
+  Toplu işlem formu: POST /yonetim/toplu  alanlar: tur, eylem, id (çoklu), kategori, sebep (silmede zorunlu; onay adımı gelir)
 %>
-<%- include("duzen-ust", { baslik: "İçerik", aktif: "icerik" }) %>
-<%- include("icerik-sekmeler", { sekme: tur }) %>
-<form class="yn-filtre kart" method="get" action="/yonetim/icerik">
-  <input type="hidden" name="tur" value="<%= tur %>">
+<%- include("duzen-ust", { baslik: baslik, aktif: aktif }) %>
+<% if (tur === "sohbet") { %>
+  <div class="yn-sekmeler siralama"><a class="aktif" href="/yonetim/sohbet">Genel sohbet</a><span class="devre" title="Yakında">Odalar — yakında</span></div>
+<% } else { %><%- include("forum-sekmeler", { sekme: tur }) %><% } %>
+<form class="yn-filtre kart" method="get" action="<%= yol %>">
   <input class="yn-girdi" type="search" name="q" value="<%= qs.q %>" placeholder="<%= tur === 'konu' ? 'Başlıkta ara' : 'Metinde ara' %>" aria-label="Ara">
   <input class="yn-girdi" name="yazar" value="<%= qs.yazar %>" placeholder="Yazar" aria-label="Yazar">
   <% if (tur !== "sohbet") { %>
@@ -17,7 +18,7 @@
   <button class="buton buton-tonal">Süz</button>
 </form>
 
-<form method="post" action="/yonetim/icerik/toplu" id="toplu-form"><%- include("csrf") %><input type="hidden" name="tur" value="<%= tur %>">
+<form method="post" action="/yonetim/toplu" id="toplu-form"><%- include("csrf") %><input type="hidden" name="tur" value="<%= tur %>">
   <div class="yn-toplu kart">
     <label class="onay"><input type="checkbox" data-hepsini-sec aria-label="Hepsini seç"> Hepsini seç</label>
     <select class="yn-girdi" name="eylem" aria-label="Toplu işlem" required>
@@ -33,7 +34,8 @@
       <select class="yn-girdi" name="kategori" aria-label="Taşınacak kategori"><option value="">Kategori…</option>
         <% for (const c of kategoriler) { %><option value="<%= c.id %>"><%= c.name %></option><% } %></select>
     <% } %>
-    <button class="buton buton-birincil" onclick="return confirm('Seçili öğelere işlem uygulansın mı?')">Uygula</button>
+    <input class="yn-girdi" name="sebep" maxlength="200" placeholder="Sebep (silmede zorunlu)" aria-label="Sebep">
+    <button class="buton buton-birincil">Uygula</button>
   </div>
 
   <div class="kart yn-tablo-kutu">
@@ -44,7 +46,7 @@
         <% } else { %><th>Mesaj</th><th>Yazar</th><th>Durum</th><th>Tarih</th><% } %>
       </tr></thead>
       <tbody>
-      <% if (!satirlar.length) { %><tr><td colspan="9" class="bos">Bu süzgeçle kayıt yok.</td></tr><% } %>
+      <% if (!satirlar.length) { %><tr><td colspan="9" class="bos"><%- include("bos", { filtreli: filtreli, bosMetin: "Henüz kayıt yok", sifirla: yol }) %></td></tr><% } %>
       <% for (const s of satirlar) { %>
         <tr>
           <td><input type="checkbox" name="id" value="<%= s.id %>" aria-label="<%= s.id %> numaralıyı seç"></td>
@@ -52,7 +54,7 @@
           <% if (tur === "konu") { %>
             <td data-etiket="Başlık" class="yn-kisa"><a href="/konu/<%= s.id %>"><%= s.title %></a></td>
             <td data-etiket="Kategori"><%= s.kategori %></td>
-            <td data-etiket="Yazar"><a href="/yonetim/kullanicilar/<%= s.yazar_id %>"><%= s.yazar %></a></td>
+            <td data-etiket="Yazar"><a href="/yonetim/uyeler/<%= s.yazar_id %>"><%= s.yazar %></a></td>
             <td data-etiket="Mesaj"><%= s.mesaj_sayisi %></td>
             <td data-etiket="Durum">
               <% if (s.deleted_at) { %><span class="yn-etiket tehlike">Silinmiş</span><% } %>
@@ -63,11 +65,11 @@
           <% } else if (tur === "mesaj") { %>
             <td data-etiket="Mesaj" class="yn-kisa"><a href="/konu/<%= s.topic_id %>#mesaj-<%= s.id %>"><%= s.content %></a></td>
             <td data-etiket="Konu" class="yn-kisa"><%= s.konu_baslik %></td>
-            <td data-etiket="Yazar"><a href="/yonetim/kullanicilar/<%= s.yazar_id %>"><%= s.yazar %></a></td>
+            <td data-etiket="Yazar"><a href="/yonetim/uyeler/<%= s.yazar_id %>"><%= s.yazar %></a></td>
             <td data-etiket="Durum"><% if (s.deleted_at) { %><span class="yn-etiket tehlike">Silinmiş</span><% } else { %><span class="ikincil">Yayında</span><% } %><% if (s.ilk_mi) { %> <span class="yn-etiket">Konu metni</span><% } %></td>
           <% } else { %>
             <td data-etiket="Mesaj" class="yn-kisa"><%= s.content %></td>
-            <td data-etiket="Yazar"><a href="/yonetim/kullanicilar/<%= s.yazar_id %>"><%= s.yazar %></a></td>
+            <td data-etiket="Yazar"><a href="/yonetim/uyeler/<%= s.yazar_id %>"><%= s.yazar %></a></td>
             <td data-etiket="Durum"><% if (s.deleted_at) { %><span class="yn-etiket tehlike">Silinmiş</span><% } else { %><span class="ikincil">Yayında</span><% } %></td>
           <% } %>
           <td data-etiket="Tarih"><%= zaman(s.created_at) %></td>

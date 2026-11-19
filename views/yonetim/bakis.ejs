@@ -1,0 +1,59 @@
+<%#
+  Bakış: /yonetim
+  t { kullanici, konu, mesaj, sohbet, sikayet, yaklasan_ban, yeni_hesap ... }, cevrimici [{username}], bekleyenler [{id, hedef_tur, sebep, created_at, bildiren, hedef}],
+  sonIslemler (yönetici: hepsi, moderatör: yalnızca kendi işlemleri), grafikler { yeniKullanici, yeniMesaj }
+%>
+<%- include("duzen-ust", { baslik: "Bakış", aktif: "bakis" }) %>
+<h2 class="yn-bolum-ad">İlgilenmen gerekenler</h2>
+<section class="yn-ilgi">
+  <a class="kart yn-ilgi-kart bekliyor" href="/yonetim/sikayetler?durum=bekliyor">
+    <strong><%= t.sikayet %></strong><b>Bekleyen şikâyet</b>
+    <span class="ikincil kucuk"><%= t.sikayet ? "Karar bekleyen şikâyetler kuyrukta." : "Kuyruk temiz." %></span><span class="yn-ilgi-baglanti">Şikâyetlere git →</span>
+  </a>
+  <a class="kart yn-ilgi-kart ban" href="/yonetim/yaptirimlar?filtre=yakinda">
+    <strong><%= t.yaklasan_ban %></strong><b>Süresi dolacak uzaklaştırma</b>
+    <span class="ikincil kucuk">Önümüzdeki 24 saat içinde biten süreli uzaklaştırmalar.</span><span class="yn-ilgi-baglanti">Yaptırımlara git →</span>
+  </a>
+  <a class="kart yn-ilgi-kart yeni" href="/yonetim/uyeler?kayit=24s">
+    <strong><%= t.yeni_hesap %></strong><b>Yeni açılan hesap</b>
+    <span class="ikincil kucuk">Son 24 saatte kayıt olan üyeler.</span><span class="yn-ilgi-baglanti">Üyelere git →</span>
+  </a>
+</section>
+
+<h2 class="yn-bolum-ad">Topluluk</h2>
+<section class="yn-sayaclar">
+  <% for (const [ad, deger, href] of [
+    ["Üye", t.kullanici, "/yonetim/uyeler"], ["Konu", t.konu, "/yonetim/forum"], ["Mesaj", t.mesaj, "/yonetim/forum/mesajlar"],
+    ["Sohbet mesajı", t.sohbet, "/yonetim/sohbet"], ["Şu an çevrimiçi", cevrimici.length, null]
+  ]) { %>
+    <% const etiket = href ? "a" : "div"; %>
+    <<%= etiket %> class="kart yn-sayac"<% if (href) { %> href="<%= href %>"<% } %>><strong><%= deger %></strong><span><%= ad %></span></<%= etiket %>>
+  <% } %>
+</section>
+
+<section class="yn-izgara-2">
+  <%- include("grafik", { baslik: "Yeni üyeler", seri: grafikler.yeniKullanici }) %>
+  <%- include("grafik", { baslik: "Yeni mesajlar", seri: grafikler.yeniMesaj }) %>
+</section>
+
+<section class="yn-izgara-2">
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Son bekleyen şikâyetler</h3><a class="baglanti kucuk" href="/yonetim/sikayetler">Tümü</a></div>
+    <% if (!bekleyenler.length) { %><p class="ikincil kucuk">Bekleyen şikâyet yok.</p><% } %>
+    <% for (const b of bekleyenler) { %>
+      <a class="yn-liste-satir" href="/yonetim/sikayetler?id=<%= b.id %>">
+        <span><span class="etiket"><%= turEtiket[b.hedef_tur] %></span></span>
+        <span class="yn-kisa"><%= b.hedef ? (b.hedef.icerik ? b.hedef.icerik : b.hedef.yazar) : "(bulunamadı)" %></span>
+        <small class="ikincil"><%= b.sebep %> · <%= b.bildiren %> · <%= zaman(b.created_at) %></small>
+      </a>
+    <% } %>
+  </div>
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3><%= kullanici.rol === "admin" ? "Son işlemler" : "Son işlemlerin" %></h3><a class="baglanti kucuk" href="/yonetim/islem-kaydi">Tümü</a></div>
+    <% if (!sonIslemler.length) { %><p class="ikincil kucuk">Henüz işlem yok.</p><% } %>
+    <% for (const i of sonIslemler) { %>
+      <div class="yn-liste-satir"><strong><%= eylemEtiketleri[i.eylem] || i.eylem %></strong><small class="ikincil"><%= i.aktor || "—" %> · <%= zaman(i.created_at) %></small></div>
+    <% } %>
+  </div>
+</section>
+<%- include("duzen-alt") %>

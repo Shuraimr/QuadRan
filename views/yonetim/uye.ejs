@@ -1,0 +1,174 @@
+<%#
+  Üye kartı: /yonetim/uyeler/:id?sekme=ozet|icerik|sikayet|yaptirim|islem
+  k, ist, sekme, veri (sekmeye göre), rozetler, tumRozetler (admin), roller (admin), banBilgi { aktor, gun }, izin { uyar, ban, banKaldir, adminIslem, kapat },
+  banHatasi, islemEngeli, sureler, admin
+  Sağdaki "İşlemler" paneli yalnızca rolün yapabildiği grupları çizer (moderatör: yalnızca Moderasyon grubu).
+%>
+<%- include("duzen-ust", { baslik: "Üye kartı", aktif: "uyeler", geri: { ad: "Üyeler", href: "/yonetim/uyeler" } }) %>
+<% const yol_ = "/yonetim/uyeler/" + k.id; const tarih_ = (d) => new Date(d).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" }); %>
+<div class="yn-uye">
+  <div class="yn-uye-ana">
+    <section class="kart yn-kart yn-kimlik">
+      <div class="yn-kimlik-ust">
+        <span class="avatar yn-avatar-64"><%= k.username[0] %></span>
+        <div class="yn-kimlik-bilgi">
+          <h2><%= k.username %> <span class="etiket"><%= k.rol %></span>
+            <% if (k.deleted_at) { %><span class="durum durum-reddedildi">Hesap kapatıldı</span>
+            <% } else if (k.banli) { %><span class="durum durum-ban">Uzaklaştırıldı · <%= kalanSure(k.banned_until) %></span><% } %></h2>
+          <p class="ikincil kucuk"><% if (admin) { %><%= k.email %> · <% } %>Kayıt: <%= new Date(k.created_at).toLocaleDateString("tr-TR") %> · Son görülme: <%= k.last_seen_at ? zaman(k.last_seen_at) : "—" %> · <%= k.points %> puan · <%= k.rutbe %></p>
+        </div>
+        <a class="buton buton-cerceveli yn-sag" href="/profil/<%= k.username %>">Profili aç</a>
+      </div>
+      <% if (k.banli) { %>
+        <div class="yn-ban-bant">
+          <%= banBilgi.gun ? banBilgi.gun + " gün uzaklaştırıldı · " + new Date(k.banned_until).toLocaleDateString("tr-TR") + " tarihine kadar" : "Kalıcı olarak uzaklaştırıldı" %>
+          · <%= banBilgi.aktor || "—" %> · “<%= k.ban_reason || "sebep yok" %>”
+        </div>
+      <% } %>
+    </section>
+
+    <div class="yn-sekme-cizgi" role="tablist">
+      <% for (const [id, ad] of [["ozet","Özet"],["icerik","İçerikleri"],["sikayet","Şikâyetler"],["yaptirim","Yaptırım geçmişi"],["islem","İşlem kaydı"]]) { %>
+        <a class="<%= sekme === id ? 'aktif' : '' %>" href="<%= yol_ %>?sekme=<%= id %>"<%- sekme === id ? ' aria-current="page"' : '' %>><%= ad %></a>
+      <% } %>
+    </div>
+
+    <% if (sekme === "ozet") { %>
+      <section class="yn-sayaclar">
+        <% for (const [ad, d] of [["Konu", ist.konu], ["Mesaj", ist.mesaj], ["Alınan oy", ist.oy], ["Hakkında şikâyet", ist.sikayet]]) { %>
+          <div class="kart yn-sayac"><strong><%= d %></strong><span><%= ad %></span></div>
+        <% } %>
+      </section>
+      <section class="kart yn-kart">
+        <h3 class="yn-etiket-ust">Son olaylar</h3>
+        <% if (!veri.olaylar.length) { %><p class="ikincil kucuk">Henüz bir olay yok.</p><% } %>
+        <% for (const o of veri.olaylar) { %>
+          <div class="yn-olay">
+            <span class="yn-olay-nokta <%= o.tur %>"></span>
+            <div>
+              <% if (o.tur === "yaptirim") { %><strong><%= eylemEtiketleri[o.eylem] || o.eylem %></strong>
+                <small class="ikincil"><%= o.aktor || "—" %><%= o.ayrinti && o.ayrinti.sebep ? " · “" + o.ayrinti.sebep + "”" : "" %></small>
+              <% } else { %><a class="yn-kisa" href="<%= o.link %>"><%= o.metin %></a><% } %>
+              <small class="ikincil"><%= zaman(o.zaman) %></small>
+            </div>
+          </div>
+        <% } %>
+      </section>
+      <section class="kart yn-kart">
+        <h3 class="yn-etiket-ust">Rozetler</h3>
+        <div class="yn-etiketler"><% if (!rozetler.length) { %><span class="ikincil kucuk">Rozeti yok.</span><% } %>
+          <% for (const r of rozetler) { %><span class="rozet-cip"><%= r.name %></span><% } %></div>
+      </section>
+    <% } else if (sekme === "icerik") { %>
+      <% for (const [baslik, liste, hedef] of [["Konular", veri.konular, "konu"], ["Mesajlar", veri.mesajlar, "mesaj"], ["Sohbet mesajları", veri.sohbet, "sohbet"]]) { %>
+        <section class="kart yn-kart"><h3 class="yn-etiket-ust"><%= baslik %></h3>
+          <% if (!liste.length) { %><p class="ikincil kucuk">Kayıt yok.</p><% } %>
+          <% for (const m of liste) { %><div class="yn-liste-satir">
+            <% if (hedef === "konu") { %><a class="yn-kisa" href="/konu/<%= m.id %>"><%= m.title %></a>
+            <% } else if (hedef === "mesaj") { %><a class="yn-kisa" href="/konu/<%= m.topic_id %>#mesaj-<%= m.id %>"><%= m.content %></a>
+            <% } else { %><span class="yn-kisa"><%= m.content %></span><% } %>
+            <small class="ikincil"><%= zaman(m.created_at) %><%= m.deleted_at ? " · silinmiş" : "" %></small></div><% } %>
+        </section>
+      <% } %>
+    <% } else if (sekme === "sikayet") { %>
+      <section class="yn-izgara-2">
+        <% for (const [baslik, liste, bos] of [["Hakkında gelen", veri.hakkinda, "Hakkında şikâyet yok."], ["Yaptığı şikâyetler", veri.yaptigi, "Şikâyet etmemiş."]]) { %>
+          <div class="kart yn-kart"><h3 class="yn-etiket-ust"><%= baslik %></h3>
+            <% if (!liste.length) { %><p class="ikincil kucuk"><%= bos %></p><% } %>
+            <% for (const s of liste) { %><a class="yn-liste-satir" href="/yonetim/sikayetler?id=<%= s.id %>"><span>#<%= s.id %> · <%= s.sebep %> <span class="etiket"><%= s.hedef_tur.replace("_", " ") %></span></span>
+              <small class="ikincil"><%= s.bildiren ? s.bildiren + " · " : "" %><%= zaman(s.created_at) %> · <span class="durum durum-<%= s.durum %>"><%= s.durum %></span></small></a><% } %>
+          </div>
+        <% } %>
+      </section>
+    <% } else if (sekme === "yaptirim") { %>
+      <section class="kart yn-kart"><h3 class="yn-etiket-ust">Yaptırım geçmişi</h3>
+        <% if (!veri.yaptirimlar.length) { %><p class="ikincil kucuk">Bu üyeye hiç yaptırım uygulanmamış.</p><% } %>
+        <% for (const g of veri.yaptirimlar) { %>
+          <div class="yn-liste-satir"><strong><%= eylemEtiketleri[g.eylem] || g.eylem %><%= g.ayrinti && g.ayrinti.sure ? " (" + g.ayrinti.sure + ")" : "" %></strong>
+            <small class="ikincil"><%= g.aktor || "—" %> · <%= tarih_(g.created_at) %><%= g.ayrinti && g.ayrinti.sebep ? " · “" + g.ayrinti.sebep + "”" : "" %></small></div>
+        <% } %>
+      </section>
+    <% } else { %>
+      <section class="kart yn-kart"><h3 class="yn-etiket-ust">İşlem kaydı <%= admin ? "" : "(yalnızca senin işlemlerin)" %></h3>
+        <% if (!veri.islemler.length) { %><p class="ikincil kucuk">Kayıt yok.</p><% } %>
+        <% for (const g of veri.islemler) { %>
+          <div class="yn-liste-satir"><strong><%= eylemEtiketleri[g.eylem] || g.eylem %></strong>
+            <small class="ikincil"><%= g.aktor || "—" %> · <%= tarih_(g.created_at) %><%= g.ayrinti ? " · " + JSON.stringify(g.ayrinti) : "" %></small></div>
+        <% } %>
+        <% if (admin) { %><a class="baglanti kucuk" href="/yonetim/islem-kaydi?hedef_tur=kullanici&hedef_id=<%= k.id %>">İşlem kaydında aç</a><% } %>
+      </section>
+    <% } %>
+  </div>
+
+  <aside class="kart yn-kart yn-islemler" aria-label="İşlemler">
+    <h3>İşlemler</h3>
+    <% if (k.deleted_at) { %><p class="ikincil kucuk">Hesap kapatılmış; işlem yapılamaz.</p>
+    <% } else if (islemEngeli && banHatasi) { %><p class="ikincil kucuk"><%= islemEngeli %></p><% } %>
+
+    <% if (izin.uyar || izin.ban || izin.banKaldir) { %>
+    <div class="yn-islem-grup">
+      <p class="yn-grup-ad">Moderasyon</p>
+      <% if (izin.uyar) { %>
+        <form class="yn-form" method="post" action="<%= yol_ %>/uyar"><%- include("csrf") %>
+          <input class="yn-girdi" name="sebep" minlength="3" maxlength="200" required placeholder="Uyarı sebebi" aria-label="Uyarı sebebi">
+          <button class="buton buton-tonal">Uyar</button>
+          <small class="ikincil">Üyeye sebebiyle birlikte bildirim gider.</small>
+        </form>
+      <% } %>
+      <% if (izin.ban) { %>
+        <form class="yn-form" method="post" action="<%= yol_ %>/ban"><%- include("csrf") %>
+          <select class="yn-girdi" name="sure" aria-label="Süre"><% for (const [d, s] of Object.entries(sureler)) { %><option value="<%= d %>"><%= s.etiket %></option><% } %></select>
+          <input class="yn-girdi" name="sebep" maxlength="255" required placeholder="Uzaklaştırma sebebi" aria-label="Uzaklaştırma sebebi">
+          <button class="buton buton-cerceveli"><%= k.banli ? "Süreyi güncelle" : "Uzaklaştır" %></button>
+          <small class="ikincil">Kalıcı uzaklaştırma için ayrıca onay istenir.</small>
+        </form>
+      <% } %>
+      <% if (izin.banKaldir) { %>
+        <form class="yn-form" method="post" action="<%= yol_ %>/ban-kaldir"><%- include("csrf") %><button class="buton buton-cerceveli">Uzaklaştırmayı kaldır</button></form>
+      <% } %>
+    </div>
+    <% } %>
+
+    <% if (izin.adminIslem) { %>
+    <div class="yn-islem-grup">
+      <p class="yn-grup-ad">Hesap · yalnızca admin</p>
+      <form class="yn-form" method="post" action="<%= yol_ %>/rol"><%- include("csrf") %>
+        <select class="yn-girdi" name="rol" aria-label="Rol"><% for (const r of roller) { %><option value="<%= r.name %>"<%= r.name === k.rol ? " selected" : "" %>><%= r.name %></option><% } %></select>
+        <button class="buton buton-cerceveli">Rolü değiştir</button></form>
+      <form class="yn-form" method="post" action="<%= yol_ %>/puan"><%- include("csrf") %>
+        <input class="yn-girdi" type="number" name="fark" step="1" required placeholder="Puan farkı (+10 / -5)" aria-label="Puan farkı">
+        <input class="yn-girdi" name="sebep" minlength="3" maxlength="200" required placeholder="Sebep" aria-label="Puan sebebi">
+        <button class="buton buton-cerceveli">Puanı düzelt</button></form>
+      <form class="yn-form" method="post" action="<%= yol_ %>/rozet-ver"><%- include("csrf") %>
+        <select class="yn-girdi" name="badge_id" aria-label="Rozet"><% for (const r of tumRozetler) { %><option value="<%= r.id %>"><%= r.name %></option><% } %></select>
+        <button class="buton buton-cerceveli">Rozet ver</button></form>
+      <% if (rozetler.length) { %>
+        <form class="yn-form" method="post" action="<%= yol_ %>/rozet-al"><%- include("csrf") %>
+          <select class="yn-girdi" name="badge_id" aria-label="Alınacak rozet"><% for (const r of rozetler) { %><option value="<%= r.id %>"><%= r.name %></option><% } %></select>
+          <button class="buton buton-cerceveli">Rozeti al</button></form>
+      <% } %>
+    </div>
+    <div class="yn-islem-grup">
+      <p class="yn-grup-ad">Güvenlik · yalnızca admin</p>
+      <form class="yn-form" method="post" action="<%= yol_ %>/sifre-sifirla" onsubmit="return confirm('Rastgele bir geçici şifre üretilsin mi? Eski şifre geçersiz olur.')"><%- include("csrf") %>
+        <button class="buton buton-cerceveli">Geçici şifre üret</button></form>
+      <form class="yn-form" method="post" action="<%= yol_ %>/oturumlari-kapat"><%- include("csrf") %>
+        <input class="yn-girdi" name="sebep" minlength="3" maxlength="200" required placeholder="Sebep" aria-label="Oturumları kapatma sebebi">
+        <button class="buton buton-cerceveli">Bütün oturumlarını kapat</button>
+        <small class="ikincil">Üye bütün cihazlarda çıkış yapar; onay istenir.</small></form>
+    </div>
+    <% } %>
+
+    <% if (izin.kapat) { %>
+    <div class="yn-islem-grup tehlikeli">
+      <p class="yn-grup-ad">Tehlikeli · yalnızca admin</p>
+      <form class="yn-form" method="post" action="<%= yol_ %>/hesap-kapat"><%- include("csrf") %>
+        <input class="yn-girdi" name="sebep" minlength="3" maxlength="200" required placeholder="Sebep" aria-label="Hesap kapatma sebebi">
+        <input class="yn-girdi" name="onay_ad" autocomplete="off" required placeholder="Onay için kullanıcı adını yaz" aria-label="Kullanıcı adı onayı">
+        <button class="buton buton-tehlikeli">Hesabı kapat</button>
+        <small class="ikincil">Geri alınamaz; ayrıca onay sayfası gelir.</small></form>
+    </div>
+    <% } %>
+  </aside>
+</div>
+<%- include("duzen-alt") %>

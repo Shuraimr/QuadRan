@@ -80,6 +80,9 @@
   d.addEventListener("keydown", function (e) {
     var tus = (e.key || "").toLowerCase();
     if ((e.ctrlKey || e.metaKey) && !e.altKey && tus === "k") {
+      /* Yönetim panelinde Ctrl+K sitenin arama penceresini değil, panelin kendi arama kutusunu (/yonetim/ara) açar */
+      var panelAra = bul("[data-yn-ara]");
+      if (panelAra) { e.preventDefault(); panelAra.focus(); panelAra.select(); return; }
       var dlg = bul("#arama-penceresi");
       if (!acilabilir(dlg)) return;
       e.preventDefault();

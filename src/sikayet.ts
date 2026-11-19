@@ -27,6 +27,7 @@ export type Onizleme = {
   link: string;
   konu?: { id: number; title: string };
   alici?: string;
+  onceki?: { yazar: string; icerik: string } | null; // şikâyet edilenden hemen önceki mesaj (bağlam için; konu ve sohbet)
   baglam?: { id: number; gonderen: string; icerik: string; hedef: boolean; silindi: boolean; tarih: Date }[];
 };
 
@@ -40,19 +41,28 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
       `SELECT posts.id, posts.content, posts.created_at, posts.deleted_at, ${kisi("u")}, topics.id AS konu_id, topics.title AS konu_baslik
          FROM posts JOIN users u ON u.id = posts.user_id JOIN topics ON topics.id = posts.topic_id WHERE posts.id = ?`, [id])) as any;
     if (!satir) return null;
+    // Bağlam: aynı konudaki bir önceki (silinmemiş) mesaj
+    const [[once]]: any = await pool.query(
+      `SELECT posts.content, u.username FROM posts JOIN users u ON u.id = posts.user_id
+        WHERE posts.topic_id = ? AND posts.id < ? AND posts.deleted_at IS NULL ORDER BY posts.id DESC LIMIT 1`, [satir.konu_id, id]);
     return {
       tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, banli: !!satir.banli,
       icerik: satir.content, tarih: satir.created_at, silindi: !!satir.deleted_at,
       link: `/konu/${satir.konu_id}#mesaj-${id}`, konu: { id: satir.konu_id, title: satir.konu_baslik },
+      onceki: once ? { yazar: once.username, icerik: once.content } : null,
     };
   }
   if (tur === "sohbet_mesaji") {
     [[satir]] = (await pool.query(
       `SELECT c.id, c.content, c.created_at, c.deleted_at, ${kisi("u")} FROM chat_messages c JOIN users u ON u.id = c.user_id WHERE c.id = ?`, [id])) as any;
     if (!satir) return null;
+    const [[once]]: any = await pool.query(
+      `SELECT c.content, u.username FROM chat_messages c JOIN users u ON u.id = c.user_id
+        WHERE c.id < ? AND c.deleted_at IS NULL ORDER BY c.id DESC LIMIT 1`, [id]);
     return {
       tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, banli: !!satir.banli,
       icerik: satir.content, tarih: satir.created_at, silindi: !!satir.deleted_at, link: `/sohbet#s-${id}`,
+      onceki: once ? { yazar: once.username, icerik: once.content } : null,
     };
   }
   if (tur === "kullanici") {
@@ -94,7 +104,12 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
 }
 
 // Uyarı bildirimi metni (hedef türüne göre)
-function uyariBildirimi(o: Onizleme) {
+function uyariBildirimi(o: Onizleme, sebep?: string) {
+  const b = uyariBildirimiTaslak(o);
+  // Panelden yazılan gerekçe uyarının sonuna eklenir; bildirim 300 karaktere kesilir (yardimci.ts), o yüzden gerekçe sona
+  return sebep ? { ...b, metin: `${b.metin} Sebep: ${sebep}` } : b;
+}
+function uyariBildirimiTaslak(o: Onizleme) {
   const alinti = o.icerik ? `“${kisalt(o.icerik, 50)}”` : "";
   if (o.tur === "konu_mesaji") return { metin: `Moderatörler mesajın için seni uyardı: ${alinti}. Lütfen topluluk kurallarına dikkat et.`, link: o.link };
   if (o.tur === "sohbet_mesaji") return { metin: `Moderatörler sohbetteki mesajın için seni uyardı: ${alinti}. Lütfen topluluk kurallarına dikkat et.`, link: "/sohbet" };
@@ -116,13 +131,16 @@ export async function sikayetIslemi(
   // Moderatör, yöneticinin içeriğini ya da kendisini ilgilendiren şikâyetleri işleyemez
   if (yetkili.rol !== "admin" && o.yazarRol === "admin") return { ok: false, mesaj: "Yöneticiler hakkındaki şikâyetleri yalnızca yöneticiler işler." };
 
-  const ayrinti: Record<string, unknown> = { sikayet: secenek.sikayetId ?? null, yazar: o.yazar };
+  // kullanici_id + yazar: "Yaptırım geçmişi" ekranları bu işlemi cezalandırılan kişiye JSON alanından bağlar
+  // (audit_log'un hedef_id'si burada şikâyet hedefidir, kişi değil).
+  const sebep = secenek.sebep || undefined;
+  const ayrinti: Record<string, unknown> = { sikayet: secenek.sikayetId ?? null, yazar: o.yazar, kullanici_id: o.yazarId, ...(sebep ? { sebep } : {}) };
 
   if (eylem === "sil") {
     if (tur === "kullanici") return { ok: false, mesaj: "Bu bir kullanıcı şikâyeti, silinecek içerik yok." };
-    const silinen = tur === "konu_mesaji" ? await mesajiSil(hedefId, yetkili.id)
-      : tur === "sohbet_mesaji" ? await sohbetMesajiSil(hedefId, yetkili.id)
-      : await ozelMesajiSil(hedefId, yetkili.id);
+    const silinen = tur === "konu_mesaji" ? await mesajiSil(hedefId, yetkili.id, sebep)
+      : tur === "sohbet_mesaji" ? await sohbetMesajiSil(hedefId, yetkili.id, sebep)
+      : await ozelMesajiSil(hedefId, yetkili.id, sebep);
     // Zaten silinmişse yalnızca şikâyetleri kapat
     if (!silinen) await sikayetleriKapat(tur, hedefId, "islendi", yetkili.id);
     await denetim(req, res, "sikayet.sil", tur, hedefId, { ...ayrinti, zaten_silinmisti: !silinen });
@@ -130,7 +148,7 @@ export async function sikayetIslemi(
   }
 
   if (eylem === "uyar") {
-    const b = uyariBildirimi(o);
+    const b = uyariBildirimi(o, sebep);
     await bildirimGonder({ alan: o.yazarId, yapan: null, tur: "moderasyon", metin: b.metin, link: b.link });
     await sikayetleriKapat(tur, hedefId, "islendi", yetkili.id);
     await denetim(req, res, "sikayet.uyar", tur, hedefId, ayrinti);

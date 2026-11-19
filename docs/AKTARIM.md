@@ -15,6 +15,7 @@ Sayfaların hepsi gerçek veritabanına bağlı ve uçtan uca denendi (curl ile:
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/06_etkilesim.sql   # yalnızca çalışan veritabanı 06'yı görmediyse
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/07_hesap.sql       # yalnızca çalışan veritabanı 07'yi görmediyse
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/08_yonetim.sql      # yönetim paneli tabloları (bir kez; ALTER TABLE tekrar çalışmaz)
+docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/10_panel.sql         # puan kuralları ayarı + 'duyuru' bildirim türü (tekrar çalıştırmak zararsız)
 node --env-file=.env src/server.ts
 ```
 
@@ -27,7 +28,7 @@ Deneme kullanıcıları (şifre hepsinde `test1234`): `shurai` (admin), `ayse` (
 | `src/rotalar/hesap.ts` | `GET/POST /giris`, `/kayit`, `POST /cikis`, `/sifremi-unuttum`, `GET/POST /sifre-sifirla/:token`, `GET /ayarlar`, `POST /ayarlar/profil`, `/ayarlar/gorunum`, `GET/POST /hesap/sifre`, `GET/POST /hesap/eposta`, `POST /hesap/sil` |
 | `src/rotalar/forum.ts` | `/` (`?kategori=&sirala=yeni\|populer\|eniyi`), `/konu/yeni`, `/konu/:id` (`?sirala=eniyi\|yeni`), `POST /konu/:id/cevap`, `POST /oy`, `/profil/:username` (`?sekme=yorumlar`), `/ara?q=&sekme=`, `/siralama?donem=hafta\|ay\|tum`, `GET/POST /sikayet` (alanlar `post_id` ya da `kullanici`) |
 | `src/rotalar/iletisim.ts` | `/mesajlar`, `/mesajlar/:kullanici` (GET/POST), `/bildirimler`, `/bildirimler/:id`, `POST /bildirimler/okundu`, `/sohbet` (GET herkese açık, POST üyeye) |
-| `src/rotalar/moderasyon.ts` | `GET /moderasyon?durum=`, `POST /moderasyon/:id/sil\|uyar\|reddet\|uzaklastir` (şikâyet id'si; kullanıcı şikâyetinde `sil` yok), `POST /moderasyon/sabitle\|kilitle\|kategori-degistir\|sil\|uzaklastir` (alanlar `post_id`, `topic_id`, kategori için `category_id`) |
+| `src/rotalar/moderasyon.ts` | `GET /moderasyon` (301 → `/yonetim/sikayetler`), `POST /moderasyon/:id/sil\|uyar\|reddet\|uzaklastir` (şikâyet id'si; kullanıcı şikâyetinde `sil` yok), `POST /moderasyon/sabitle\|kilitle\|kategori-degistir\|sil\|uzaklastir` (alanlar `post_id`, `topic_id`, kategori için `category_id`) |
 | `src/rotalar/yonetim*.ts` | Yönetim paneli, aşağıdaki "Yönetim paneli" bölümüne bak |
 | `src/oturum.ts`, `src/yardimci.ts`, `src/sifre.ts` | Oturum (MySQL'de saklanır), ortak yardımcılar (puan, bildirim, rozet, toast), scrypt ile şifre özeti |
 
@@ -37,7 +38,7 @@ Yetki: `girisGerekli()` giriş yoksa `/giris?don=...` adresine yollar; `yetkiliG
 
 ## Tablolar (sql/06_etkilesim.sql, sql/07_hesap.sql, sql/08_yonetim.sql)
 
-`post_votes` (PK user_id + post_id, value +1/-1), `notifications` (tur: cevap, oy, rozet, mesaj, moderasyon),
+`post_votes` (PK user_id + post_id, value +1/-1), `notifications` (tur: cevap, oy, rozet, mesaj, moderasyon, duyuru),
 `reports` (durum bekliyor/islendi/reddedildi), oturum tablosu.
 `reports` bir mesajı (`post_id`) ya da bir kullanıcıyı (`reported_user_id`) hedefler, ikisi birden dolu olamaz (CHECK).
 UNIQUE (post_id, reporter_id) ve UNIQUE (reported_user_id, reporter_id): aynı kişi aynı hedefi iki kez şikâyet edemez.
@@ -49,30 +50,70 @@ Silme hep yumuşaktır (`deleted_at`): mesaj silinirse satır kalır; konunun il
 ## Yönetim paneli (/yonetim)
 
 Giriş şart; üye 403 sayfası görür. Her POST'ta CSRF alanı var (ortak `csrf.ejs`). Her yetkili işlem `audit_log`'a yazılır (`src/denetim.ts`);
-hem panel işlemleri hem `/moderasyon` işlemleri.
+hem panel işlemleri hem `/moderasyon` işlemleri. Kenar menü rolün erişemediği öğeleri HİÇ çizmez (`menuKur`, `yonetim-ortak.ts`); asıl koruma route'larda (`sadeceAdmin`).
 
-| Bölüm | Adres | Kim |
+### Bilgi mimarisi (kenar menü) ve adresler
+
+| Grup | Öğe | Adres | Kim |
+|---|---|---|---|
+| (başta) | Bakış: "İlgilenmen gerekenler" kartları (bekleyen şikâyet, 24 saatte dolacak uzaklaştırma, son 24 saatte açılan hesap), topluluk sayıları, 30 günlük grafikler | `/yonetim` | moderatör, admin |
+| Moderasyon | Şikâyetler (ana/ayrıntı; `durum, tur, sebep, id, sayfa`; bekleyen sayısı rozeti) | `/yonetim/sikayetler`, `POST .../islem` | ikisi de tam |
+| | Yaptırımlar (`filtre=aktif\|yakinda\|dolan\|hepsi`; son uyarılar; kullanıcı adıyla uzaklaştır) | `/yonetim/yaptirimlar`, `POST .../ban` | moderatör yalnızca "uye" rolündekileri banlar/kaldırır, admin tam |
+| | Otomatik filtre (yasaklı ifadeler) | `/yonetim/filtre` | moderatör görür, admin düzenler |
+| Site bölümleri | Forum: sekmeler Konular · Mesajlar · Kategoriler | `/yonetim/forum`, `/forum/mesajlar`, `/forum/kategoriler`, `POST /yonetim/toplu` | Konular/Mesajlar ikisi de, Kategoriler yalnızca admin |
+| | Sohbet (genel sohbet; "Odalar — yakında" sekmesi devre dışı) | `/yonetim/sohbet` | ikisi de |
+| | Üyeler (liste; `q, rol, banli, silinmis, kayit=24s, sirala, yon`), Üye kartı, Roller | `/yonetim/uyeler`, `/yonetim/uyeler/:id?sekme=ozet\|icerik\|sikayet\|yaptirim\|islem`, `/yonetim/uyeler/roller` | liste + kart: moderatör (e-posta gizli; yalnızca uyar + ban) ve admin; Roller yalnızca admin |
+| | Puan ve ödüller: Puan kuralları · Rütbeler · Rozetler | `/yonetim/puan`, `/puan/rutbeler`, `/puan/rozetler` | yalnızca admin |
+| | Oyunlar, Mağaza | (yok) | soluk "yakında" satırları |
+| Site | Duyurular: duyuru şeridi + Toplu bildirim (alıcı sayısı onay sayfasında) | `/yonetim/duyurular`, `POST .../bildirim` | yalnızca admin |
+| | Kayıt ve erişim (kayıt açık/kapalı) | `/yonetim/kayit-erisim` | yalnızca admin |
+| | İşlem kaydı (`eylem, aktor, hedef_tur, hedef_id, bas, son, q, sayfa`) | `/yonetim/islem-kaydi` | admin hepsini, moderatör YALNIZCA kendi işlemlerini görür |
+| (üst çubuk) | Panel araması (Ctrl+K): üyeler, konular, `#şikâyet` | `GET /yonetim/ara?q=` | ikisi de |
+
+Üye kartı işlemleri (`POST /yonetim/uyeler/:id/...`): `uyar` (moderasyon bildirimi + kayıt; moderatör+admin), `ban`, `ban-kaldir` (moderatör+admin), `rol`, `puan`,
+`rozet-ver`, `rozet-al`, `sifre-sifirla`, `oturumlari-kapat` (`users.oturum_surumu` +1, açık oturumlar düşer), `hesap-kapat` (hepsi yalnızca admin).
+
+Eski adresler 301 ile yenisine gider (GET): `/yonetim/kullanicilar[/:id]` → `/yonetim/uyeler`, `/yonetim/icerik?tur=` → forum / forum/mesajlar / sohbet,
+`/yonetim/icerik/kategoriler|rutbeler|rozetler` → yeni yerleri, `/yonetim/ayarlar` → `/yonetim/duyurular`, `/moderasyon` → `/yonetim/sikayetler`.
+Sitedeki ⋮ menüsünün `POST /moderasyon/*` adresleri aynen çalışır. Profil sayfasında yetkililere "Yönetimde aç" bağlantısı, avatar menüsündeki "Yönetim" öğesinde bekleyen şikâyet sayısı vardır.
+
+### Yetki matrisi
+
+| | moderatör | admin |
 |---|---|---|
-| Pano (sayılar, çevrimiçi, 30 günlük çubuk grafikler, kategoriler, bekleyen şikâyetler, son işlemler) | `GET /yonetim` | moderatör, admin (son işlemler kutusu yalnızca admin) |
-| Kullanıcı listesi (`q, rol, banli, silinmis, sirala, yon, sayfa`) | `GET /yonetim/kullanicilar` | admin |
-| Kullanıcı detayı | `GET /yonetim/kullanicilar/:id` | moderatör (e-posta, işlem geçmişi, rozet/şifre/rol blokları gizli) ve admin |
-| Ban / ban kaldır (1, 7, 30 gün ya da kalıcı + sebep) | `POST /yonetim/kullanicilar/:id/ban`, `/ban-kaldir` | moderatör (yalnızca "uye" rolündekilere) ve admin |
-| Rol, puan (+/- ve sebep), rozet ver/al, hesap kapat (kullanıcı adı yazılarak onay), geçici şifre | `POST /yonetim/kullanicilar/:id/rol`, `/puan`, `/rozet-ver`, `/rozet-al`, `/hesap-kapat`, `/sifre-sifirla` | yalnızca admin |
-| Konu/mesaj/sohbet listesi (`tur, q, yazar, kategori, durum, sayfa`) + toplu işlem (sil, geri al, sabitle, kilitle, taşı) | `GET /yonetim/icerik`, `POST /yonetim/icerik/toplu` | moderatör, admin |
-| Kategoriler (ad, açıklama, sıra; konusu olan silinmez, "taşı" ile boşaltılır), rütbeler (0 puanlık taban rütbe silinmez), rozet tanımları (kodda adı geçenler silinmez/yeniden adlandırılmaz) + elle rozet verme | `/yonetim/icerik/kategoriler`, `/rutbeler`, `/rozetler` (+ `POST .../:id/duzenle`, `/sil`, `/tasi`, `/ver`) | moderatör, admin (kolayca daraltılabilir: `sadeceAdmin` ekle) |
-| Şikâyetler: durum/tür/sebep filtresi, aynı hedefe gelenler gruplu, eylemler: içeriği sil, uyar, banla (süreli), reddet | `GET /yonetim/sikayetler`, `POST /yonetim/sikayetler/islem` | moderatör, admin |
-| Site ayarları (kayıt açık/kapalı, duyuru şeridi, yasaklı ifadeler) | `GET/POST /yonetim/ayarlar` | yalnızca admin |
-| İşlem kaydı (`eylem, aktor, hedef_tur, hedef_id, bas, son, q, sayfa`) | `GET /yonetim/islem-kaydi` | yalnızca admin |
+| Bakış, Şikâyetler, Forum Konular/Mesajlar, Sohbet | tam | tam |
+| Yaptırımlar | yalnızca "uye" rolündekileri ban/kaldır | tam |
+| Otomatik filtre | görür | düzenler |
+| Forum Kategoriler, Roller, Puan ve ödüller, Duyurular, Kayıt ve erişim | 403 | tam |
+| Üyeler liste + kart | görür, uyarır, "uye" rolünü banlar | tam (rol, puan, rozet, geçici şifre, oturumları kapat, hesabı kapat) |
+| İşlem kaydı | yalnızca kendi işlemleri | hepsi |
 
-Kurallar (`src/islemler.ts` `islemHatasi`): kimse kendi hesabında ban/rol/puan/hesap kapatma yapamaz; son (silinmemiş, banlı olmayan) yönetici banlanamaz,
-düşürülemez, kapatılamaz; moderatör yalnızca "uye" rolündeki kullanıcılara ve yönetici olmayanların içeriğine dokunur (toplu işlemde yönetici içeriği atlanır).
-Dosyalar: `yonetim.ts` (kapı, pano, ayarlar, işlem kaydı), `yonetim-kullanici.ts`, `yonetim-icerik.ts`, `yonetim-sikayet.ts`, `yonetim-ortak.ts`;
-ortak mantık `src/islemler.ts` (ban, silme/geri alma), `src/sikayet.ts` (şikâyet hedefi önizleme + eylemler, `/moderasyon` ile paylaşılır),
-`src/ayarlar.ts` (ayar önbelleği, yasaklı ifade, duyuru kapatma). Şablonlar `views/yonetim/`, stil `public/css/yonetim.css`.
+Kurallar (`src/islemler.ts` `islemHatasi`): kimse kendi hesabında ban/rol/puan/hesap kapatma/uyarı yapamaz; son (silinmemiş, banlı olmayan) yönetici banlanamaz,
+düşürülemez, kapatılamaz; moderatör yalnızca "uye" rolündeki kullanıcılara ve yönetici olmayanların içeriğine dokunur.
+
+### Tehlikeli işlemler ve sebep
+
+Şikâyet kararı (sil/uyar/uzaklaştır/reddet), toplu silme, hesap kapatma, oturumları kapatma, ban: **sebep zorunlu**; sebep işlem kaydına ve (reddet hariç) kullanıcının bildirimine yazılır.
+Kalıcı uzaklaştırma, hesap kapatma, toplu silme, oturumları kapatma ve toplu bildirim önce **onay sayfası** gösterir (`onayIste`, `yonetim-ortak.ts`, `views/yonetim/onay.ejs`):
+ilk POST'ta `onay=1` yoksa işlem yapılmaz, form alanları gizli olarak geri gönderilir. Hesap kapatmada ayrıca kullanıcı adı yazılır (`onay_ad`).
+
+### Yaptırım geçmişi
+
+Ayrı tablo yok; `audit_log` kullanılır (`src/yaptirim.ts`). Eylemler: `kullanici.ban`, `kullanici.ban_kaldir`, `kullanici.uyar`, `sikayet.ban`, `sikayet.uyar`.
+Kişiye bağlama: kullanıcı sayfasından yapılanlarda `hedef_tur='kullanici'`; şikâyetten yapılanlarda `ayrinti.kullanici_id` (hedef_id şikâyet edilen içeriktir). "Süresi dolan" listesi
+`ayrinti.sure` + kayıt zamanından hesaplanır.
+
+### Dosyalar
+
+`yonetim.ts` (kapı, menü, 301'ler, Bakış, arama, işlem kaydı), `yonetim-sikayet.ts` (Şikâyetler, Yaptırımlar), `yonetim-icerik.ts` (Forum, Sohbet, Kategoriler, Rütbeler, Rozetler),
+`yonetim-kullanici.ts` (Üyeler, kart, Roller, üye işlemleri), `yonetim-site.ts` (Filtre, Puan kuralları, Duyurular, Kayıt ve erişim), `yonetim-ortak.ts` (menü, onay adımı, sayfalama);
+ortak mantık `src/islemler.ts`, `src/sikayet.ts` (şikâyet hedefi önizleme + eylemler), `src/yaptirim.ts`, `src/ayarlar.ts`. Şablonlar `views/yonetim/`, stil `public/css/yonetim.css`
+(≥1180px 248px kenar çubuğu, 801–1179px 72px simge şeridi + yan katman, ≤800px üstte kaydırmalı menü; durum renkleri `--d-bekliyor|islendi|reddedildi|ban`, iki temada).
 
 Site ayarları: `site_settings` bellekte önbelleklenir (kayıtta silinir, 60 sn sonra da eskir). Kayıt kapalıyken `/kayit` formu yerine bilgi çıkar ve POST 403 verir.
 Duyuru şeridi `sade` olmayan bütün sayfalarda görünür, oturumda kapatılır (`duyuru_surum` değişince yeniden çıkar).
 Yasaklı ifade: küçük harfe `toLocaleLowerCase("tr")` ile çevrilip metnin içinde aranır (başlık, içerik, cevap, sohbet, özel mesaj); eşleşirse alan hatası ya da toast.
+Toplu bildirim `notifications.tur = 'duyuru'` ile aktif (silinmemiş, banlı olmayan) üyelere ya da tek bir role gider.
 
 ## Şikâyet modeli (sql/08)
 
@@ -84,9 +125,10 @@ Eylemler: sil (silinen mesajın bekleyen şikâyetleri kapanır), uyar (bildirim
 
 ## Puan kuralı
 
-Konu açmak +5, cevap yazmak +2, mesajına gelen artı oy +1 (eksi oy -1; oy geri alınınca fark düzeltilir).
+Konu açmak +5, cevap yazmak +2, mesajına gelen artı oy +1 (eksi oy -1; oy geri alınınca fark düzeltilir) **varsayılanlardır**: değerler `site_settings`'te
+(`puan_konu`, `puan_cevap`, `puan_oy`) durur ve `Puan ve ödüller > Puan kuralları` sayfasından değiştirilir (0–1000 tam sayı). Kod `puanKurallari()` (`src/ayarlar.ts`) ile okur:
+konu/cevap açma, mesaj silme (geri alma), oy ve `/siralama` hafta/ay sorgusu (üç `?` ile). Değişiklik yalnızca sonraki işlemleri etkiler; var olan puanlar baştan hesaplanmaz.
 Puan sıfırın altına inmez. Kendi mesajına oy verilmez. Rütbe, `ranks` tablosunda puanın geçtiği en yüksek eşiktir.
-`/siralama` hafta ve ay görünümleri aynı kuralı yalnızca o dönemin olaylarına uygular.
 
 ## Bilinen eksikler
 

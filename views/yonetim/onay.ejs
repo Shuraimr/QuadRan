@@ -1,0 +1,17 @@
+<%#
+  Onay adımı (tehlikeli işlemler). Beklenen: baslik, metin, buton, iptal (vazgeç adresi), alanlar [{ad, deger}] (ilk formun alanları), eylemYolu (POST adresi)
+  Form, ilk formdaki bütün alanları (sebep dahil) gizli olarak geri gönderir ve onay=1 ekler; sunucu o zaman işlemi yapar.
+%>
+<%- include("duzen-ust", { baslik: baslik }) %>
+<section class="kart yn-kart yn-onay">
+  <%- include("../partials/ikon", { ad: "uyari", boyut: 32 }) %>
+  <h2><%= baslik %></h2>
+  <p><%= metin %></p>
+  <form class="yn-satir" method="post" action="<%= eylemYolu %>"><%- include("csrf") %>
+    <% for (const a of alanlar) { %><input type="hidden" name="<%= a.ad %>" value="<%= a.deger %>"><% } %>
+    <input type="hidden" name="onay" value="1">
+    <button class="buton buton-tehlikeli"><%= buton %></button>
+    <a class="buton buton-cerceveli" href="<%= iptal %>">Vazgeç</a>
+  </form>
+</section>
+<%- include("duzen-alt") %>

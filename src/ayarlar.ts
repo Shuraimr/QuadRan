@@ -14,7 +14,20 @@ export type SiteAyarlari = {
   duyuruTur: "info" | "uyari";
   duyuruSurum: string;
   yasakli: string[];
+  puan: PuanKurallari;
 };
+
+// Puan kuralları (site_settings: puan_konu, puan_cevap, puan_oy). Eskiden kodda sabitti (5 / 2 / 1);
+// artık yönetici panelinden (Puan ve ödüller > Puan kuralları) değiştirilir.
+export type PuanKurallari = { konu: number; cevap: number; oy: number };
+export const PUAN_VARSAYILAN: PuanKurallari = { konu: 5, cevap: 2, oy: 1 };
+export const PUAN_ENFAZLA = 1000; // yanlışlıkla 99999 yazılmasın diye üst sınır
+
+// Ayardan gelen metni güvenli bir tam sayıya çevirir; bozuksa varsayılana döner (site hiç bozulmasın).
+function puanDegeri(ham: string | undefined, varsayilan: number) {
+  const n = Number(ham);
+  return ham !== undefined && ham.trim() !== "" && Number.isInteger(n) && n >= 0 && n <= PUAN_ENFAZLA ? n : varsayilan;
+}
 
 const OMUR_MS = 60_000;
 let onbellek: { veri: SiteAyarlari; zaman: number } | null = null;
@@ -30,9 +43,19 @@ export async function ayarlar(): Promise<SiteAyarlari> {
     duyuruTur: h.duyuru_tur === "uyari" ? "uyari" : "info",
     duyuruSurum: h.duyuru_surum ?? "0",
     yasakli: kelimeListesi(h.yasakli_kelimeler ?? ""),
+    puan: {
+      konu: puanDegeri(h.puan_konu, PUAN_VARSAYILAN.konu),
+      cevap: puanDegeri(h.puan_cevap, PUAN_VARSAYILAN.cevap),
+      oy: puanDegeri(h.puan_oy, PUAN_VARSAYILAN.oy),
+    },
   };
   onbellek = { veri, zaman: Date.now() };
   return veri;
+}
+
+// Puan kuralları kısayolu: route'lar yalnızca bunu ister
+export async function puanKurallari(): Promise<PuanKurallari> {
+  return (await ayarlar()).puan;
 }
 
 export function ayarOnbellekTemizle() {

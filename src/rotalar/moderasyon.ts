@@ -1,6 +1,6 @@
-// Moderasyon: şikâyet kuyruğu (/moderasyon) ve konu/mesaj üzerindeki moderasyon menüsü.
+// Moderasyon: konu/mesaj üzerindeki moderasyon menüsü (sitedeki ⋮) ve eski şikâyet işlem adresleri (POST /moderasyon/:id/...).
+// Şikâyet kuyruğunun kendisi /yonetim/sikayetler sayfasına taşındı.
 // Buradaki her şey yalnızca moderator ve admin içindir (yetkiliGerekli).
-// Daha gelişmiş kuyruk (filtre, gruplama) ve toplu işlemler için /yonetim paneline bak (yonetim.ts).
 //
 // Her işlem "işlem kaydı"na (audit_log) da yazılır: kim, neyi, ne zaman yaptı.
 import express from "express";
@@ -8,78 +8,25 @@ import { pool } from "../db.ts";
 import { bildir, girisGerekli, yetkiliGerekli, geriAdres, sayi } from "../yardimci.ts";
 import { denetim } from "../denetim.ts";
 import { mesajiSil, banla } from "../islemler.ts";
-import { hedefOnizleme, sikayetIslemi, type Onizleme } from "../sikayet.ts";
+import { hedefOnizleme, sikayetIslemi } from "../sikayet.ts";
 
 export const moderasyon = express.Router();
+
+// Eski şikâyet kuyruğu sayfası artık yönetim panelinde (/yonetim/sikayetler). Yer imleri bozulmasın diye 301.
+// Kapılardan ÖNCE tanımlı: misafir de önce yeni adrese gider, orada girişe yönlendirilir. ?durum= korunur.
+moderasyon.get("/moderasyon", (req, res) => {
+  const durum = typeof req.query.durum === "string" && ["bekliyor", "islendi", "reddedildi", "hepsi"].includes(req.query.durum) ? req.query.durum : "";
+  res.redirect(301, "/yonetim/sikayetler" + (durum ? "?durum=" + durum : ""));
+});
 
 // Her route'tan önce iki kapı: önce giriş, sonra yetki.
 // Sıra önemli: giriş yapmamış biri 403 görmesin, girişe gitsin.
 moderasyon.use("/moderasyon", girisGerekli("Moderasyon için giriş yapman gerekiyor."), yetkiliGerekli);
 
 // ---------------------------------------------------------------------------
-// Şikâyet kuyruğu: /moderasyon?durum=bekliyor|islendi|reddedildi|hepsi
-// ---------------------------------------------------------------------------
-const DURUMLAR = ["bekliyor", "islendi", "reddedildi", "hepsi"];
-
-moderasyon.get("/moderasyon", async (req, res) => {
-  const durum = DURUMLAR.includes(req.query.durum as string) ? (req.query.durum as string) : "bekliyor";
-
-  // Yetkisiz kişi için yetkiliGerekli 403 verip buraya geçirir; şablon "erişimin yok" kutusunu çizer.
-  // Veri çekmeye gerek yok, çekmemek de listeyi sızdırmamak için daha güvenli.
-  if (res.statusCode === 403) return res.render("moderasyon", { durum });
-
-  const [[ozet]]: any = await pool.query(
-    `SELECT COALESCE(SUM(durum = 'bekliyor'), 0) AS bekleyen,
-            COALESCE(SUM(durum <> 'bekliyor' AND handled_at >= CURDATE()), 0) AS bugun_islenen,
-            COUNT(*) AS toplam
-       FROM reports`
-  );
-  for (const s in ozet) ozet[s] = Number(ozet[s]);
-
-  // Şikâyetin hedefi (hedef_tur) dört türden biri; hedef_id o türe göre farklı sütundan gelir.
-  // Hedefin içeriği (mesaj metni, yazar, özel mesaj bağlamı...) tek yerde, sikayet.ts'teki hedefOnizleme'de toplanır.
-  // Durum filtresi sabit listeden seçildiği için ? ile bağlıyoruz, "hepsi" ise koşulu etkisiz yapıyoruz.
-  const [satirlar]: any = await pool.query(
-    `SELECT reports.id, reports.durum, reports.hedef_tur, reports.sebep, reports.aciklama, reports.created_at,
-            bildiren.username AS bildiren,
-            COALESCE(reports.post_id, reports.reported_user_id, reports.chat_message_id, reports.message_id) AS hedef_id
-       FROM reports
-       JOIN users AS bildiren ON bildiren.id = reports.reporter_id
-      WHERE (? = 'hepsi' OR reports.durum = ?)
-      ORDER BY reports.created_at DESC
-      LIMIT 100`,
-    [durum, durum]
-  );
-
-  // Aynı hedefe kaç şikâyet geldi? Tek sorguda hepsini sayıp Map'e koyuyoruz (satır başına sorgu atmayalım).
-  const [sayimlar]: any = await pool.query(
-    `SELECT hedef_tur, COALESCE(post_id, reported_user_id, chat_message_id, message_id) AS hedef_id, COUNT(*) AS n
-       FROM reports GROUP BY hedef_tur, hedef_id`
-  );
-  const sayimHaritasi = new Map<string, number>(sayimlar.map((s: any) => [`${s.hedef_tur}:${s.hedef_id}`, Number(s.n)]));
-
-  // Aynı hedef birkaç satırda geçebilir; önizlemeyi bir kez çek
-  const onbellek = new Map<string, Onizleme | null>();
-  const sikayetler = [];
-  for (const s of satirlar) {
-    const anahtar = `${s.hedef_tur}:${s.hedef_id}`;
-    if (!onbellek.has(anahtar)) onbellek.set(anahtar, await hedefOnizleme(s.hedef_tur, s.hedef_id));
-    const o = onbellek.get(anahtar);
-    if (!o) continue;
-    sikayetler.push({
-      id: s.id, durum: s.durum, sebep: s.sebep, aciklama: s.aciklama, created_at: s.created_at,
-      bildiren: s.bildiren, ayni_post_sayisi: sayimHaritasi.get(anahtar) ?? 1,
-      tur: s.hedef_tur, hedef: o,
-    });
-  }
-
-  res.render("moderasyon", { durum, ozet, sikayetler });
-});
-
-// ---------------------------------------------------------------------------
 // Kuyruktaki şikâyet işlemleri: adreste ŞİKÂYET id'si var
 // ---------------------------------------------------------------------------
-const KUYRUK = "/moderasyon";
+const KUYRUK = "/yonetim/sikayetler";
 
 async function sikayetiBul(id: number | null) {
   if (!id) return null;

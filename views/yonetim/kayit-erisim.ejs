@@ -1,0 +1,9 @@
+<%# Kayıt ve erişim (admin): a { kayitAcik }. POST /yonetim/kayit-erisim alan: kayit_acik %>
+<%- include("duzen-ust", { baslik: "Kayıt ve erişim", aktif: "kayit-erisim" }) %>
+<form class="kart yn-kart yn-form" method="post" action="/yonetim/kayit-erisim"><%- include("csrf") %>
+  <h3>Kayıt</h3>
+  <label class="onay"><input type="checkbox" name="kayit_acik" value="1"<%= a.kayitAcik ? " checked" : "" %>> Yeni kayıtlara açık</label>
+  <p class="ikincil kucuk">Kapalıyken /kayit sayfası “kayıtlar kapalı” der ve doğrudan gönderilen formlar da reddedilir. Mevcut üyelerin girişi etkilenmez.</p>
+  <button class="buton buton-birincil">Kaydet</button>
+</form>
+<%- include("duzen-alt") %>

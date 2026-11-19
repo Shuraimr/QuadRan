@@ -1,9 +1,9 @@
 // Forum: akış (/), konu sayfası, konu açma, cevap, oy, profil, arama, sıralama, şikâyet.
 import express from "express";
 import { pool } from "../db.ts";
-import { yasakliIfade } from "../ayarlar.ts";
+import { yasakliIfade, puanKurallari } from "../ayarlar.ts";
 import {
-  rutbeSql, skorSql, PUAN, puanEkle, bildirimGonder, rozetVer, bildir, kisalt,
+  rutbeSql, skorSql, puanEkle, bildirimGonder, rozetVer, bildir, kisalt,
   girisGerekli, geriAdres, sayi, metin,
 } from "../yardimci.ts";
 
@@ -159,7 +159,7 @@ forum.post("/konu/yeni", girisGerekli("Konu açmak için giriş yapman gerekiyor
     baglanti.release(); // bağlantıyı havuza geri ver (unutulursa havuz zamanla tükenir)
   }
 
-  await puanEkle(k.id, PUAN.konu);
+  await puanEkle(k.id, (await puanKurallari()).konu);
   await rozetVer(k.id, "İlk Konu");
   bildir(req, "basari", "Konun yayınlandı");
   res.redirect("/konu/" + konuId);
@@ -260,7 +260,7 @@ forum.post("/konu/:id/cevap", girisGerekli("Cevap yazmak için giriş yapman ger
   const [sonuc]: any = await pool.query("INSERT INTO posts (topic_id, user_id, content) VALUES (?, ?, ?)", [id, k.id, content]);
   const mesajId = sonuc.insertId;
 
-  await puanEkle(k.id, PUAN.cevap);
+  await puanEkle(k.id, (await puanKurallari()).cevap);
   await bildirimGonder({
     alan: konu.user_id, yapan: k.id, tur: "cevap",
     metin: `${k.username} konuna cevap yazdı: “${kisalt(content, 50)}”`,
@@ -301,6 +301,7 @@ forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), asyn
 
   // Okuma ve yazma aynı transaction'da: iki hızlı tıklama aynı anda gelirse puan iki kez değişmesin.
   // SELECT ... FOR UPDATE o satırı transaction bitene kadar kilitler.
+  const oyPuani = (await puanKurallari()).oy; // bir oyun puan değeri (yönetici ayarı)
   const baglanti = await pool.getConnection();
   let fark = 0;
   let yeniArtiOy = false;
@@ -324,7 +325,7 @@ forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), asyn
     }
     await baglanti.query(
       "UPDATE users SET points = GREATEST(0, CAST(points AS SIGNED) + ?) WHERE id = ?",
-      [fark, mesaj.user_id]
+      [fark * oyPuani, mesaj.user_id]
     );
     await baglanti.commit();
   } catch (hata) {
@@ -488,6 +489,7 @@ forum.get("/siralama", async (req, res) => {
         ORDER BY users.points DESC, users.username`
     )) as any;
   } else {
+    const puan = await puanKurallari();
     // UNION ALL: üç farklı olay türünü tek bir "kim, kaç puan" listesinde alt alta birleştirir,
     // sonra GROUP BY ile kişi başına toplanır.
     [satirlar] = (await pool.query(
@@ -496,14 +498,14 @@ forum.get("/siralama", async (req, res) => {
                   AND topics.created_at >= ${baslangic}) AS konu_sayisi
          FROM (
            SELECT user_id, SUM(p) AS puan FROM (
-             SELECT user_id, ${PUAN.konu} AS p FROM topics
+             SELECT user_id, ? AS p FROM topics
               WHERE deleted_at IS NULL AND created_at >= ${baslangic}
              UNION ALL
-             SELECT posts.user_id, ${PUAN.cevap} FROM posts
+             SELECT posts.user_id, ? FROM posts
               WHERE posts.deleted_at IS NULL AND posts.created_at >= ${baslangic}
                 AND posts.id <> (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = posts.topic_id)
              UNION ALL
-             SELECT posts.user_id, post_votes.value FROM post_votes
+             SELECT posts.user_id, post_votes.value * ? FROM post_votes
                JOIN posts ON posts.id = post_votes.post_id
               WHERE post_votes.created_at >= ${baslangic}
            ) AS olaylar
@@ -511,7 +513,8 @@ forum.get("/siralama", async (req, res) => {
          ) AS d
          JOIN users ON users.id = d.user_id
         WHERE users.deleted_at IS NULL AND d.puan > 0
-        ORDER BY d.puan DESC, users.username`
+        ORDER BY d.puan DESC, users.username`,
+      [puan.konu, puan.cevap, puan.oy] // sorgudaki üç ? sırasıyla: konu, cevap, oy puanı
     )) as any;
   }
 

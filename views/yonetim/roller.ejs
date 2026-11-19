@@ -1,0 +1,28 @@
+<%# Roller (admin): yetkililer [{id, username, rol, last_seen_at, engel}], roller [{name}]. Rol değiştirme: POST /yonetim/uyeler/:id/rol (alan: rol) %>
+<%- include("duzen-ust", { baslik: "Üyeler", aktif: "uyeler" }) %>
+<div class="yn-sekmeler siralama"><a href="/yonetim/uyeler">Üyeler</a><a class="aktif" href="/yonetim/uyeler/roller">Roller</a></div>
+<% if (!yetkililer.length) { %><%- include("bos", { filtreli: false, bosMetin: "Yönetici ya da moderatör yok" }) %><% } else { %>
+<div class="kart yn-tablo-kutu">
+  <table class="yn-tablo">
+    <thead><tr><th>Üye</th><th>Rol</th><th>Son görülme</th><th>Rolü değiştir</th></tr></thead>
+    <tbody>
+      <% for (const y of yetkililer) { %>
+        <tr>
+          <td data-etiket="Üye"><a class="kullanici" href="/yonetim/uyeler/<%= y.id %>"><%= y.username %></a></td>
+          <td data-etiket="Rol"><span class="etiket"><%= y.rol %></span></td>
+          <td data-etiket="Son görülme"><%= y.last_seen_at ? zaman(y.last_seen_at) : "—" %></td>
+          <td data-etiket="Rolü değiştir">
+            <% if (y.engel) { %><span class="ikincil kucuk"><%= y.engel %></span><% } else { %>
+              <form class="yn-satir" method="post" action="/yonetim/uyeler/<%= y.id %>/rol"><%- include("csrf") %>
+                <select class="yn-girdi" name="rol" aria-label="Yeni rol"><% for (const r of roller) { %><option value="<%= r.name %>"<%= r.name === y.rol ? " selected" : "" %>><%= r.name %></option><% } %></select>
+                <button class="buton buton-tonal">Kaydet</button></form>
+            <% } %>
+          </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<p class="ikincil kucuk">Yeni moderatör atamak için üye kartındaki İşlemler bölümünü kullan. Son yönetici düşürülemez, kimse kendi rolünü değiştiremez.</p>
+<%- include("duzen-alt") %>

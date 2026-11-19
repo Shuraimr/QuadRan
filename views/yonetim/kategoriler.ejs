@@ -1,7 +1,7 @@
 <%# Kategoriler: kategoriler [{id, name, description, sort_order, konu_sayisi}] %>
-<%- include("duzen-ust", { baslik: "İçerik", aktif: "icerik" }) %>
-<%- include("icerik-sekmeler", { sekme: "kategoriler" }) %>
-<form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/icerik/kategoriler"><%- include("csrf") %>
+<%- include("duzen-ust", { baslik: "Forum", aktif: "forum" }) %>
+<%- include("forum-sekmeler", { sekme: "kategoriler" }) %>
+<form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/forum/kategoriler"><%- include("csrf") %>
   <label class="yn-etiketli">Yeni kategori<input class="yn-girdi" name="name" minlength="2" maxlength="64" required></label>
   <label class="yn-etiketli">Açıklama<input class="yn-girdi" name="description" maxlength="255"></label>
   <label class="yn-etiketli yn-dar">Sıra<input class="yn-girdi" type="number" name="sort_order" value="0"></label>
@@ -9,7 +9,7 @@
 </form>
 <% for (const c of kategoriler) { %>
   <div class="kart yn-kart">
-    <form class="yn-form yn-satir yn-genis" method="post" action="/yonetim/icerik/kategoriler/<%= c.id %>/duzenle"><%- include("csrf") %>
+    <form class="yn-form yn-satir yn-genis" method="post" action="/yonetim/forum/kategoriler/<%= c.id %>/duzenle"><%- include("csrf") %>
       <label class="yn-etiketli">Ad<input class="yn-girdi" name="name" value="<%= c.name %>" minlength="2" maxlength="64" required></label>
       <label class="yn-etiketli">Açıklama<input class="yn-girdi" name="description" value="<%= c.description || '' %>" maxlength="255"></label>
       <label class="yn-etiketli yn-dar">Sıra<input class="yn-girdi" type="number" name="sort_order" value="<%= c.sort_order %>"></label>
@@ -18,13 +18,13 @@
     <div class="yn-satir yn-alt">
       <span class="ikincil kucuk"><%= c.konu_sayisi %> konu (silinmişler dahil)</span>
       <% if (Number(c.konu_sayisi) > 0) { %>
-        <form class="yn-satir" method="post" action="/yonetim/icerik/kategoriler/<%= c.id %>/tasi"><%- include("csrf") %>
+        <form class="yn-satir" method="post" action="/yonetim/forum/kategoriler/<%= c.id %>/tasi"><%- include("csrf") %>
           <select class="yn-girdi" name="hedef" aria-label="Konuları taşı" required><option value="">Konuları şuraya taşı…</option>
             <% for (const d of kategoriler) { if (d.id !== c.id) { %><option value="<%= d.id %>"><%= d.name %></option><% } } %></select>
           <button class="buton buton-cerceveli" onclick="return confirm('Bu kategorideki bütün konular taşınsın mı?')">Taşı</button>
         </form>
       <% } %>
-      <form method="post" action="/yonetim/icerik/kategoriler/<%= c.id %>/sil" class="yn-sag"><%- include("csrf") %>
+      <form method="post" action="/yonetim/forum/kategoriler/<%= c.id %>/sil" class="yn-sag"><%- include("csrf") %>
         <button class="buton buton-tehlikeli" onclick="return confirm('Kategori silinsin mi?')">Sil</button></form>
     </div>
   </div>

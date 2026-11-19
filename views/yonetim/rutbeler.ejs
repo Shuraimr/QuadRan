@@ -1,7 +1,7 @@
 <%# Rütbeler: rutbeler [{id, name, min_points, kullanici_sayisi}] %>
-<%- include("duzen-ust", { baslik: "İçerik", aktif: "icerik" }) %>
-<%- include("icerik-sekmeler", { sekme: "rutbeler" }) %>
-<form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/icerik/rutbeler"><%- include("csrf") %>
+<%- include("duzen-ust", { baslik: "Puan ve ödüller", aktif: "puan" }) %>
+<%- include("puan-sekmeler", { sekme: "rutbeler" }) %>
+<form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/puan/rutbeler"><%- include("csrf") %>
   <label class="yn-etiketli">Yeni rütbe<input class="yn-girdi" name="name" minlength="2" maxlength="32" required></label>
   <label class="yn-etiketli yn-dar">En az puan<input class="yn-girdi" type="number" name="min_points" min="1" required></label>
   <button class="buton buton-birincil">Ekle</button>
@@ -9,14 +9,14 @@
 <p class="ikincil kucuk">0 puanlık taban rütbe silinemez ve eşiği değişmez: puanı en düşük üyenin de bir rütbesi olsun.</p>
 <% for (const r of rutbeler) { %>
   <div class="kart yn-kart yn-satir yn-genis">
-    <form class="yn-form yn-satir yn-genis" method="post" action="/yonetim/icerik/rutbeler/<%= r.id %>/duzenle"><%- include("csrf") %>
+    <form class="yn-form yn-satir yn-genis" method="post" action="/yonetim/puan/rutbeler/<%= r.id %>/duzenle"><%- include("csrf") %>
       <label class="yn-etiketli">Ad<input class="yn-girdi" name="name" value="<%= r.name %>" minlength="2" maxlength="32" required></label>
       <label class="yn-etiketli yn-dar">En az puan<input class="yn-girdi" type="number" name="min_points" value="<%= r.min_points %>" min="0" required<%= r.min_points === 0 ? " readonly" : "" %>></label>
       <button class="buton buton-tonal">Kaydet</button>
     </form>
     <span class="ikincil kucuk"><%= r.kullanici_sayisi %> kullanıcı</span>
     <% if (r.min_points !== 0) { %>
-      <form method="post" action="/yonetim/icerik/rutbeler/<%= r.id %>/sil"><%- include("csrf") %><button class="buton buton-tehlikeli" onclick="return confirm('Rütbe silinsin mi?')">Sil</button></form>
+      <form method="post" action="/yonetim/puan/rutbeler/<%= r.id %>/sil"><%- include("csrf") %><button class="buton buton-tehlikeli" onclick="return confirm('Rütbe silinsin mi?')">Sil</button></form>
     <% } %>
   </div>
 <% } %>

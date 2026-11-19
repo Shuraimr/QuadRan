@@ -1,0 +1,15 @@
+<%# Panel araması: q, uyeler [{id, username, rol, deleted_at, banli}], konular [{id, title, deleted_at, kategori}], sikayetler [{id, hedef_tur, sebep, durum, created_at, bildiren}], turEtiket %>
+<%- include("duzen-ust", { baslik: "Ara", aktif: "bakis", aramaMetni: q }) %>
+<% if (!q) { %>
+  <div class="kart yn-bos"><%- include("../partials/ikon", { ad: "ara", boyut: 28 }) %><strong>Aramak için yaz</strong><span class="ikincil kucuk">Üye adı, konu başlığı ya da #şikâyet numarası.</span></div>
+<% } else if (!uyeler.length && !konular.length && !sikayetler.length) { %>
+  <%- include("bos", { filtreli: true, sifirla: "/yonetim/ara" }) %>
+<% } else { %>
+  <% if (uyeler.length) { %><section class="kart yn-kart"><h3 class="yn-etiket-ust">Üyeler</h3>
+    <% for (const u of uyeler) { %><a class="yn-liste-satir" href="/yonetim/uyeler/<%= u.id %>"><strong><%= u.username %></strong><small class="ikincil"><%= u.rol %><%= u.deleted_at ? " · kapatılmış" : "" %><%= u.banli ? " · uzaklaştırılmış" : "" %></small></a><% } %></section><% } %>
+  <% if (konular.length) { %><section class="kart yn-kart"><h3 class="yn-etiket-ust">Konular</h3>
+    <% for (const t of konular) { %><a class="yn-liste-satir" href="/konu/<%= t.id %>"><strong class="yn-kisa"><%= t.title %></strong><small class="ikincil">#<%= t.id %> · <%= t.kategori %><%= t.deleted_at ? " · silinmiş" : "" %></small></a><% } %></section><% } %>
+  <% if (sikayetler.length) { %><section class="kart yn-kart"><h3 class="yn-etiket-ust">Şikâyetler</h3>
+    <% for (const s of sikayetler) { %><a class="yn-liste-satir" href="/yonetim/sikayetler?id=<%= s.id %>"><strong>#<%= s.id %> · <%= s.sebep %></strong><small class="ikincil"><%= turEtiket[s.hedef_tur] %> · <%= s.bildiren %> · <%= s.durum %> · <%= zaman(s.created_at) %></small></a><% } %></section><% } %>
+<% } %>
+<%- include("duzen-alt") %>

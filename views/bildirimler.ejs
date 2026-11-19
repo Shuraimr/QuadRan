@@ -4,7 +4,7 @@
   filtre       "hepsi" | "okunmamis"   (GET /bildirimler?filtre=okunmamis)
   okunmamis_sayisi  sayı               okunmamış bildirim sayısı (read_at IS NULL)
   bildirimler  [ { id, tur, kisi, metin, link, created_at, read_at } ]  yeniden eskiye sıralı
-      tur   "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon"
+      tur   "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon" | "duyuru"
             (planlanan notifications tablosunda tur sütunu yok: eklenmeli ya da link'ten türetilmeli)
       kisi  eylemi yapan kullanıcı adı ya da null. Varsa avatar harfi, yoksa türe göre simge gösterilir
       metin düz metin (planlanan tablo: metin), link tıklanınca gidilecek adres (planlanan tablo: link)
@@ -25,7 +25,7 @@
     { baslik: "Bu hafta", liste: bdTum.filter(b => bdFark(b.created_at) >= 1 && bdFark(b.created_at) < 7) },
     { baslik: "Daha eski", liste: bdTum.filter(b => bdFark(b.created_at) >= 7) }
   ].filter(g => g.liste.length > 0);
-  const bdIkonlar = { cevap: "cevap", oy: "yukari", rozet: "kupa", mesaj: "mektup", moderasyon: "kalkan" };
+  const bdIkonlar = { cevap: "cevap", oy: "yukari", rozet: "kupa", mesaj: "mektup", moderasyon: "kalkan", duyuru: "zil" };
 %>
 <main class="bildirimler-sayfa">
   <div class="bildirimler-ust">

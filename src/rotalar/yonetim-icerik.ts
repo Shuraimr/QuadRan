@@ -1,5 +1,5 @@
-// Yönetim paneli: İçerik (konu, mesaj, sohbet listeleri + toplu işlemler) ve yapı ayarları
-// (kategoriler, rütbeler, rozet tanımları). Moderatör ve admin kullanabilir.
+// Yönetim paneli: Forum (Konular, Mesajlar, Kategoriler), Sohbet ve Puan ve ödüller'in Rütbeler/Rozetler sekmeleri.
+// Konular/Mesajlar/Sohbet: moderatör + admin. Kategoriler ve Puan ve ödüller: yalnızca admin (sadeceAdmin ile kapılı).
 import express from "express";
 import { pool } from "../db.ts";
 import { bildir, sayi, metin, geriAdres, likeKac, rutbeSql, rozetVer } from "../yardimci.ts";
@@ -7,7 +7,7 @@ import { denetim } from "../denetim.ts";
 import {
   mesajiSil, mesajiGeriAl, konuyuSil, konuyuGeriAl, sohbetMesajiSil, sohbetMesajiGeriAl,
 } from "../islemler.ts";
-import { sayfala, secim, idListesi } from "./yonetim-ortak.ts";
+import { sayfala, secim, idListesi, sadeceAdmin, onayIste } from "./yonetim-ortak.ts";
 
 export const yonetimIcerik = express.Router();
 
@@ -17,8 +17,14 @@ const DURUMLAR = ["aktif", "silinmis", "hepsi"] as const;
 // ---------------------------------------------------------------------------
 // Liste: /yonetim/icerik?tur=konu|mesaj|sohbet&q=&kategori=&durum=&yazar=&sayfa=
 // ---------------------------------------------------------------------------
-yonetimIcerik.get("/yonetim/icerik", async (req, res) => {
-  const tur = secim(req.query.tur, TURLER, "konu");
+// Üç liste aynı koddan geçer; yalnızca tablo ve adres değişir.
+//   /yonetim/forum (konular) · /yonetim/forum/mesajlar · /yonetim/sohbet
+const LISTELER = { konu: "/yonetim/forum", mesaj: "/yonetim/forum/mesajlar", sohbet: "/yonetim/sohbet" } as const;
+for (const tur of TURLER) {
+  yonetimIcerik.get(LISTELER[tur], (req, res) => icerikListesi(tur, req, res));
+}
+
+async function icerikListesi(tur: (typeof TURLER)[number], req: express.Request, res: express.Response) {
   const q = metin(req.query.q).slice(0, 100);
   const yazar = metin(req.query.yazar).slice(0, 32);
   const durum = secim(req.query.durum, DURUMLAR, "aktif");
@@ -66,10 +72,11 @@ yonetimIcerik.get("/yonetim/icerik", async (req, res) => {
   const [kategoriler] = await pool.query("SELECT id, name FROM categories ORDER BY sort_order, id");
 
   res.render("yonetim/icerik", {
-    baslik: "İçerik", aktif: "icerik", tur, satirlar, sf, kategoriler,
-    qs: { tur, q, yazar, durum, kategori: kategori ?? "" }, yol: "/yonetim/icerik",
+    baslik: tur === "sohbet" ? "Sohbet" : "Forum", aktif: tur === "sohbet" ? "sohbet" : "forum", tur, satirlar, sf, kategoriler,
+    qs: { q, yazar, durum, kategori: kategori ?? "" }, yol: LISTELER[tur],
+    filtreli: !!(q || yazar || kategori || durum !== "aktif"),
   });
-});
+}
 
 // ---------------------------------------------------------------------------
 // Toplu işlem: POST /yonetim/icerik/toplu  alanlar: tur, eylem, id (çoklu), kategori
@@ -81,15 +88,22 @@ const EYLEMLER: Record<string, readonly string[]> = {
   sohbet: ["sil", "geri_al"],
 };
 
-yonetimIcerik.post("/yonetim/icerik/toplu", async (req, res) => {
+yonetimIcerik.post("/yonetim/toplu", async (req, res) => {
   const k = res.locals.kullanici;
   const tur = secim(req.body.tur, TURLER, "konu");
   const eylem = metin(req.body.eylem);
   const idler = idListesi(req.body.id);
-  const geri = geriAdres(req, "/yonetim/icerik?tur=" + tur);
+  const sebep = metin(req.body.sebep);
+  const geri = geriAdres(req, LISTELER[tur]);
 
   if (!EYLEMLER[tur].includes(eylem)) { bildir(req, "hata", "Geçerli bir işlem seç."); return res.redirect(geri); }
   if (!idler.length) { bildir(req, "hata", "Hiçbir öğe seçilmedi."); return res.redirect(geri); }
+
+  // Toplu silme tehlikelidir: sebep zorunlu (işlem kaydına ve yazarın bildirimine gider) + onay adımı
+  if (eylem === "sil") {
+    if (sebep.length < 3 || sebep.length > 200) { bildir(req, "hata", "Silmek için 3 ile 200 karakter arasında bir sebep yazmalısın."); return res.redirect(geri); }
+    if (onayIste(req, res, { baslik: "Toplu silme", metin: `${idler.length} öğe silinecek (yazarlara sebep bildirilir). Sebep: “${sebep}”. Onaylıyor musun?`, buton: "Evet, sil", iptal: geri, aktif: tur === "sohbet" ? "sohbet" : "forum" })) return;
+  }
 
   let kategoriAdi = "";
   let kategoriId: number | null = null;
@@ -117,10 +131,10 @@ yonetimIcerik.post("/yonetim/icerik/toplu", async (req, res) => {
     let basarili = false;
     let kayit = "";
     const hedefTur = tur === "konu" ? "konu" : tur === "mesaj" ? "konu_mesaji" : "sohbet_mesaji";
-    let ayrinti: Record<string, unknown> = { toplu: idler.length > 1 };
+    let ayrinti: Record<string, unknown> = { toplu: idler.length > 1, ...(eylem === "sil" ? { sebep } : {}) };
 
     if (eylem === "sil") {
-      basarili = tur === "konu" ? await konuyuSil(id, k.id) : tur === "mesaj" ? !!(await mesajiSil(id, k.id)) : !!(await sohbetMesajiSil(id, k.id));
+      basarili = tur === "konu" ? await konuyuSil(id, k.id, sebep) : tur === "mesaj" ? !!(await mesajiSil(id, k.id, sebep)) : !!(await sohbetMesajiSil(id, k.id, sebep));
       kayit = "icerik.sil";
     } else if (eylem === "geri_al") {
       basarili = tur === "konu" ? await konuyuGeriAl(id) : tur === "mesaj" ? await mesajiGeriAl(id) : await sohbetMesajiGeriAl(id);
@@ -155,7 +169,8 @@ yonetimIcerik.post("/yonetim/icerik/toplu", async (req, res) => {
 // ---------------------------------------------------------------------------
 // Kategoriler
 // ---------------------------------------------------------------------------
-const KATEGORILER = "/yonetim/icerik/kategoriler";
+const KATEGORILER = "/yonetim/forum/kategoriler";
+yonetimIcerik.use(KATEGORILER, sadeceAdmin); // kategori yapısını yalnızca admin değiştirir (GET ve POST)
 
 function kategoriAlanlari(body: any): { hata?: string; ad: string; aciklama: string | null; sira: number } {
   const ad = metin(body.name);
@@ -174,7 +189,7 @@ yonetimIcerik.get(KATEGORILER, async (req, res) => {
             (SELECT COUNT(*) FROM topics WHERE topics.category_id = categories.id) AS konu_sayisi
        FROM categories ORDER BY categories.sort_order, categories.id`
   );
-  res.render("yonetim/kategoriler", { baslik: "Kategoriler", aktif: "icerik", altAktif: "kategoriler", kategoriler });
+  res.render("yonetim/kategoriler", { baslik: "Forum", aktif: "forum", kategoriler });
 });
 
 yonetimIcerik.post(KATEGORILER, async (req, res) => {
@@ -238,7 +253,10 @@ yonetimIcerik.post(KATEGORILER + "/:id/tasi", async (req, res, next) => {
 // Rütbeler: ad + en az puan. min_points = 0 olan "taban" rütbe her zaman kalmalı:
 // puanı en düşük kullanıcı bile bir rütbe alsın (rutbeSql en yüksek eşiği seçer, eşik yoksa NULL gelirdi).
 // ---------------------------------------------------------------------------
-const RUTBELER = "/yonetim/icerik/rutbeler";
+const RUTBELER = "/yonetim/puan/rutbeler";
+
+yonetimIcerik.use("/yonetim/puan/rutbeler", sadeceAdmin);
+yonetimIcerik.use("/yonetim/puan/rozetler", sadeceAdmin);
 
 function rutbeAlanlari(body: any) {
   const ad = metin(body.name);
@@ -256,7 +274,7 @@ yonetimIcerik.get(RUTBELER, async (req, res) => {
             (SELECT COUNT(*) FROM users WHERE users.deleted_at IS NULL AND ${rutbeSql("users")} = ranks.name) AS kullanici_sayisi
        FROM ranks ORDER BY ranks.min_points`
   );
-  res.render("yonetim/rutbeler", { baslik: "Rütbeler", aktif: "icerik", altAktif: "rutbeler", rutbeler });
+  res.render("yonetim/rutbeler", { baslik: "Puan ve ödüller", aktif: "puan", rutbeler });
 });
 
 yonetimIcerik.post(RUTBELER, async (req, res) => {
@@ -306,7 +324,7 @@ yonetimIcerik.post(RUTBELER + "/:id/sil", async (req, res, next) => {
 // Kodun adıyla verdiği rozetler (rozetVer("İlk Konu") gibi) silinemez ve yeniden adlandırılamaz: ad değişirse
 // rozet artık hiç verilmez, sessizce bozulur.
 // ---------------------------------------------------------------------------
-const ROZETLER = "/yonetim/icerik/rozetler";
+const ROZETLER = "/yonetim/puan/rozetler";
 const KODDAKI_ROZETLER = ["Kurucu", "İlk Konu", "Yardımsever"];
 
 function rozetAlanlari(body: any) {
@@ -324,7 +342,7 @@ yonetimIcerik.get(ROZETLER, async (req, res) => {
             (SELECT COUNT(*) FROM user_badges WHERE user_badges.badge_id = badges.id) AS sahip_sayisi
        FROM badges ORDER BY badges.name`
   );
-  res.render("yonetim/rozetler", { baslik: "Rozetler", aktif: "icerik", altAktif: "rozetler", rozetler, korunan: KODDAKI_ROZETLER });
+  res.render("yonetim/rozetler", { baslik: "Puan ve ödüller", aktif: "puan", rozetler, korunan: KODDAKI_ROZETLER });
 });
 
 yonetimIcerik.post(ROZETLER, async (req, res) => {

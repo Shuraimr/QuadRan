@@ -16,11 +16,10 @@ export const skorSql = (postTablosu: string) =>
   `(SELECT COALESCE(SUM(post_votes.value), 0) FROM post_votes WHERE post_votes.post_id = ${postTablosu}.id)`;
 
 // ---------------------------------------------------------------------------
-// Puan kuralı (sql/06_etkilesim.sql'deki baştan hesaplama ile aynı):
-//   konu açmak +5, cevap yazmak +2, mesajına gelen oy +1 / -1
+// Puan kuralı: konu açmak, cevap yazmak, mesajına gelen oy (varsayılan +5 / +2 / ±1).
+// Değerler artık kodda sabit değil: site_settings'ten gelir (src/ayarlar.ts > puanKurallari).
 // points UNSIGNED olduğu için önce SIGNED'a çevirip GREATEST ile sıfırın altına inmesini engelliyoruz.
 // ---------------------------------------------------------------------------
-export const PUAN = { konu: 5, cevap: 2 };
 
 export async function puanEkle(userId: number, miktar: number) {
   if (miktar === 0) return;
@@ -33,7 +32,7 @@ export async function puanEkle(userId: number, miktar: number) {
 // ---------------------------------------------------------------------------
 // Bildirim oluştur. Kişi kendi kendine bildirim almaz.
 // ---------------------------------------------------------------------------
-type BildirimTuru = "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon";
+type BildirimTuru = "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon" | "duyuru";
 
 export async function bildirimGonder(b: { alan: number; yapan: number | null; tur: BildirimTuru; metin: string; link: string }) {
   if (b.yapan !== null && b.alan === b.yapan) return;

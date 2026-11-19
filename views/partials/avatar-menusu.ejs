@@ -2,6 +2,7 @@
   Hesap menüsü (avatardan açılır, popover). Yalnızca giriş yapmış kullanıcıya çizilir.
   Beklenen veriler:
   kullanici     { username, rutbe, points, rol }
+  bekleyenSikayet  yetkililer için bekleyen şikâyet sayısı (0'dan büyükse Yönetim yanında rozet)
   okunmamisMesaj  0'dan büyükse Mesajlar yanında rozet çıkar
   statik        true ise popover yerine açık kutu (yalnızca önizleme sayfası için)
 %>
@@ -20,7 +21,9 @@
   </a>
   <a class="acilir-oge" href="/ayarlar" data-ayarlar-kisayol><%- include("ikon", { ad: "ayar", boyut: 20 }) %><span class="acilir-ad">Ayarlar</span><span class="acilir-kisayol">Ctrl ,</span></a>
   <% if (["admin", "moderator"].includes(k_.rol)) { %>
-    <a class="acilir-oge" href="/yonetim"><%- include("ikon", { ad: "kalkan", boyut: 20 }) %><span class="acilir-ad">Yönetim</span></a>
+    <a class="acilir-oge" href="/yonetim"><%- include("ikon", { ad: "kalkan", boyut: 20 }) %><span class="acilir-ad">Yönetim</span>
+      <% if ((locals.bekleyenSikayet || 0) > 0) { %><span class="acilir-rozet" aria-label="<%= locals.bekleyenSikayet %> bekleyen şikâyet"><%= locals.bekleyenSikayet %></span><% } %>
+    </a>
   <% } %>
   <hr class="acilir-ayirici">
   <form method="post" action="/cikis"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">

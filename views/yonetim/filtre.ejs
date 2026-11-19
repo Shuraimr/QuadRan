@@ -1,0 +1,12 @@
+<%# Otomatik filtre: a { yasakli[] }, yasakliMetin, duzenleyebilir (yalnızca admin). Moderatör listeyi görür, değiştiremez. %>
+<%- include("duzen-ust", { baslik: "Otomatik filtre", aktif: "filtre" }) %>
+<form class="kart yn-kart yn-form" method="post" action="/yonetim/filtre"><%- include("csrf") %>
+  <h3>Yasaklı ifadeler <small class="ikincil">(<%= a.yasakli.length %>)</small></h3>
+  <% if (!a.yasakli.length && !duzenleyebilir) { %><p class="ikincil">Henüz yasaklı ifade tanımlanmamış.</p><% } %>
+  <label class="yn-etiketli">Satır başına bir ifade (konu başlığı/içeriği, cevap, sohbet ve özel mesajlarda reddedilir)
+    <textarea class="yn-girdi yn-alan" name="yasakli_kelimeler" rows="10"<%= duzenleyebilir ? "" : " readonly" %>><%= yasakliMetin %></textarea></label>
+  <p class="ikincil kucuk">Büyük/küçük harf fark etmez (Türkçe kurallarıyla: I/ı, İ/i). İfade metnin içinde geçiyorsa eşleşir, kelime kökünü de yakalar.</p>
+  <% if (duzenleyebilir) { %><button class="buton buton-birincil">Kaydet</button>
+  <% } else { %><p class="bilgi-notu"><span>Listeyi yalnızca yöneticiler düzenleyebilir.</span></p><% } %>
+</form>
+<%- include("duzen-alt") %>

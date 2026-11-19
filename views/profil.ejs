@@ -38,6 +38,9 @@
         <div class="satir ikincil kucuk"><%- include("partials/ikon", { ad: "takvim", boyut: 16 }) %> <%= profil.rol %> · <%= new Date(profil.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %> tarihinden beri üye</div>
       </div>
       <div class="satir">
+        <% if (locals.kullanici && ["admin", "moderator"].includes(locals.kullanici.rol)) { %>
+          <a class="buton buton-cerceveli" href="/yonetim/uyeler/<%= profil.id %>">Yönetimde aç</a>
+        <% } %>
         <% if (kendisi) { %>
           <a class="buton buton-tonal" href="/ayarlar">Profili düzenle</a>
           <a class="buton buton-cerceveli" href="/profil/<%= profil.username %>" data-paylas data-baslik="<%= profil.username %> · QuadRan">Paylaş</a>

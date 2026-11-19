@@ -1,0 +1,14 @@
+<%# Puan kuralları: puan { konu, cevap, oy }, enfazla. POST /yonetim/puan alanlar: konu, cevap, oy (site_settings: puan_konu, puan_cevap, puan_oy) %>
+<%- include("duzen-ust", { baslik: "Puan ve ödüller", aktif: "puan" }) %>
+<%- include("puan-sekmeler", { sekme: "kurallar" }) %>
+<form class="kart yn-kart yn-form" method="post" action="/yonetim/puan"><%- include("csrf") %>
+  <h3>Puan kuralları</h3>
+  <div class="yn-satir yn-genis">
+    <label class="yn-etiketli">Konu açma<input class="yn-girdi" type="number" name="konu" min="0" max="<%= enfazla %>" step="1" value="<%= puan.konu %>" required></label>
+    <label class="yn-etiketli">Cevap yazma<input class="yn-girdi" type="number" name="cevap" min="0" max="<%= enfazla %>" step="1" value="<%= puan.cevap %>" required></label>
+    <label class="yn-etiketli">Mesajına gelen artı oy<input class="yn-girdi" type="number" name="oy" min="0" max="<%= enfazla %>" step="1" value="<%= puan.oy %>" required></label>
+  </div>
+  <p class="ikincil kucuk">Varsayılanlar 5 / 2 / 1. Eksi oy aynı değerle puan düşürür; mesaj silinince yazarken kazanılan puan geri alınır. Değişiklik yalnızca bundan sonraki işlemleri etkiler, mevcut puanları geriye dönük değiştirmez. Sıralamadaki hafta/ay görünümü yeni değerlerle hesaplanır.</p>
+  <button class="buton buton-birincil">Kaydet</button>
+</form>
+<%- include("duzen-alt") %>

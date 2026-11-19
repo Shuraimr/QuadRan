@@ -1,26 +1,26 @@
 <%# Rozetler: rozetler [{id, name, description, sahip_sayisi}], korunan [kodda adı kullanılan rozetler] %>
-<%- include("duzen-ust", { baslik: "İçerik", aktif: "icerik" }) %>
-<%- include("icerik-sekmeler", { sekme: "rozetler" }) %>
-<form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/icerik/rozetler"><%- include("csrf") %>
+<%- include("duzen-ust", { baslik: "Puan ve ödüller", aktif: "puan" }) %>
+<%- include("puan-sekmeler", { sekme: "rozetler" }) %>
+<form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/puan/rozetler"><%- include("csrf") %>
   <label class="yn-etiketli">Yeni rozet<input class="yn-girdi" name="name" minlength="2" maxlength="64" required></label>
   <label class="yn-etiketli">Açıklama<input class="yn-girdi" name="description" minlength="2" maxlength="255" required></label>
   <button class="buton buton-birincil">Ekle</button>
 </form>
-<form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/icerik/rozetler/ver"><%- include("csrf") %>
+<form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/puan/rozetler/ver"><%- include("csrf") %>
   <label class="yn-etiketli">Rozeti verilecek kullanıcı<input class="yn-girdi" name="kullanici" maxlength="32" required placeholder="kullanıcı adı"></label>
   <label class="yn-etiketli">Rozet<select class="yn-girdi" name="badge_id" required><% for (const r of rozetler) { %><option value="<%= r.id %>"><%= r.name %></option><% } %></select></label>
   <button class="buton buton-tonal">Rozet ver</button>
 </form>
 <% for (const r of rozetler) { const korunuyor = korunan.includes(r.name); %>
   <div class="kart yn-kart yn-satir yn-genis">
-    <form class="yn-form yn-satir yn-genis" method="post" action="/yonetim/icerik/rozetler/<%= r.id %>/duzenle"><%- include("csrf") %>
+    <form class="yn-form yn-satir yn-genis" method="post" action="/yonetim/puan/rozetler/<%= r.id %>/duzenle"><%- include("csrf") %>
       <label class="yn-etiketli">Ad<input class="yn-girdi" name="name" value="<%= r.name %>" minlength="2" maxlength="64" required<%= korunuyor ? " readonly" : "" %>></label>
       <label class="yn-etiketli">Açıklama<input class="yn-girdi" name="description" value="<%= r.description %>" minlength="2" maxlength="255" required></label>
       <button class="buton buton-tonal">Kaydet</button>
     </form>
     <span class="ikincil kucuk"><%= r.sahip_sayisi %> sahip<%= korunuyor ? " · kodda kullanılıyor" : "" %></span>
     <% if (!korunuyor) { %>
-      <form method="post" action="/yonetim/icerik/rozetler/<%= r.id %>/sil"><%- include("csrf") %><button class="buton buton-tehlikeli" onclick="return confirm('Rozet ve bütün sahiplikleri silinsin mi?')">Sil</button></form>
+      <form method="post" action="/yonetim/puan/rozetler/<%= r.id %>/sil"><%- include("csrf") %><button class="buton buton-tehlikeli" onclick="return confirm('Rozet ve bütün sahiplikleri silinsin mi?')">Sil</button></form>
     <% } %>
   </div>
 <% } %>

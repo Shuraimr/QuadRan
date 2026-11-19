@@ -5,8 +5,8 @@
 // ve şikâyetleri kapatır. Kişi kendi mesajını silince ikisi de gereksiz.
 import express from "express";
 import { pool } from "../db.ts";
-import { PUAN, puanEkle, bildir, girisGerekli, sayi, metin } from "../yardimci.ts";
-import { yasakliIfade } from "../ayarlar.ts";
+import { puanEkle, bildir, girisGerekli, sayi, metin } from "../yardimci.ts";
+import { yasakliIfade, puanKurallari } from "../ayarlar.ts";
 
 export const mesaj = express.Router();
 
@@ -83,7 +83,8 @@ mesaj.post("/mesaj/:id/sil", girisGerekli("Mesajını silmek için giriş yapman
 
   // Yazarken kazanılan puan geri alınır; yoksa yaz-sil-yaz ile puan kasılabilirdi.
   // (Mesaja gelen oyların puanı kalır: onlar başkalarının verdiği oylardı.)
-  await puanEkle(k.id, -(m.ilk_mi ? PUAN.konu : PUAN.cevap));
+  const puan = await puanKurallari();
+  await puanEkle(k.id, -(m.ilk_mi ? puan.konu : puan.cevap));
 
   bildir(req, "basari", m.ilk_mi ? "Konun silindi" : "Mesajın silindi");
   res.redirect(m.ilk_mi ? "/" : `/konu/${m.topic_id}`);

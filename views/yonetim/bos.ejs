@@ -1,0 +1,14 @@
+<%#
+  Boş durum kutusu. Beklenen: filtreli (bool), bosMetin (filtre yokken), sifirla (filtreyi temizleyen adres)
+  Filtre varsa "Filtreyle sonuç yok" + sıfırlama bağlantısı, yoksa "henüz kayıt yok" metni.
+%>
+<div class="kart yn-bos">
+  <%- include("../partials/ikon", { ad: "kutu", boyut: 28 }) %>
+  <% if (locals.filtreli) { %>
+    <strong>Filtreyle sonuç yok</strong>
+    <span class="ikincil kucuk">Seçtiğin filtrelere uyan kayıt bulunamadı.</span>
+    <% if (locals.sifirla) { %><a class="buton buton-cerceveli" href="<%= sifirla %>">Filtreleri temizle</a><% } %>
+  <% } else { %>
+    <strong><%= locals.bosMetin || "Henüz kayıt yok" %></strong>
+  <% } %>
+</div>

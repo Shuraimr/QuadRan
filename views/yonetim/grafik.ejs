@@ -1,11 +1,13 @@
 <%#
-  Son 30 günün çubuk grafiği (kütüphanesiz: her gün bir <span>, yüksekliği oransal).
+  Son 30 günün çubuk grafiği (kütüphanesiz: her gün bir <span>, yüksekliği oransal). Çubuklar --ton, bugünkü --vurgu.
   Beklenen: baslik, seri { veri: [{gun, n}], toplam, en }
 %>
+<% const ayAdlari_ = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+   const etiket_ = (g) => Number(g.slice(8)) + " " + ayAdlari_[Number(g.slice(5, 7)) - 1]; %>
 <section class="kart yn-kart" aria-label="<%= baslik %>">
   <div class="yn-kart-ust"><h3><%= baslik %></h3><strong><%= seri.toplam %></strong></div>
   <div class="yn-grafik" role="img" aria-label="<%= baslik %>: son 30 günde toplam <%= seri.toplam %>">
-    <% for (const g of seri.veri) { %><span class="yn-sutun<%= g.n === 0 ? ' sifir' : '' %>" style="height: <%= Math.round(g.n / seri.en * 100) %>%" title="<%= g.gun %>: <%= g.n %>"></span><% } %>
+    <% seri.veri.forEach((g, i) => { %><span class="yn-sutun<%= g.n === 0 ? ' sifir' : '' %><%= i === seri.veri.length - 1 ? ' bugun' : '' %>" style="height: <%= Math.max(2, Math.round(g.n / seri.en * 100)) %>%" title="<%= etiket_(g.gun) %>: <%= g.n %>"></span><% }) %>
   </div>
-  <div class="yn-grafik-alt"><span><%= seri.veri[0].gun.slice(5) %></span><span>son 30 gün</span><span><%= seri.veri[seri.veri.length - 1].gun.slice(5) %></span></div>
+  <div class="yn-grafik-alt"><span><%= etiket_(seri.veri[0].gun) %></span><span>Bugün</span></div>
 </section>

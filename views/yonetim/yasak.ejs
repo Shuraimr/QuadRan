@@ -1,12 +1,23 @@
-<%# 403: üye yönetim paneline girdi ya da moderatör yalnızca-admin bir sayfaya girdi. Veri sızdırmaz. %>
+<%# 403: üye yönetim paneline girdi ya da moderatör yalnızca-admin bir sayfaya girdi. Veri sızdırmaz. sadeceYonetici: moderatör (panel düzeniyle) %>
+<% if (locals.sadeceYonetici) { %>
+<%- include("duzen-ust", { baslik: "Erişim yok", aktif: "" }) %>
+<div class="kart yn-bos">
+  <%- include("../partials/ikon", { ad: "kilit", boyut: 32 }) %>
+  <strong>Bu sayfaya erişimin yok</strong>
+  <span class="ikincil kucuk">Bu bölümü yalnızca yöneticiler görebilir.</span>
+  <a class="buton buton-tonal" href="/yonetim">Bakış'a dön</a>
+</div>
+<%- include("duzen-alt") %>
+<% } else { %>
 <%- include("../partials/bas", { sade: true, baslik: "Erişim yok" }) %>
 <%- include("../partials/ust-cubuk") %>
 <main class="moderasyon-sayfa">
   <div class="kart moderasyon-erisim">
     <%- include("../partials/ikon", { ad: "kilit", boyut: 32 }) %>
     <h1>Bu sayfaya erişimin yok</h1>
-    <p class="ikincil"><%= locals.sadeceYonetici ? "Bu bölümü yalnızca yöneticiler görebilir." : "Yönetim panelini yalnızca moderatörler ve yöneticiler görebilir." %></p>
-    <a class="buton buton-tonal" href="<%= locals.sadeceYonetici ? '/yonetim' : '/' %>"><%= locals.sadeceYonetici ? "Panoya dön" : "Akışa dön" %></a>
+    <p class="ikincil">Yönetim panelini yalnızca moderatörler ve yöneticiler görebilir.</p>
+    <a class="buton buton-tonal" href="/">Akışa dön</a>
   </div>
 </main>
 <%- include("../partials/son", { sade: true }) %>
+<% } %>

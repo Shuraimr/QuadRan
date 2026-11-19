@@ -72,6 +72,11 @@ export async function banla(yapan: Yetkili, hedefId: number, sureAnahtari: strin
       : "UPDATE users SET banned_at = NOW(), banned_until = DATE_ADD(NOW(), INTERVAL ? DAY), ban_reason = ? WHERE id = ?",
     sure.gun === null ? [sebep, hedefId] : [sure.gun, sebep, hedefId]
   );
+  // Uzaklaştırılan kişi oturumdan düşer; süre bitip geri dönünce (ya da yönetici kaldırınca) gerekçeyi görsün.
+  await bildirimGonder({
+    alan: hedefId, yapan: null, tur: "moderasyon",
+    metin: `Hesabın uzaklaştırıldı (${sure.etiket}). Sebep: ${sebep}`, link: "/",
+  });
   return { hata: null, hedef, etiket: sure.etiket };
 }
 
@@ -106,7 +111,10 @@ export async function sikayetleriKapat(tur: string, hedefId: number, durum: "isl
 // Mesajın bekleyen BÜTÜN şikâyetleri tek seferde "işlendi" olur.
 // Dönen değer: silinen mesajın bilgisi, bulunamadı/zaten silinmişse null.
 // ---------------------------------------------------------------------------
-export async function mesajiSil(postId: number, yetkiliId: number) {
+// sebep (isteğe bağlı): panelden silerken yazılan gerekçe, yazara giden bildirimin sonuna eklenir.
+const sebepEki = (sebep?: string) => (sebep ? ` Sebep: ${sebep}` : "");
+
+export async function mesajiSil(postId: number, yetkiliId: number, sebep?: string) {
   const [satirlar]: any = await pool.query(
     `SELECT posts.id, posts.user_id, posts.topic_id, posts.content,
             posts.id = (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = posts.topic_id) AS ilk_mi
@@ -137,7 +145,7 @@ export async function mesajiSil(postId: number, yetkiliId: number) {
   // Yapan null: bildirimde yetkilinin adı görünmez, "Moderasyon" olarak gelir.
   await bildirimGonder({
     alan: mesaj.user_id, yapan: null, tur: "moderasyon",
-    metin: `Mesajın moderatörler tarafından kaldırıldı: “${kisalt(mesaj.content, 50)}”`,
+    metin: `Mesajın moderatörler tarafından kaldırıldı: “${kisalt(mesaj.content, 50)}”.${sebepEki(sebep)}`,
     link: mesaj.ilk_mi ? "/" : `/konu/${mesaj.topic_id}`,
   });
   return mesaj;
@@ -159,11 +167,11 @@ export async function mesajiGeriAl(postId: number): Promise<boolean> {
 }
 
 // Konuyu sil = konunun ilk mesajını silmek (mesajiSil konuyu da kapatır).
-export async function konuyuSil(topicId: number, yetkiliId: number): Promise<boolean> {
+export async function konuyuSil(topicId: number, yetkiliId: number, sebep?: string): Promise<boolean> {
   const [[konu]]: any = await pool.query("SELECT id, deleted_at FROM topics WHERE id = ?", [topicId]);
   if (!konu || konu.deleted_at) return false;
   const [[ilk]]: any = await pool.query("SELECT MIN(id) AS id FROM posts WHERE topic_id = ?", [topicId]);
-  const silinen = ilk?.id ? await mesajiSil(ilk.id, yetkiliId) : null;
+  const silinen = ilk?.id ? await mesajiSil(ilk.id, yetkiliId, sebep) : null;
   if (!silinen) await pool.query("UPDATE topics SET deleted_at = NOW() WHERE id = ?", [topicId]); // ilk mesaj zaten silinmişti
   return true;
 }
@@ -177,7 +185,7 @@ export async function konuyuGeriAl(topicId: number): Promise<boolean> {
 }
 
 // Sohbet mesajı (genel sohbet): yumuşak sil + şikâyetlerini kapat
-export async function sohbetMesajiSil(id: number, yetkiliId: number) {
+export async function sohbetMesajiSil(id: number, yetkiliId: number, sebep?: string) {
   const [satirlar]: any = await pool.query("SELECT id, user_id, content FROM chat_messages WHERE id = ? AND deleted_at IS NULL", [id]);
   const m = satirlar[0];
   if (!m) return null;
@@ -185,7 +193,7 @@ export async function sohbetMesajiSil(id: number, yetkiliId: number) {
   await sikayetleriKapat("sohbet_mesaji", id, "islendi", yetkiliId);
   await bildirimGonder({
     alan: m.user_id, yapan: null, tur: "moderasyon",
-    metin: `Sohbetteki mesajın moderatörler tarafından kaldırıldı: “${kisalt(m.content, 50)}”`, link: "/sohbet",
+    metin: `Sohbetteki mesajın moderatörler tarafından kaldırıldı: “${kisalt(m.content, 50)}”.${sebepEki(sebep)}`, link: "/sohbet",
   });
   return m;
 }
@@ -196,7 +204,7 @@ export async function sohbetMesajiGeriAl(id: number): Promise<boolean> {
 }
 
 // Özel mesaj: yalnızca şikâyet kuyruğundan silinir (yönetim panelinde özel mesajlar gezilmez, gizlilik).
-export async function ozelMesajiSil(id: number, yetkiliId: number) {
+export async function ozelMesajiSil(id: number, yetkiliId: number, sebep?: string) {
   const [satirlar]: any = await pool.query("SELECT id, sender_id, content FROM messages WHERE id = ? AND deleted_at IS NULL", [id]);
   const m = satirlar[0];
   if (!m) return null;
@@ -204,7 +212,7 @@ export async function ozelMesajiSil(id: number, yetkiliId: number) {
   await sikayetleriKapat("ozel_mesaj", id, "islendi", yetkiliId);
   await bildirimGonder({
     alan: m.sender_id, yapan: null, tur: "moderasyon",
-    metin: "Gönderdiğin bir özel mesaj şikâyet üzerine moderatörler tarafından kaldırıldı.", link: "/mesajlar",
+    metin: `Gönderdiğin bir özel mesaj şikâyet üzerine moderatörler tarafından kaldırıldı.${sebepEki(sebep)}`, link: "/mesajlar",
   });
   return m;
 }

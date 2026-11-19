@@ -1,40 +1,66 @@
-// Yönetim paneli (/yonetim): Pano, Kullanıcılar, İçerik, Şikâyetler, Site ayarları, İşlem kaydı.
+// Yönetim paneli (/yonetim). Bilgi mimarisi (kenar menü) ve yetki matrisi için docs/AKTARIM.md "Yönetim paneli" bölümüne bak.
 //
-// Yetki matrisi:
-//   üye        -> hepsi 403
-//   moderatör  -> Pano, İçerik (konu/mesaj/sohbet, kategori, rütbe, rozet), Şikâyetler, kullanıcı DETAY sayfasında ban/ban kaldırma
-//   admin      -> her şey (Kullanıcılar listesi ve rol/puan/rozet/şifre/hesap kapatma, Site ayarları, İşlem kaydı)
+//   Bakış                    /yonetim                          moderatör + admin
+//   Moderasyon               /yonetim/sikayetler, yaptirimlar, filtre   (filtre: moderatör görür, admin düzenler)
+//   Site bölümleri           /yonetim/forum, sohbet, uyeler, puan (yalnızca admin)
+//   Site                     /yonetim/duyurular, kayit-erisim (yalnızca admin), islem-kaydi (moderatör yalnızca kendi işlemlerini görür)
+//
 // İki kapı: aşağıdaki use() "moderatör ya da admin mi?" diye bakar; sadeceAdmin (yonetim-ortak.ts) daha dar kapıdır.
+// Menüde bir öğeyi gizlemek yetmez, her yalnızca-admin route'ta sadeceAdmin da var.
 import express from "express";
 import { pool } from "../db.ts";
-import { girisGerekli, rutbeSql, banliSql, bildir, metin, likeKac } from "../yardimci.ts";
-import { denetim, EYLEM_ETIKETLERI } from "../denetim.ts";
-import { ayarlar, ayarYaz, ayarOnbellekTemizle, kelimeListesi } from "../ayarlar.ts";
+import { girisGerekli, banliSql, metin, sayi, likeKac } from "../yardimci.ts";
+import { EYLEM_ETIKETLERI } from "../denetim.ts";
 import { hedefOnizleme, TUR_ETIKET } from "../sikayet.ts";
-import { sadeceAdmin, sayfala, secim, tarihFiltresi } from "./yonetim-ortak.ts";
+import { sayfala, tarihFiltresi, menuKur, kalanSure } from "./yonetim-ortak.ts";
 import { yonetimKullanici } from "./yonetim-kullanici.ts";
 import { yonetimIcerik } from "./yonetim-icerik.ts";
 import { yonetimSikayet } from "./yonetim-sikayet.ts";
+import { yonetimSite } from "./yonetim-site.ts";
 
 export const yonetim = express.Router();
 
 yonetim.use("/yonetim", girisGerekli("Yönetim paneli için giriş yapman gerekiyor."), async (req, res, next) => {
-  if (!["admin", "moderator"].includes(res.locals.kullanici?.rol)) return res.status(403).render("yonetim/yasak", {});
-  // Şablon yardımcıları ve kenar çubuğundaki bekleyen şikâyet sayısı
-  const [[s]]: any = await pool.query("SELECT COUNT(*) AS n FROM reports WHERE durum = 'bekliyor'");
-  res.locals.bekleyenSikayet = Number(s.n);
-  // yUrl("/yonetim/icerik", {tur:"konu", q:""}, {sayfa: 2}) -> "/yonetim/icerik?tur=konu&sayfa=2" (boş değerler atılır)
+  const rol = res.locals.kullanici?.rol;
+  if (!["admin", "moderator"].includes(rol)) return res.status(403).render("yonetim/yasak", {});
+  // Kenar çubuğundaki bekleyen şikâyet sayısı (oturum.ts staff için zaten hesapladı)
+  const bekleyen = res.locals.bekleyenSikayet ?? 0;
+  res.locals.bekleyenSikayet = bekleyen;
+  res.locals.menu = menuKur(rol, bekleyen);
+  res.locals.kalanSure = kalanSure;
+  // yUrl("/yonetim/forum", {q:"", durum:"aktif"}, {sayfa: 2}) -> "/yonetim/forum?durum=aktif&sayfa=2" (boş değerler atılır)
   res.locals.yUrl = (yol: string, qs: Record<string, unknown>, ek: Record<string, unknown> = {}) => {
-    const girdi = Object.entries({ ...qs, ...ek }).filter(([, v]) => v !== "" && v !== null && v !== undefined && v !== "hepsi");
+    const girdi = Object.entries({ ...qs, ...ek }).filter(([, v]) => v !== "" && v !== null && v !== undefined);
     return yol + (girdi.length ? "?" + new URLSearchParams(girdi.map(([a, b]) => [a, String(b)])).toString() : "");
   };
   res.locals.eylemEtiketleri = EYLEM_ETIKETLERI;
   next();
 });
 
+// ---------------------------------------------------------------------------
+// Eski adresler (yer imleri, eski bağlantılar): 301 ile yenisine. Sorgu dizgesi korunur. Yalnızca GET:
+// POST yönlendirmesi veriyi kaybettirir, o formlar zaten yeni adreslere gider.
+// ---------------------------------------------------------------------------
+const sorgu = (req: express.Request) => { const i = req.originalUrl.indexOf("?"); return i === -1 ? "" : req.originalUrl.slice(i); };
+const tasi = (eski: string, yeni: string) => yonetim.get(eski, (req, res) => res.redirect(301, yeni + sorgu(req)));
+tasi("/yonetim/kullanicilar", "/yonetim/uyeler");
+tasi("/yonetim/ayarlar", "/yonetim/duyurular");
+tasi("/yonetim/icerik/kategoriler", "/yonetim/forum/kategoriler");
+tasi("/yonetim/icerik/rutbeler", "/yonetim/puan/rutbeler");
+tasi("/yonetim/icerik/rozetler", "/yonetim/puan/rozetler");
+yonetim.get("/yonetim/kullanicilar/:id", (req, res) => res.redirect(301, `/yonetim/uyeler/${encodeURIComponent(req.params.id)}` + sorgu(req)));
+yonetim.get("/yonetim/icerik", (req, res) => {
+  // Eski ?tur=konu|mesaj|sohbet, yeni adreslerden birine gider (tur parametresi artık adreste)
+  const tur = req.query.tur;
+  const hedef = tur === "mesaj" ? "/yonetim/forum/mesajlar" : tur === "sohbet" ? "/yonetim/sohbet" : "/yonetim/forum";
+  const q = new URLSearchParams(sorgu(req).slice(1)); q.delete("tur");
+  res.redirect(301, hedef + (q.size ? "?" + q.toString() : ""));
+});
+
 yonetim.use(yonetimKullanici);
 yonetim.use(yonetimIcerik);
 yonetim.use(yonetimSikayet);
+yonetim.use(yonetimSite);
 
 // ---------------------------------------------------------------------------
 // Pano
@@ -66,7 +92,10 @@ yonetim.get("/yonetim", async (req, res) => {
             (SELECT COUNT(*) FROM chat_messages WHERE deleted_at IS NULL) AS sohbet,
             (SELECT COUNT(*) FROM messages WHERE deleted_at IS NULL) AS ozel,
             (SELECT COUNT(*) FROM reports WHERE durum = 'bekliyor') AS sikayet,
-            (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND ${banliSql("users")}) AS banli`
+            (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND ${banliSql("users")}) AS banli,
+            (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND ${banliSql("users")}
+                AND banned_until IS NOT NULL AND banned_until <= NOW() + INTERVAL 24 HOUR) AS yaklasan_ban,
+            (SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL 24 HOUR) AS yeni_hesap`
   );
   for (const k in t) t[k] = Number(t[k]);
   const [cevrimici]: any = await pool.query(
@@ -87,65 +116,65 @@ yonetim.get("/yonetim", async (req, res) => {
   );
   for (const b of bekleyenler) b.hedef = await hedefOnizleme(b.hedef_tur, b.hedef_id);
 
-  const [sonIslemler]: any = admin ? (await pool.query(
+  // Moderatör yalnızca kendi son işlemlerini görür (işlem kaydıyla aynı kural), admin hepsini
+  const [sonIslemler]: any = await pool.query(
     `SELECT audit_log.id, audit_log.eylem, audit_log.hedef_tur, audit_log.hedef_id, audit_log.created_at, users.username AS aktor
-       FROM audit_log LEFT JOIN users ON users.id = audit_log.actor_id ORDER BY audit_log.id DESC LIMIT 8`)) : [[]];
+       FROM audit_log LEFT JOIN users ON users.id = audit_log.actor_id
+      ${admin ? "" : "WHERE audit_log.actor_id = ?"} ORDER BY audit_log.id DESC LIMIT 8`,
+    admin ? [] : [res.locals.kullanici.id]
+  );
 
-  res.render("yonetim/pano", {
-    baslik: "Pano", aktif: "pano", t, cevrimici, kategoriler, bekleyenler, sonIslemler, turEtiket: TUR_ETIKET,
+  res.render("yonetim/bakis", {
+    baslik: "Bakış", aktif: "bakis", t, cevrimici, kategoriler, bekleyenler, sonIslemler, turEtiket: TUR_ETIKET,
     grafikler: {
       yeniKullanici: await gunluk("users", true),
-      yeniKonu: await gunluk("topics", true),
       yeniMesaj: await gunluk("posts", true),
     },
   });
 });
 
 // ---------------------------------------------------------------------------
-// Site ayarları (admin)
+// Panel araması (Ctrl+K ve üst çubuktaki kutu): /yonetim/ara?q=
+// Gruplar: üyeler (kullanıcı adı; e-postayı yalnızca admin arar), konular (başlık), şikâyet (#numara).
 // ---------------------------------------------------------------------------
-yonetim.get("/yonetim/ayarlar", sadeceAdmin, async (req, res) => {
-  const a = await ayarlar();
-  res.render("yonetim/ayarlar", { baslik: "Site ayarları", aktif: "ayarlar", a, yasakliMetin: a.yasakli.join("\n") });
+yonetim.get("/yonetim/ara", async (req, res) => {
+  const admin = res.locals.kullanici.rol === "admin";
+  const q = metin(req.query.q).slice(0, 100);
+  let uyeler: any[] = [], konular: any[] = [], sikayetler: any[] = [];
+  if (q) {
+    [uyeler] = (await pool.query(
+      `SELECT users.id, users.username, roles.name AS rol, users.deleted_at, ${banliSql("users")} AS banli
+         FROM users JOIN roles ON roles.id = users.role_id
+        WHERE ${admin ? "(users.username LIKE ? OR users.email LIKE ?)" : "users.username LIKE ?"}
+        ORDER BY users.username LIMIT 10`,
+      admin ? [likeKac(q), likeKac(q)] : [likeKac(q)]
+    )) as any;
+    [konular] = (await pool.query(
+      `SELECT topics.id, topics.title, topics.deleted_at, categories.name AS kategori FROM topics
+         JOIN categories ON categories.id = topics.category_id WHERE topics.title LIKE ? ORDER BY topics.id DESC LIMIT 10`,
+      [likeKac(q)]
+    )) as any;
+    const no = q.match(/^#?(\d{1,10})$/);
+    if (no) {
+      [sikayetler] = (await pool.query(
+        `SELECT reports.id, reports.hedef_tur, reports.sebep, reports.durum, reports.created_at, bildiren.username AS bildiren
+           FROM reports JOIN users bildiren ON bildiren.id = reports.reporter_id WHERE reports.id = ?`,
+        [Number(no[1])]
+      )) as any;
+    }
+  }
+  res.render("yonetim/ara", { baslik: "Ara", aktif: "bakis", q, uyeler, konular, sikayetler, turEtiket: TUR_ETIKET });
 });
 
-yonetim.post("/yonetim/ayarlar", sadeceAdmin, async (req, res) => {
+// ---------------------------------------------------------------------------
+// İşlem kaydı: /yonetim/islem-kaydi?eylem=&aktor=&hedef_tur=&hedef_id=&bas=&son=&q=&sayfa=
+// Admin hepsini görür; moderatör YALNIZCA kendi yaptığı işlemleri görür (başkasının işlemi sorguya hiç girmez).
+// ---------------------------------------------------------------------------
+yonetim.get("/yonetim/islem-kaydi", async (req, res) => {
   const k = res.locals.kullanici;
-  const eski = await ayarlar();
-  const kayitAcik = !!req.body.kayit_acik; // işaretsiz checkbox hiç gönderilmez
-  const duyuru = metin(req.body.duyuru);
-  const duyuruTur = req.body.duyuru_tur === "uyari" ? "uyari" : "info";
-  const yasakli = kelimeListesi(typeof req.body.yasakli_kelimeler === "string" ? req.body.yasakli_kelimeler : "");
-
-  let hata = "";
-  if (duyuru.length > 500) hata = "Duyuru en fazla 500 karakter olabilir.";
-  else if (yasakli.length > 300) hata = "En fazla 300 yasaklı ifade tanımlanabilir.";
-  else if (yasakli.some((y) => y.length > 60)) hata = "Her yasaklı ifade en fazla 60 karakter olabilir.";
-  if (hata) { bildir(req, "hata", hata); return res.redirect("/yonetim/ayarlar"); }
-
-  await ayarYaz("kayit_acik", kayitAcik ? "1" : "0", k.id);
-  // Duyuru metni ya da türü değiştiyse yeni sürüm: kapatmış olanlar yeni duyuruyu yine görsün
-  if (duyuru !== eski.duyuru || duyuruTur !== eski.duyuruTur) await ayarYaz("duyuru_surum", String(Date.now()), k.id);
-  await ayarYaz("duyuru", duyuru, k.id);
-  await ayarYaz("duyuru_tur", duyuruTur, k.id);
-  await ayarYaz("yasakli_kelimeler", yasakli.join("\n"), k.id);
-  ayarOnbellekTemizle(); // bellekteki kopya hemen yenilensin
-
-  await denetim(req, res, "ayar.kaydet", "ayar", null, {
-    kayit_acik: [eski.kayitAcik, kayitAcik],
-    duyuru: duyuru !== eski.duyuru || duyuruTur !== eski.duyuruTur ? [eski.duyuru.slice(0, 80), duyuru.slice(0, 80)] : "ayni",
-    yasakli_sayisi: [eski.yasakli.length, yasakli.length],
-  });
-  bildir(req, "basari", "Ayarlar kaydedildi.");
-  res.redirect("/yonetim/ayarlar");
-});
-
-// ---------------------------------------------------------------------------
-// İşlem kaydı (admin): /yonetim/islem-kaydi?eylem=&aktor=&hedef_tur=&hedef_id=&bas=&son=&q=&sayfa=
-// ---------------------------------------------------------------------------
-yonetim.get("/yonetim/islem-kaydi", sadeceAdmin, async (req, res) => {
+  const admin = k.rol === "admin";
   const eylem = metin(req.query.eylem).slice(0, 64);
-  const aktor = metin(req.query.aktor).slice(0, 32);
+  const aktor = admin ? metin(req.query.aktor).slice(0, 32) : "";
   const hedefTur = metin(req.query.hedef_tur).slice(0, 32);
   const hedefId = metin(req.query.hedef_id).replace(/\D/g, "").slice(0, 10);
   const bas = tarihFiltresi(req.query.bas);
@@ -154,6 +183,7 @@ yonetim.get("/yonetim/islem-kaydi", sadeceAdmin, async (req, res) => {
 
   const kosullar: string[] = ["1 = 1"];
   const p: unknown[] = [];
+  if (!admin) { kosullar.push("audit_log.actor_id = ?"); p.push(k.id); }
   if (eylem) { kosullar.push("audit_log.eylem = ?"); p.push(eylem); }
   if (aktor) { kosullar.push("users.username LIKE ?"); p.push(likeKac(aktor)); }
   if (hedefTur) { kosullar.push("audit_log.hedef_tur = ?"); p.push(hedefTur); }
@@ -171,11 +201,13 @@ yonetim.get("/yonetim/islem-kaydi", sadeceAdmin, async (req, res) => {
             users.username AS aktor ${govde} WHERE ${nerede} ORDER BY audit_log.id DESC LIMIT ? OFFSET ?`,
     [...p, sf.boyut, sf.offset]
   );
-  const [eylemler]: any = await pool.query("SELECT DISTINCT eylem FROM audit_log ORDER BY eylem");
-  const [turler]: any = await pool.query("SELECT DISTINCT hedef_tur FROM audit_log WHERE hedef_tur IS NOT NULL ORDER BY hedef_tur");
+  // Süzgeç seçenekleri de aynı kurala uyar: moderatör yalnızca kendi kullandığı eylemleri görür
+  const [eylemler]: any = await pool.query(`SELECT DISTINCT eylem FROM audit_log ${admin ? "" : "WHERE actor_id = ?"} ORDER BY eylem`, admin ? [] : [k.id]);
+  const [turler]: any = await pool.query(`SELECT DISTINCT hedef_tur FROM audit_log WHERE hedef_tur IS NOT NULL ${admin ? "" : "AND actor_id = ?"} ORDER BY hedef_tur`, admin ? [] : [k.id]);
 
   res.render("yonetim/islem-kaydi", {
     baslik: "İşlem kaydı", aktif: "islem-kaydi", kayitlar, sf, eylemler: eylemler.map((e: any) => e.eylem), turler: turler.map((t: any) => t.hedef_tur),
-    qs: { eylem, aktor, hedef_tur: hedefTur, hedef_id: hedefId, bas, son, q }, yol: "/yonetim/islem-kaydi",
+    qs: { eylem, aktor, hedef_tur: hedefTur, hedef_id: hedefId, bas, son, q }, yol: "/yonetim/islem-kaydi", admin,
+    filtreli: !!(eylem || aktor || hedefTur || hedefId || bas || son || q),
   });
 });

@@ -1,9 +1,9 @@
 <%# Geçici şifre: yalnızca şifre sıfırlama yanıtında BİR KEZ gösterilir (yenilenince POST tekrar sorulur, şifre başka yerde saklanmaz). k, gecici %>
-<%- include("duzen-ust", { baslik: "Geçici şifre", aktif: "kullanicilar" }) %>
+<%- include("duzen-ust", { baslik: "Geçici şifre", aktif: "uyeler" }) %>
 <section class="kart yn-kart yn-gecici">
   <h2><%= k.username %> için yeni şifre oluşturuldu</h2>
   <p class="yn-sifre-kutu"><code><%= gecici %></code></p>
   <p class="bilgi-notu"><span>Bu şifre yalnızca şimdi gösterilir; sayfa kapanınca bir daha görülemez. Kullanıcıya güvenli bir yoldan ilet; girişten sonra şifresini değiştirmesini söyle.</span></p>
-  <a class="buton buton-tonal" href="/yonetim/kullanicilar/<%= k.id %>">Kullanıcıya dön</a>
+  <a class="buton buton-tonal" href="/yonetim/uyeler/<%= k.id %>">Kullanıcıya dön</a>
 </section>
 <%- include("duzen-alt") %>

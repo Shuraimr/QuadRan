@@ -1,0 +1,55 @@
+<%#
+  Yaptırımlar: /yonetim/yaptirimlar?filtre=aktif|yakinda|dolan|hepsi
+  satirlar [{ durum: "aktif"|"dolan", id, username, rol, baslangic, bitis, sebep, yapan }], uyarilar [{ eylem, ayrinti, created_at, aktor }], sureler, qs, yol
+  Uzaklaştırma kaldırma: POST /yonetim/uyeler/:id/ban-kaldir. Yeni uzaklaştırma: POST /yonetim/yaptirimlar/ban (kullanici, sure, sebep)
+%>
+<%- include("duzen-ust", { baslik: "Yaptırımlar", aktif: "yaptirimlar" }) %>
+<div class="yn-sekmeler siralama" role="tablist">
+  <% for (const [d, e] of [["aktif","Aktif"],["yakinda","24 saatte dolacak"],["dolan","Süresi dolan"],["hepsi","Hepsi"]]) { %><a class="<%= filtre === d ? 'aktif' : '' %>" href="/yonetim/yaptirimlar?filtre=<%= d %>"<%- filtre === d ? ' aria-current="page"' : '' %>><%= e %></a><% } %>
+</div>
+
+<% if (!satirlar.length) { %>
+  <%- include("bos", { filtreli: filtre !== "aktif", bosMetin: "Şu an uzaklaştırılmış üye yok", sifirla: "/yonetim/yaptirimlar" }) %>
+<% } else { %>
+<div class="kart yn-tablo-kutu">
+  <table class="yn-tablo">
+    <thead><tr><th>Üye</th><th>Durum</th><th>Bitiş</th><th>Sebep</th><th>Yapan</th><th></th></tr></thead>
+    <tbody>
+      <% for (const s of satirlar) { %>
+        <tr>
+          <td data-etiket="Üye"><a class="kullanici" href="/yonetim/uyeler/<%= s.id %>"><%= s.username %></a> <small class="ikincil"><%= s.rol %></small></td>
+          <td data-etiket="Durum"><% if (s.durum === "aktif") { %><span class="durum durum-ban">Uzaklaştırıldı · <%= kalanSure(s.bitis) %></span><% } else { %><span class="durum durum-reddedildi">Süresi doldu</span><% } %></td>
+          <td data-etiket="Bitiş"><%= s.bitis ? new Date(s.bitis).toLocaleString("tr-TR", { dateStyle: "medium", timeStyle: "short" }) : "Süresiz" %></td>
+          <td data-etiket="Sebep" class="yn-kisa"><%= s.sebep || "—" %></td>
+          <td data-etiket="Yapan"><%= s.yapan || "—" %></td>
+          <td>
+            <% if (s.durum === "aktif") { %>
+              <form method="post" action="/yonetim/uyeler/<%= s.id %>/ban-kaldir"><%- include("csrf") %><button class="buton buton-tonal">Kaldır</button></form>
+            <% } %>
+          </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<section class="yn-izgara-2">
+  <div class="kart yn-kart">
+    <div class="yn-kart-ust"><h3>Son uyarılar</h3></div>
+    <% if (!uyarilar.length) { %><p class="ikincil kucuk">Henüz uyarı verilmemiş.</p><% } %>
+    <% for (const u of uyarilar) { %>
+      <div class="yn-liste-satir"><span><strong><%= u.ayrinti.yazar || "—" %></strong> uyarıldı<%= u.ayrinti.sebep ? ": “" + u.ayrinti.sebep + "”" : "" %></span>
+        <small class="ikincil"><%= u.aktor || "—" %> · <%= zaman(u.created_at) %></small></div>
+    <% } %>
+  </div>
+  <form class="kart yn-kart yn-form" method="post" action="/yonetim/yaptirimlar/ban"><%- include("csrf") %>
+    <div class="yn-kart-ust"><h3>Üyeyi uzaklaştır</h3></div>
+    <label class="yn-etiketli">Kullanıcı adı<input class="yn-girdi" name="kullanici" maxlength="32" required></label>
+    <label class="yn-etiketli">Süre<select class="yn-girdi" name="sure"><% for (const [d, b] of Object.entries(sureler)) { %><option value="<%= d %>"><%= b.etiket %></option><% } %></select></label>
+    <label class="yn-etiketli">Sebep (zorunlu)<input class="yn-girdi" name="sebep" minlength="3" maxlength="255" required></label>
+    <p class="ikincil kucuk">Moderatörler yalnızca üye rolündekileri uzaklaştırabilir. Kalıcı uzaklaştırma için ayrıca onay istenir.</p>
+    <button class="buton buton-tehlikeli">Uzaklaştır</button>
+  </form>
+</section>
+<%- include("duzen-alt") %>

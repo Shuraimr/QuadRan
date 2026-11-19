@@ -1,0 +1,6 @@
+<%# Forum bölümünün sekmeleri. Beklenen: sekme ("konu" | "mesaj" | "kategoriler"), kullanici.rol (Kategoriler yalnızca admin) %>
+<% const sk_ = [
+  { id: "konu", ad: "Konular", href: "/yonetim/forum" }, { id: "mesaj", ad: "Mesajlar", href: "/yonetim/forum/mesajlar" },
+  { id: "kategoriler", ad: "Kategoriler", href: "/yonetim/forum/kategoriler", admin: true }
+]; %>
+<div class="yn-sekmeler siralama"><% for (const s of sk_) { if (s.admin && kullanici.rol !== "admin") continue; %><a class="<%= sekme === s.id ? 'aktif' : '' %>" href="<%= s.href %>"><%= s.ad %></a><% } %></div>

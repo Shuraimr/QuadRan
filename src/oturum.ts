@@ -167,6 +167,9 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
   if (["admin", "moderator"].includes(k.rol)) {
     const [kategoriler] = await pool.query("SELECT id, name FROM categories ORDER BY sort_order, id");
     res.locals.tumKategoriler = kategoriler;
+    // Avatar menüsündeki "Yönetim" öğesinde ve panelin kenar menüsünde görünen bekleyen şikâyet sayısı
+    const [[bekleyen]]: any = await pool.query("SELECT COUNT(*) AS n FROM reports WHERE durum = 'bekliyor'");
+    res.locals.bekleyenSikayet = Number(bekleyen.n);
   }
 
   // Üst çubuk: okunmamış sayıları ve zil panelindeki son 5 bildirim

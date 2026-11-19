@@ -1,7 +1,0 @@
-<%# İçerik bölümünün alt sekmeleri. Beklenen: sekme ("konu" | "mesaj" | "sohbet" | "kategoriler" | "rutbeler" | "rozetler") %>
-<% const sk_ = [
-  { id: "konu", ad: "Konular", href: "/yonetim/icerik?tur=konu" }, { id: "mesaj", ad: "Mesajlar", href: "/yonetim/icerik?tur=mesaj" },
-  { id: "sohbet", ad: "Sohbet", href: "/yonetim/icerik?tur=sohbet" }, { id: "kategoriler", ad: "Kategoriler", href: "/yonetim/icerik/kategoriler" },
-  { id: "rutbeler", ad: "Rütbeler", href: "/yonetim/icerik/rutbeler" }, { id: "rozetler", ad: "Rozetler", href: "/yonetim/icerik/rozetler" }
-]; %>
-<div class="yn-sekmeler siralama"><% for (const s of sk_) { %><a class="<%= sekme === s.id ? 'aktif' : '' %>" href="<%= s.href %>"><%= s.ad %></a><% } %></div>

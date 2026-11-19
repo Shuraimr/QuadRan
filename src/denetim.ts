@@ -53,4 +53,11 @@ export const EYLEM_ETIKETLERI: Record<string, string> = {
   "sikayet.ban": "Şikâyet: uzaklaştırıldı",
   "sikayet.reddet": "Şikâyet reddedildi",
   "ayar.kaydet": "Site ayarları kaydedildi",
+  "ayar.filtre": "Otomatik filtre güncellendi",
+  "ayar.puan": "Puan kuralları güncellendi",
+  "ayar.duyuru": "Duyuru şeridi güncellendi",
+  "ayar.kayit": "Kayıt ayarı değiştirildi",
+  "bildirim.toplu": "Toplu bildirim gönderildi",
+  "kullanici.uyar": "Üye uyarıldı",
+  "kullanici.oturum_kapat": "Oturumlar kapatıldı",
 };

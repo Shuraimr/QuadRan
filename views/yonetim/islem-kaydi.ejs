@@ -2,7 +2,7 @@
 <%- include("duzen-ust", { baslik: "İşlem kaydı", aktif: "islem-kaydi" }) %>
 <form class="yn-filtre kart" method="get" action="/yonetim/islem-kaydi">
   <select class="yn-girdi" name="eylem" aria-label="Eylem"><option value="">Tüm eylemler</option><% for (const e of eylemler) { %><option value="<%= e %>"<%= qs.eylem === e ? " selected" : "" %>><%= eylemEtiketleri[e] || e %></option><% } %></select>
-  <input class="yn-girdi" name="aktor" value="<%= qs.aktor %>" placeholder="Yapan kişi" aria-label="Yapan kişi">
+  <% if (admin) { %><input class="yn-girdi" name="aktor" value="<%= qs.aktor %>" placeholder="Yapan kişi" aria-label="Yapan kişi"><% } %>
   <select class="yn-girdi" name="hedef_tur" aria-label="Hedef türü"><option value="">Tüm hedefler</option><% for (const t of turler) { %><option value="<%= t %>"<%= qs.hedef_tur === t ? " selected" : "" %>><%= t %></option><% } %></select>
   <input class="yn-girdi yn-dar" name="hedef_id" value="<%= qs.hedef_id %>" placeholder="Hedef #" inputmode="numeric" aria-label="Hedef numarası">
   <input class="yn-girdi" type="date" name="bas" value="<%= qs.bas %>" aria-label="Başlangıç tarihi">
@@ -15,14 +15,14 @@
   <table class="yn-tablo">
     <thead><tr><th>Zaman</th><th>Yapan</th><th>Eylem</th><th>Hedef</th><th>Ayrıntı</th><th>IP</th></tr></thead>
     <tbody>
-      <% if (!kayitlar.length) { %><tr><td colspan="6" class="bos">Kayıt yok.</td></tr><% } %>
+      <% if (!kayitlar.length) { %><tr><td colspan="6" class="bos"><%- include("bos", { filtreli: filtreli, bosMetin: admin ? "Henüz işlem kaydı yok" : "Henüz kendi işlemin yok", sifirla: yol }) %></td></tr><% } %>
       <% for (const k of kayitlar) { %>
         <tr>
           <td data-etiket="Zaman" title="<%= new Date(k.created_at).toLocaleString('tr-TR') %>"><%= zaman(k.created_at) %></td>
           <td data-etiket="Yapan"><%= k.aktor || "—" %></td>
           <td data-etiket="Eylem"><strong><%= eylemEtiketleri[k.eylem] || k.eylem %></strong><br><small class="ikincil"><%= k.eylem %></small></td>
           <td data-etiket="Hedef">
-            <% if (k.hedef_tur === "kullanici" && k.hedef_id) { %><a href="/yonetim/kullanicilar/<%= k.hedef_id %>">kullanici #<%= k.hedef_id %></a>
+            <% if (k.hedef_tur === "kullanici" && k.hedef_id) { %><a href="/yonetim/uyeler/<%= k.hedef_id %>">kullanici #<%= k.hedef_id %></a>
             <% } else if (k.hedef_tur === "konu" && k.hedef_id) { %><a href="/konu/<%= k.hedef_id %>">konu #<%= k.hedef_id %></a>
             <% } else if (k.hedef_tur) { %><%= k.hedef_tur %><%= k.hedef_id ? " #" + k.hedef_id : "" %><% } else { %>—<% } %>
           </td>

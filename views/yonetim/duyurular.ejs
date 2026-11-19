@@ -1,0 +1,21 @@
+<%# Duyurular (admin): a { duyuru, duyuruTur }. POST /yonetim/duyurular (şerit), POST /yonetim/duyurular/bildirim (hedef, metin, link; onay adımı alıcı sayısını gösterir) %>
+<%- include("duzen-ust", { baslik: "Duyurular", aktif: "duyurular" }) %>
+<section class="yn-izgara-2">
+  <form class="kart yn-kart yn-form" method="post" action="/yonetim/duyurular"><%- include("csrf") %>
+    <h3>Duyuru şeridi</h3>
+    <label class="yn-etiketli">Metin (boş bırakırsan şerit görünmez)<textarea class="yn-girdi yn-alan" name="duyuru" rows="3" maxlength="500"><%= a.duyuru %></textarea></label>
+    <label class="yn-etiketli">Tür<select class="yn-girdi" name="duyuru_tur"><option value="info"<%= a.duyuruTur === "info" ? " selected" : "" %>>Bilgi</option><option value="uyari"<%= a.duyuruTur === "uyari" ? " selected" : "" %>>Uyarı</option></select></label>
+    <p class="ikincil kucuk">Menülü bütün sayfaların üstünde görünür; her kullanıcı kendi oturumunda kapatabilir, metin değişince yeniden çıkar.</p>
+    <button class="buton buton-birincil">Kaydet</button>
+  </form>
+  <form class="kart yn-kart yn-form" method="post" action="/yonetim/duyurular/bildirim"><%- include("csrf") %>
+    <h3>Toplu bildirim</h3>
+    <label class="yn-etiketli">Kime
+      <select class="yn-girdi" name="hedef" required><option value="hepsi">Bütün aktif üyeler</option><option value="uye">Yalnızca üyeler</option><option value="moderator">Moderatörler</option><option value="admin">Yöneticiler</option></select></label>
+    <label class="yn-etiketli">Metin (en fazla 300 karakter)<textarea class="yn-girdi yn-alan" name="metin" rows="3" minlength="3" maxlength="300" required></textarea></label>
+    <label class="yn-etiketli">Bağlantı (isteğe bağlı, sitenin içinden: /konu/5)<input class="yn-girdi" name="link" maxlength="300" placeholder="/"></label>
+    <p class="ikincil kucuk">Göndermeden önce alıcı sayısı gösterilip onay istenir. Uzaklaştırılmış ve kapatılmış hesaplar alıcı sayılmaz.</p>
+    <button class="buton buton-birincil">Devam et</button>
+  </form>
+</section>
+<%- include("duzen-alt") %>
