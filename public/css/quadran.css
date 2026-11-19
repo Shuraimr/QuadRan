@@ -460,3 +460,37 @@ svg { flex: none; }
 
 /* Mesaj eylem satırındaki küçük formlar (Sil) bağlantılarla aynı hizada dursun */
 .yorum .satir > form, .eylem-satiri > form { display: contents; }
+
+/* ---------- Ayarlar: tablet bölüm dock'u (801–1180px) ----------
+   Tablette soldaki bölüm menüsü içeriği sağa itiyordu. Orada menü kalkar, içerik ortalanır ve
+   bölümler altta yüzen bir dock'tan seçilir. Masaüstünde sol menü, telefonda üstteki yatay şerit kullanılır. */
+.ayar-dok { display: none; }
+.ayarlar .bolum { scroll-margin-top: 88px; } /* yapışkan üst çubuğun altında kalmasın */
+@media (min-width: 801px) and (max-width: 1180px) {
+  .ayarlar { grid-template-columns: minmax(0, 720px); justify-content: center; padding-bottom: 128px; }
+  .ayarlar nav .kategoriler { display: none; }
+  .ayarlar nav h1 { padding: 0 0 4px; }
+  .ayar-dok {
+    display: flex; gap: 4px; position: fixed; z-index: 6; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    /* Kenar menü (88px) solda durduğu için içerik alanının ortası 44px sağdadır */
+    left: calc(50% + 44px); transform: translateX(-50%);
+    padding: 6px; border-radius: 999px; border: 1px solid var(--kenar);
+    background: color-mix(in srgb, var(--yuzey-2) 88%, transparent); backdrop-filter: blur(16px);
+    box-shadow: var(--kat-2);
+    animation: dok-giris var(--sure-yavas) var(--egri-cikis) backwards;
+  }
+  [data-menu="sag"] .ayar-dok { left: calc(50% - 44px); }
+  .ayar-dok a {
+    display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px 0 16px; border-radius: 999px;
+    font-size: 14px; font-weight: 500; color: var(--yazi); white-space: nowrap;
+    transition: background-color var(--sure-orta) var(--egri-cikis), color var(--sure-orta) ease;
+  }
+  .ayar-dok a svg { color: var(--yazi-2); transition: color var(--sure-orta) ease; }
+  .ayar-dok a:hover { background: var(--yuzey-3); }
+  .ayar-dok a[aria-current="true"] { background: var(--ton); color: var(--ton-ustu); font-weight: 600; }
+  .ayar-dok a[aria-current="true"] svg { color: var(--ton-ustu); }
+}
+@keyframes dok-giris { from { opacity: 0; transform: translate(-50%, calc(16px * var(--hareket))); } }
+/* Çapa bağlantıları yumuşak kaysın (azaltılmış harekette quadran.css bunu "auto"ya çeker) */
+html { scroll-behavior: smooth; }
+[data-az-animasyon] { scroll-behavior: auto; } /* "*" seçicisi <html>in kendisini kapsamaz */

@@ -12,9 +12,9 @@
   <nav aria-label="Ayarlar">
     <h1>Ayarlar</h1>
     <div class="kategoriler">
-      <a class="kategori-ogesi aktif" href="#profil"><%- include("partials/ikon", { ad: "kisi" }) %> Profil</a>
-      <a class="kategori-ogesi" href="#gorunum"><%- include("partials/ikon", { ad: "palet" }) %> Görünüm</a>
-      <a class="kategori-ogesi" href="#hesap"><%- include("partials/ikon", { ad: "kalkan" }) %> Hesap ve güvenlik</a>
+      <a class="kategori-ogesi aktif" href="#profil" data-bolum-bag><%- include("partials/ikon", { ad: "kisi" }) %> Profil</a>
+      <a class="kategori-ogesi" href="#gorunum" data-bolum-bag><%- include("partials/ikon", { ad: "palet" }) %> Görünüm</a>
+      <a class="kategori-ogesi" href="#hesap" data-bolum-bag><%- include("partials/ikon", { ad: "kalkan" }) %> Hesap ve güvenlik</a>
     </div>
   </nav>
   <div class="bolumler">
@@ -87,5 +87,12 @@
       </form>
     </section>
   </div>
+  <%# Tablet (801–1180px) için altta yüzen bölüm dock'u: soldaki menünün yerine geçer, içerik ortalanır.
+      Bağlantılar düz çapa (#profil...) olduğu için JS olmadan da çalışır; JS o an görünen bölümü vurgular. %>
+  <nav class="ayar-dok" aria-label="Ayarlar bölümleri">
+    <a href="#profil" data-bolum-bag aria-current="true"><%- include("partials/ikon", { ad: "kisi", boyut: 20 }) %><span>Profil</span></a>
+    <a href="#gorunum" data-bolum-bag><%- include("partials/ikon", { ad: "palet", boyut: 20 }) %><span>Görünüm</span></a>
+    <a href="#hesap" data-bolum-bag><%- include("partials/ikon", { ad: "kalkan", boyut: 20 }) %><span>Hesap ve güvenlik</span></a>
+  </nav>
 </div>
 <%- include("partials/son") %>

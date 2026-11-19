@@ -504,6 +504,34 @@
     });
   });
 
+  /* ---------- Ayarlar: o an görünen bölümü vurgula ----------
+     Sol menü (masaüstü) ve alttaki dock (tablet) aynı bağlantıları taşır (data-bolum-bag). Sayfa kaydırıldıkça
+     ekranın üst üçte birine giren bölümün bağlantıları aria-current alır; dokununca da hemen vurgulanır. */
+  (function () {
+    var baglar = hepsi("[data-bolum-bag]");
+    if (!baglar.length || !("IntersectionObserver" in window)) return;
+    function vurgula(id) {
+      baglar.forEach(function (a) {
+        var bu = a.getAttribute("href") === "#" + id;
+        if (bu) a.setAttribute("aria-current", "true"); else a.removeAttribute("aria-current");
+        a.classList.toggle("aktif", bu);
+      });
+    }
+    var bolumler = baglar.map(function (a) { return d.getElementById(a.getAttribute("href").slice(1)); })
+      .filter(function (b, i, dizi) { return b && dizi.indexOf(b) === i; });
+    /* rootMargin: yalnızca ekranın üstten %15–%45 arası "okuma bandı" sayılır; o banttaki bölüm etkindir */
+    var gozcu = new IntersectionObserver(function (girdiler) {
+      girdiler.forEach(function (g) { if (g.isIntersecting) vurgula(g.target.id); });
+    }, { rootMargin: "-15% 0px -55% 0px" });
+    bolumler.forEach(function (b) { gozcu.observe(b); });
+    /* Sayfanın en altında son bölüm banda hiç giremeyebilir: dipteyken sonuncuyu vurgula */
+    window.addEventListener("scroll", function () {
+      if (window.innerHeight + window.scrollY >= d.documentElement.scrollHeight - 4) vurgula(bolumler[bolumler.length - 1].id);
+    }, { passive: true });
+    baglar.forEach(function (a) { a.addEventListener("click", function () { vurgula(a.getAttribute("href").slice(1)); }); });
+    if (window.location.hash && d.getElementById(window.location.hash.slice(1))) vurgula(window.location.hash.slice(1));
+  })();
+
   /* ---------- Toplu işlem: seçim yokken işlem alanları gizli ----------
      Telefonda toplu işlem kutusu, satır seçilene kadar yalnızca "Hepsini seç" gösterir; seçim yapılınca
      ekranın altına yapışan bir çubuğa dönüşür ve kaç öğe seçildiğini yazar. */
