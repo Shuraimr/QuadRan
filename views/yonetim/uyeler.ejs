@@ -12,7 +12,7 @@
   <select class="yn-girdi" name="silinmis" aria-label="Kapatılmış hesaplar"><% for (const [d, e] of [["gizle","Kapatılanları gizle"],["goster","Kapatılanları da göster"],["sadece","Yalnızca kapatılanlar"]]) { %><option value="<%= d %>"<%= qs.silinmis === d ? " selected" : "" %>><%= e %></option><% } %></select>
   <select class="yn-girdi" name="kayit" aria-label="Kayıt zamanı"><option value="hepsi">Her zaman</option><option value="24s"<%= qs.kayit === "24s" ? " selected" : "" %>>Son 24 saatte açılan</option></select>
   <input type="hidden" name="sirala" value="<%= qs.sirala %>"><input type="hidden" name="yon" value="<%= qs.yon %>">
-  <button class="buton buton-tonal">Süz</button>
+  <button class="buton buton-tonal yn-suz-dugme">Süz</button>
   <a class="buton buton-cerceveli" href="/yonetim/uyeler">Sıfırla</a>
 </form>
 <% const baslik_ = (ad, anahtar) => { const ters = qs.sirala === anahtar && qs.yon === "desc" ? "asc" : "desc"; %>

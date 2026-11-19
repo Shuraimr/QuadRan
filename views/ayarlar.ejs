@@ -66,7 +66,7 @@
       <% for (const [alan, baslik, aciklama] of [
         ["menu_sagda", "Menüyü sağa al", "Tablette kenar menüsü sağ tarafta durur. Solaklar ve sağ elle tutanlar için."],
         ["kompakt", "Kompakt kartlar", "Akışta kartlar daha az yer kaplar, özet gizlenir."],
-        ["az_animasyon", "Animasyonları azalt", "Geçiş efektleri kapanır."]]) { %>
+        ["az_animasyon", "Animasyonları azalt", "Açılır menüler, pencereler, bildirimler ve geçiş efektleri animasyonsuz, anında açılır ve kapanır."]]) { %>
         <label class="ayar-satiri anahtar">
           <div><strong><%= baslik %></strong><span class="ikincil kucuk"><%= aciklama %></span></div>
           <input type="checkbox" name="<%= alan %>" value="1" <%= ayar[alan] ? "checked" : "" %>><span class="ray"></span>

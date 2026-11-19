@@ -39,9 +39,12 @@ app.use(yonetim);      // /yonetim: gelişmiş yönetim paneli (moderatör + adm
 app.use(duyuruRotasi); // POST /duyuru/kapat
 
 // Tasarım önizlemesi (örnek veriyle): /onizleme/konu, /onizleme/profil ...
-app.use("/onizleme", onizleme);
-app.use("/onizleme", katmanlar); // /onizleme/katmanlar
-app.use("/onizleme", sayfalar);  // /onizleme/mesajlar, /bildirimler, /ara, /siralama, /sohbet, /moderasyon, /sifremi-unuttum
+// Yalnızca geliştirmede açık: sahte verilerle (örn. admin görünümü) çizilen sayfalar yayındaki sitede görünmemeli.
+if (process.env.NODE_ENV !== "production") {
+  app.use("/onizleme", onizleme);
+  app.use("/onizleme", katmanlar); // /onizleme/katmanlar
+  app.use("/onizleme", sayfalar);  // /onizleme/mesajlar, /bildirimler, /ara, /siralama, /sohbet, /moderasyon, /sifremi-unuttum
+}
 
 // Bütün şablonlarda kullanılabilen yardımcı: "2 saat önce" gibi yazar
 app.locals.zaman = (tarih: Date) => {

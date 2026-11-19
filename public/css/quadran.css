@@ -21,6 +21,16 @@
   --kat-2: 0 1px 2px rgb(0 0 0 / .4), 0 10px 28px -8px rgb(0 0 0 / .28), inset 0 1px 0 rgb(255 255 255 / .08), inset 0 -1px 0 rgb(0 0 0 / .28);
   --kat-buton: 0 1px 2px rgb(0 0 0 / .45), 0 4px 10px -2px rgb(0 0 0 / .2), inset 0 1px 0 rgb(255 255 255 / .35), inset 0 -1px 0 rgb(0 0 0 / .22);
 
+  /* Hareket: süreler ve eğriler. Bütün geçişler bu değişkenleri kullanır; böylece "azaltılmış hareket"
+     tek yerden (aşağıdaki iki kural) hepsini birden kapatabilir. --hareket çarpanı 0 olunca kayma/ölçek de kalkar. */
+  --sure-hizli: 120ms;
+  --sure-orta: 200ms;
+  --sure-yavas: 320ms;
+  --egri-cikis: cubic-bezier(.2, .8, .2, 1);
+  --egri-giris: cubic-bezier(.4, 0, 1, 1);
+  --egri-yay: cubic-bezier(.34, 1.56, .64, 1);
+  --hareket: 1;
+
   --yazi-tipi: "Inter", system-ui, sans-serif;
   --baslik-tipi: "Space Grotesk", "Inter", system-ui, sans-serif;
 }
@@ -216,7 +226,6 @@ svg { flex: none; }
   .gonderi .avatar, .gonderi .rozet { display: none; }
 }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 /* =====================================================================
    Diğer sayfalar: konu, formlar, giriş/kayıt, profil, ayarlar, durumlar
@@ -430,8 +439,16 @@ svg { flex: none; }
 [data-kompakt] .gonderi { padding: 8px 16px 8px 8px; }
 [data-kompakt] .kart.yorum, [data-kompakt] .profil-yorum { padding-top: 10px; padding-bottom: 10px; }
 
-/* Ayarlardaki "Animasyonları azalt": <html data-az-animasyon>. Geçişler ve animasyonlar kapanır. */
-[data-az-animasyon] *, [data-az-animasyon] *::before, [data-az-animasyon] *::after {
+/* Azaltılmış hareket: hem işletim sistemi tercihi (prefers-reduced-motion) hem de Ayarlar'daki
+   "Animasyonları azalt" (<html data-az-animasyon>) aynı sonucu verir. Üç katmanlı güvence:
+   1) süre değişkenleri 0'a iner (JS'in okuduğu değerler de), 2) --hareket 0 olunca kayma/ölçek çarpanları sıfırlanır,
+   3) geriye kalan her geçiş/animasyon (::backdrop, popover, seçici dahil) zorla kapatılır. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --sure-hizli: 0ms; --sure-orta: 0ms; --sure-yavas: 0ms; --hareket: 0; }
+  *, *::before, *::after, ::backdrop { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+[data-az-animasyon] { --sure-hizli: 0ms; --sure-orta: 0ms; --sure-yavas: 0ms; --hareket: 0; }
+[data-az-animasyon] *, [data-az-animasyon] *::before, [data-az-animasyon] *::after, [data-az-animasyon] ::backdrop {
   transition: none !important;
   animation: none !important;
   scroll-behavior: auto !important;

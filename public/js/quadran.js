@@ -3,6 +3,16 @@
   "use strict";
   var d = document;
 
+  /* CSS "JS var" bayrağı: .js sınıfına bağlı kurallar (örn. Süz düğmesini gizleme) yalnızca betik çalışıyorsa geçerli olur */
+  d.documentElement.classList.add("js");
+
+  /* Hareket azaltılmış mı? İşletim sistemi tercihi ya da Ayarlar'daki "Animasyonları azalt". JS'in beklediği her animasyon önce buna bakar;
+     azaltılmışsa bekleme süresi 0 olur (CSS tarafı aynı şeyi süre değişkenlerini sıfırlayarak yapar). */
+  function hareketAzMi() {
+    return (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) ||
+      d.documentElement.hasAttribute("data-az-animasyon");
+  }
+
   function bul(secici, kok) { return (kok || d).querySelector(secici); }
   function hepsi(secici, kok) { return Array.prototype.slice.call((kok || d).querySelectorAll(secici)); }
   function acilabilir(dlg) { return !!dlg && typeof dlg.showModal === "function"; }
@@ -147,13 +157,368 @@
     function baslat() { zamanlayici = window.setTimeout(gizle, 5000); }
     function durdur() { if (zamanlayici) { window.clearTimeout(zamanlayici); zamanlayici = null; } }
     function gizle() {
+      /* Önce CSS geçişiyle sol (opacity + kayma), geçiş bitince display:none. Hareket azsa beklemeden gizle. */
       cubuk.classList.add("gizleniyor");
-      window.setTimeout(function () { cubuk.classList.add("gizli"); }, 300);
+      window.setTimeout(function () { cubuk.classList.add("gizli"); }, hareketAzMi() ? 0 : 220);
     }
     cubuk.addEventListener("mouseenter", durdur);
     cubuk.addEventListener("focusin", durdur);
     cubuk.addEventListener("mouseleave", function () { durdur(); baslat(); });
     cubuk.addEventListener("focusout", function () { durdur(); baslat(); });
     baslat();
+  });
+
+  /* ---------- Oy "pop" animasyonu ----------
+     Oy verince sayfa yeniden yüklenir ve adres #mesaj-ID ile biter. Önceki sayfa aynı yolsa (yani buraya bir oy
+     gönderiminden döndük, başka sayfadan bir bağlantıyla gelmedik) seçili oy düğmesi küçük bir "pop" yapar. */
+  (function () {
+    if (!/^#mesaj-\d+$/.test(window.location.hash) || hareketAzMi()) return;
+    try {
+      var onceki = d.referrer ? new URL(d.referrer) : null;
+      if (!onceki || onceki.origin !== window.location.origin || onceki.pathname !== window.location.pathname) return;
+    } catch (e) { return; }
+    var kutu = d.getElementById(window.location.hash.slice(1));
+    if (!kutu) return;
+    hepsi(".secili-yukari, .secili-asagi", kutu).forEach(function (dugme) {
+      dugme.classList.add("oy-pop");
+      dugme.addEventListener("animationend", function () { dugme.classList.remove("oy-pop"); }, { once: true });
+    });
+  })();
+
+  /* =====================================================================
+     Seçici: <select>'in yerine geçen özel açılır liste (aşamalı geliştirme)
+     ---------------------------------------------------------------------
+     - Gerçek <select> DOM'da kalır (görünmez), forma o gönderilir; seçim yapılınca select.selectedIndex değişir ve
+       'input' + 'change' olayları gönderilir, yani mevcut kod hiçbir şeyin değiştiğini fark etmez.
+     - JS yoksa ya da select'te data-yerel varsa hiçbir şey olmaz: yerel <select> çalışır.
+     - Liste, tetikleyicinin yanında değil en yakın dialog/popover içinde (yoksa body'de) açılır ve mümkünse
+       tarayıcının "üst katmanına" (popover="auto") konur; böylece moderasyon menüsü gibi popover'ların da üstünde görünür.
+     ===================================================================== */
+  var seciciSayac = 0;
+  var acikSecici = null; /* aynı anda yalnızca biri açık: { kapat: fn } */
+  var TIK_SVG = '<svg class="secici-tik" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+  var OK_SVG = '<svg class="secici-ok" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  var POPOVER_VAR = typeof HTMLElement !== "undefined" && typeof HTMLElement.prototype.showPopover === "function";
+
+  function etiketMetni(sel) {
+    if (sel.getAttribute("aria-label")) return sel.getAttribute("aria-label");
+    var metin = "";
+    Array.prototype.forEach.call(sel.labels || [], function (lbl) {
+      /* Etiketin içinde select ve seçici de olabilir; onların metnini sayma */
+      var kopya = lbl.cloneNode(true);
+      hepsi("select, .secici, .secici-liste", kopya).forEach(function (n) { n.remove(); });
+      metin += " " + kopya.textContent;
+    });
+    return metin.replace(/\s+/g, " ").trim();
+  }
+
+  function seciciKur(sel) {
+    if (sel.multiple || sel.size > 1 || sel.hasAttribute("data-yerel") || sel.getAttribute("data-secici-hazir")) return;
+    sel.setAttribute("data-secici-hazir", "1");
+    var kimlik = "secici-" + (++seciciSayac);
+
+    var tetik = d.createElement("button");
+    tetik.type = "button";
+    /* Select'in sınıfları (örn. yn-girdi) tetikleyiciye de geçer: yönetim panelindeki boyut/genişlik kuralları kendiliğinden uygulanır */
+    tetik.className = ("secici " + sel.className).trim();
+    tetik.setAttribute("role", "combobox");
+    tetik.setAttribute("aria-haspopup", "listbox");
+    tetik.setAttribute("aria-expanded", "false");
+    tetik.setAttribute("aria-controls", kimlik + "-liste");
+    if (sel.getAttribute("aria-labelledby")) tetik.setAttribute("aria-labelledby", sel.getAttribute("aria-labelledby"));
+    else { var ad = etiketMetni(sel); if (ad) tetik.setAttribute("aria-label", ad); }
+    if (sel.required) tetik.setAttribute("aria-required", "true");
+    var degerEl = d.createElement("span");
+    degerEl.className = "secici-deger";
+    tetik.appendChild(degerEl);
+    tetik.insertAdjacentHTML("beforeend", OK_SVG);
+
+    sel.classList.add("secici-yerel");
+    sel.tabIndex = -1;
+    sel.setAttribute("aria-hidden", "true");
+    sel.parentNode.insertBefore(tetik, sel.nextSibling);
+
+    var sonKapanis = 0; /* tarayıcı paneli tetikleyiciye tıklanınca kapatır; ardından gelen click yeniden açmasın diye zamanı tutulur */
+    var panel = null, ogeler = [], aktif = -1, kapanis = null, arama = "", aramaZaman = null;
+    var host = sel.closest("dialog, [popover]") || d.body;
+
+    function guncelle() {
+      var o = sel.options[sel.selectedIndex];
+      degerEl.textContent = o ? o.text.trim() : "";
+      tetik.classList.toggle("secici-bos", !o || o.value === "");
+      tetik.disabled = sel.disabled;
+    }
+    function gecerliYap() {
+      tetik.removeAttribute("aria-invalid");
+      var alan = sel.closest(".alan");
+      if (alan) alan.classList.remove("hatali");
+    }
+
+    function ogeKur() {
+      ogeler = [];
+      panel.textContent = "";
+      var no = 0;
+      function ogeEkle(opt, kap) {
+        var el = d.createElement("div");
+        el.id = kimlik + "-o" + (no++);
+        el.className = "secici-oge" + (opt.value === "" ? " secici-oge-bos" : "");
+        el.setAttribute("role", "option");
+        el.setAttribute("aria-selected", opt.selected ? "true" : "false");
+        if (opt.disabled) el.setAttribute("aria-disabled", "true");
+        var sp = d.createElement("span");
+        sp.textContent = opt.text.trim();
+        el.appendChild(sp);
+        el.insertAdjacentHTML("beforeend", TIK_SVG);
+        kap.appendChild(el);
+        ogeler.push({ el: el, opt: opt, metin: sp.textContent.toLocaleLowerCase("tr") });
+      }
+      Array.prototype.forEach.call(sel.children, function (c) {
+        if (c.tagName === "OPTION") ogeEkle(c, panel);
+        else if (c.tagName === "OPTGROUP") {
+          var g = d.createElement("div");
+          g.setAttribute("role", "group");
+          var b = d.createElement("div");
+          b.className = "secici-grup-ad";
+          b.id = kimlik + "-g" + (no++);
+          b.textContent = c.label;
+          g.setAttribute("aria-labelledby", b.id);
+          g.appendChild(b);
+          Array.prototype.forEach.call(c.children, function (opt) {
+            if (opt.tagName === "OPTION") { ogeEkle(opt, g); if (c.disabled) ogeler[ogeler.length - 1].el.setAttribute("aria-disabled", "true"); }
+          });
+          panel.appendChild(g);
+        }
+      });
+    }
+
+    function etkin(i) { return i >= 0 && i < ogeler.length && ogeler[i].el.getAttribute("aria-disabled") !== "true"; }
+    function aktifYap(i, kaydir) {
+      if (!etkin(i)) return;
+      if (aktif >= 0 && ogeler[aktif]) ogeler[aktif].el.classList.remove("aktif");
+      aktif = i;
+      var el = ogeler[i].el;
+      el.classList.add("aktif");
+      tetik.setAttribute("aria-activedescendant", el.id);
+      if (kaydir !== false) {
+        /* scrollIntoView sayfayı da kaydırabilir; yalnızca panelin kendi kaydırmasını ayarla */
+        if (el.offsetTop < panel.scrollTop) panel.scrollTop = el.offsetTop - 6;
+        else if (el.offsetTop + el.offsetHeight > panel.scrollTop + panel.clientHeight) panel.scrollTop = el.offsetTop + el.offsetHeight - panel.clientHeight + 6;
+      }
+    }
+    function sonraki(bas, yon) {
+      for (var i = bas + yon; i >= 0 && i < ogeler.length; i += yon) if (etkin(i)) return i;
+      return -1;
+    }
+
+    function konumla() {
+      if (!panel) return;
+      var r = tetik.getBoundingClientRect(), bosluk = 8;
+      var vw = window.innerWidth, vh = window.innerHeight;
+      panel.style.minWidth = r.width + "px";
+      panel.style.maxWidth = (vw - 2 * bosluk) + "px";
+      panel.style.maxHeight = "320px";
+      var h = panel.offsetHeight, w = panel.offsetWidth;
+      var altBos = vh - r.bottom - bosluk - 4, ustBos = r.top - bosluk - 4;
+      /* Aşağıya sığmıyorsa ve yukarısı daha genişse yukarı aç (flip) */
+      var yukari = h > altBos && ustBos > altBos;
+      var kalan = yukari ? ustBos : altBos;
+      if (kalan < 320) { panel.style.maxHeight = Math.max(96, kalan) + "px"; h = panel.offsetHeight; }
+      panel.style.top = (yukari ? r.top - 4 - h : r.bottom + 4) + "px";
+      panel.style.left = Math.min(Math.max(bosluk, r.left), Math.max(bosluk, vw - w - bosluk)) + "px";
+      panel.setAttribute("data-yon", yukari ? "ust" : "alt");
+    }
+    function olayKonumla(e) { if (panel && !(e && e.target && panel.contains(e.target))) konumla(); }
+    function disBasma(e) { if (panel && !panel.contains(e.target) && !tetik.contains(e.target)) kapat(false); }
+    function hostKapandi(e) { if (panel && e.newState === "closed" && e.target === host) bitir(); }
+
+    function bitir() {
+      /* Animasyon beklemeden paneli tamamen kaldır */
+      window.clearTimeout(kapanis); kapanis = null;
+      if (!panel) return;
+      if (POPOVER_VAR && panel.matches(":popover-open")) { try { panel.hidePopover(); } catch (e) { /* zaten kapalı */ } }
+      panel.remove();
+      panel = null; ogeler = []; aktif = -1;
+      tetik.removeAttribute("aria-activedescendant");
+    }
+
+    function kapat(odakVer) {
+      if (!panel || tetik.getAttribute("aria-expanded") !== "true") return;
+      tetik.setAttribute("aria-expanded", "false");
+      d.removeEventListener("pointerdown", disBasma, true);
+      window.removeEventListener("resize", olayKonumla);
+      window.removeEventListener("scroll", olayKonumla, true);
+      d.removeEventListener("toggle", hostKapandi, true);
+      if (acikSecici && acikSecici.tetik === tetik) acikSecici = null;
+      panel.classList.remove("acik"); /* CSS: çıkış geçişi (--sure-hizli) */
+      kapanis = window.setTimeout(bitir, hareketAzMi() ? 0 : 140);
+      if (odakVer) tetik.focus();
+    }
+
+    function ac() {
+      if (tetik.disabled) return;
+      if (acikSecici && acikSecici.tetik !== tetik) acikSecici.kapat(false);
+      if (panel) bitir(); /* kapanış animasyonu sürerken yeniden açılıyor */
+      panel = d.createElement("div");
+      panel.className = "secici-liste";
+      panel.id = kimlik + "-liste";
+      panel.setAttribute("role", "listbox");
+      panel.setAttribute("aria-label", tetik.getAttribute("aria-label") || etiketMetni(sel));
+      ogeKur();
+      /* Fare: odak tetikleyicide kalsın (aria-activedescendant bunu gerektirir) */
+      panel.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      panel.addEventListener("click", function (e) {
+        var el = e.target.closest ? e.target.closest(".secici-oge") : null;
+        if (!el) return;
+        for (var i = 0; i < ogeler.length; i++) if (ogeler[i].el === el) { sec(i); return; }
+      });
+      panel.addEventListener("mousemove", function (e) {
+        var el = e.target.closest ? e.target.closest(".secici-oge") : null;
+        if (!el) return;
+        for (var i = 0; i < ogeler.length; i++) if (ogeler[i].el === el) { if (i !== aktif) aktifYap(i, false); return; }
+      });
+      host.appendChild(panel);
+      if (POPOVER_VAR) {
+        /* "auto" popover: Escape ve dışarı tıklama önce en içteki (bu) paneli kapatır; moderasyon gibi dış popover açık kalır.
+           (manual olsaydı Escape dış menüyü de kapatırdı.) */
+        panel.setAttribute("popover", "auto");
+        panel.addEventListener("toggle", function (e) { if (e.newState === "closed") { if (tetik.getAttribute("aria-expanded") === "true") sonKapanis = Date.now(); kapat(false); } });
+        panel.showPopover();
+      }
+      else panel.classList.add("acik-yer");
+      tetik.setAttribute("aria-expanded", "true");
+      konumla();
+      var i0 = sel.selectedIndex >= 0 && etkin(sel.selectedIndex) ? sel.selectedIndex : sonraki(-1, 1);
+      aktif = -1;
+      aktifYap(i0);
+      void panel.offsetWidth; /* başlangıç durumu çizilsin ki geçiş oynasın */
+      panel.classList.add("acik");
+      acikSecici = { tetik: tetik, kapat: kapat };
+      d.addEventListener("pointerdown", disBasma, true);
+      window.addEventListener("resize", olayKonumla);
+      window.addEventListener("scroll", olayKonumla, true);
+      d.addEventListener("toggle", hostKapandi, true);
+    }
+
+    function sec(i) {
+      if (!etkin(i)) return;
+      var degisti = sel.selectedIndex !== ogeler[i].opt.index;
+      sel.selectedIndex = ogeler[i].opt.index;
+      guncelle();
+      kapat(true);
+      if (!degisti) return;
+      gecerliYap();
+      sel.dispatchEvent(new Event("input", { bubbles: true }));
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      /* Yönetim panelindeki süzgeç formları: seçim değişince kendiliğinden gönderilir */
+      var f = sel.form;
+      if (f && f.classList.contains("yn-filtre")) { if (f.requestSubmit) f.requestSubmit(); else f.submit(); }
+    }
+
+    function yazAra(harf) {
+      window.clearTimeout(aramaZaman);
+      arama += harf.toLocaleLowerCase("tr");
+      aramaZaman = window.setTimeout(function () { arama = ""; }, 700);
+      /* "aaa" gibi aynı harf tekrarı: aynı harfle başlayanlar arasında sırayla dolaş */
+      var ayni = arama.split("").every(function (c) { return c === arama[0]; });
+      var aranan = ayni ? arama[0] : arama;
+      var bas = (ayni && arama.length > 1) || aktif < 0 ? aktif + 1 : aktif;
+      for (var k = 0; k < ogeler.length; k++) {
+        var i = (bas + k + ogeler.length) % ogeler.length;
+        if (etkin(i) && ogeler[i].metin.indexOf(aranan) === 0) { aktifYap(i); return; }
+      }
+    }
+
+    tetik.addEventListener("click", function () {
+      if (Date.now() - sonKapanis < 80) { tetik.focus(); return; }
+      if (tetik.getAttribute("aria-expanded") === "true") kapat(true); else ac();
+    });
+    tetik.addEventListener("keyup", function (e) { if (e.key === " " && tetik.getAttribute("aria-expanded") === "true") e.preventDefault(); });
+    tetik.addEventListener("keydown", function (e) {
+      var acik = tetik.getAttribute("aria-expanded") === "true";
+      var k = e.key;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (!acik) {
+        if (k === "Enter" || k === " " || k === "ArrowDown" || k === "ArrowUp") { e.preventDefault(); ac(); }
+        else if (k.length === 1 && k !== " ") { e.preventDefault(); ac(); yazAra(k); }
+        return;
+      }
+      if (k === "ArrowDown") { e.preventDefault(); var a = sonraki(aktif, 1); if (a >= 0) aktifYap(a); }
+      else if (k === "ArrowUp") { e.preventDefault(); var y = sonraki(aktif, -1); if (y >= 0) aktifYap(y); }
+      else if (k === "Home") { e.preventDefault(); aktifYap(sonraki(-1, 1)); }
+      else if (k === "End") { e.preventDefault(); aktifYap(sonraki(ogeler.length, -1)); }
+      else if (k === "PageDown") { e.preventDefault(); var pd = sonraki(Math.min(aktif + 5, ogeler.length - 1) + 1, -1); aktifYap(pd >= 0 ? pd : aktif); }
+      else if (k === "PageUp") { e.preventDefault(); var pu = sonraki(Math.max(aktif - 5, 0) - 1, 1); aktifYap(pu >= 0 ? pu : aktif); }
+      else if (k === "Enter" || (k === " " && !arama)) { e.preventDefault(); sec(aktif); }
+      else if (k === "Escape") { e.preventDefault(); e.stopPropagation(); kapat(true); }
+      else if (k === "Tab") { kapat(false); }
+      else if (k.length === 1) { e.preventDefault(); yazAra(k); }
+    });
+    /* Odak tetikleyiciden çıkınca (Tab dışında: örn. sekme değişti) liste açık kalmasın */
+    tetik.addEventListener("blur", function () { window.setTimeout(function () { if (d.activeElement !== tetik && panel && !panel.contains(d.activeElement)) kapat(false); }, 0); });
+
+    /* <label> tıklanınca ya da doğrulama odağı gelince gerçek select odak alır; odağı tetikleyiciye aktar */
+    sel.addEventListener("focus", function () { tetik.focus(); });
+    /* "required" doğrulaması: görünmez select için tarayıcı balonu yerinde çıkmaz. Balonu engelle, tetikleyiciyi kırmızı yap ve odakla. */
+    sel.addEventListener("invalid", function (e) {
+      e.preventDefault();
+      tetik.setAttribute("aria-invalid", "true");
+      var alan = sel.closest(".alan");
+      if (alan) alan.classList.add("hatali");
+      if (sel.form && sel.form.querySelector(":invalid") === sel) tetik.focus();
+    });
+    /* Kod dışarıdan select.value değiştirirse (ya da form sıfırlanırsa) görünen değer güncellensin */
+    sel.addEventListener("change", guncelle);
+    if (sel.form) sel.form.addEventListener("reset", function () { window.setTimeout(function () { guncelle(); gecerliYap(); }, 0); });
+    guncelle();
+  }
+
+  hepsi("select").forEach(seciciKur);
+
+  /* Süz düğmesi yalnızca seçicilerden oluşan formlarda gizlenir; yazı/tarih/sayı kutusu olan formlarda kalır (Enter'a basmayı bilmeyen için) */
+  hepsi("form.yn-filtre").forEach(function (f) {
+    if (f.querySelector('input:not([type="hidden"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])')) f.classList.add("yn-suz-kalsin");
+  });
+
+  /* ---------- Telefon: süzgeçler katlanır ----------
+     Dar ekranda süzgeç formu bütün ekranı kaplıyordu. Formun önüne "Süzgeçler" düğmesi konur; form kapalı başlar
+     (CSS yalnızca ≤800px'te gizler, geniş ekranda düğme görünmez). Etkin süzgeç sayısı düğmede yazar ki
+     kullanıcı listenin süzülmüş olduğunu fark etsin. JS yoksa form her zaman açıktır. */
+  hepsi("form.yn-filtre").forEach(function (f) {
+    var etkin = hepsi("input, select", f).filter(function (el) {
+      if (el.type === "hidden" || el.type === "submit" || el.type === "checkbox") return false;
+      if (el.tagName === "SELECT") return el.selectedIndex > 0;
+      return el.value.trim() !== "";
+    }).length;
+    var dugme = d.createElement("button");
+    dugme.type = "button";
+    dugme.className = "buton buton-cerceveli yn-filtre-ac";
+    dugme.setAttribute("aria-expanded", "false");
+    dugme.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8Z"/></svg><span>Süzgeçler</span>' +
+      (etkin ? '<b class="yn-filtre-sayi">' + etkin + "</b>" : "");
+    f.classList.add("katli");
+    f.parentNode.insertBefore(dugme, f);
+    dugme.addEventListener("click", function () {
+      var acik = f.classList.toggle("katli") === false;
+      dugme.setAttribute("aria-expanded", acik ? "true" : "false");
+      if (acik) { var ilk = bul("input:not([type=hidden]), .secici", f); if (ilk) ilk.focus(); }
+    });
+  });
+
+  /* ---------- Toplu işlem: seçim yokken işlem alanları gizli ----------
+     Telefonda toplu işlem kutusu, satır seçilene kadar yalnızca "Hepsini seç" gösterir; seçim yapılınca
+     ekranın altına yapışan bir çubuğa dönüşür ve kaç öğe seçildiğini yazar. */
+  hepsi("#toplu-form").forEach(function (form) {
+    var sayac = d.createElement("span");
+    sayac.className = "yn-secim-sayi";
+    sayac.setAttribute("aria-live", "polite");
+    var kutu = bul(".yn-toplu", form);
+    if (kutu) kutu.insertBefore(sayac, kutu.children[1] || null);
+    function say() {
+      var n = hepsi('input[name="id"]:checked', form).length;
+      form.classList.toggle("secim-var", n > 0);
+      sayac.textContent = n ? n + " seçili" : "";
+    }
+    form.addEventListener("change", function () { window.setTimeout(say, 0); });
+    say();
   });
 })();

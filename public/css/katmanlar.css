@@ -199,3 +199,75 @@
   border: 1px solid var(--kenar); border-radius: 8px; padding: 6px 8px;
 }
 .kategori-degistir-dugme { padding: 6px 12px; min-height: 0; }
+
+/* =====================================================================
+   Seçici (özel açılır liste). quadran.js her <select>'i buna çevirir; JS yoksa yerel <select> çalışmaya devam eder.
+   Gerçek <select> DOM'da kalır (forma gönderilir), yalnızca görünmez yapılır: .secici-yerel
+   ===================================================================== */
+/* !important: yönetim paneli ve .alan kurallarındaki genişlik/yükseklik (örn. width: 100%) bunun üstüne yazmasın */
+select.secici-yerel, .alan select.secici-yerel {
+  position: absolute !important; width: 1px !important; height: 1px !important; min-width: 0 !important; max-width: 1px !important;
+  margin: 0 !important; padding: 0 !important; border: 0 !important;
+  opacity: 0; overflow: hidden; clip-path: inset(50%); pointer-events: none;
+}
+.secici {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 8px;
+  box-sizing: border-box; min-width: 0; max-width: 100%; height: 44px; padding: 0 12px 0 14px;
+  background: var(--yuzey-2); color: var(--yazi);
+  border: 1px solid var(--kenar); border-radius: 12px;
+  font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+  transition: border-color var(--sure-hizli) ease, box-shadow var(--sure-hizli) ease;
+}
+.secici:hover { border-color: color-mix(in srgb, var(--kenar), var(--yazi) 12%); }
+.secici:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 2px; }
+.secici:disabled { opacity: .5; cursor: not-allowed; }
+.secici-deger { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.secici-bos .secici-deger { color: var(--yazi-2); }
+.secici-ok { flex: none; color: var(--yazi-2); transition: transform var(--sure-orta) var(--egri-cikis); }
+.secici[aria-expanded="true"] .secici-ok { transform: rotate(calc(180deg * var(--hareket))); }
+.secici[aria-invalid="true"] { border-color: var(--hata); box-shadow: 0 0 0 1px var(--hata); }
+/* Yönetim paneli girdileri (.yn-girdi sınıfı tetikleyiciye de kopyalanır) 40px olur */
+.secici.yn-girdi { height: 40px; padding: 0 10px 0 12px; cursor: pointer; }
+.secici.yn-girdi:focus { box-shadow: none; border-color: var(--kenar); }
+.secici.yn-girdi[aria-expanded="true"], .secici.yn-girdi:focus-visible { border-color: var(--vurgu); }
+.secici.yn-girdi[aria-invalid="true"] { border-color: var(--hata); box-shadow: 0 0 0 1px var(--hata); }
+/* Etiketi üstte duran form alanı (.alan): 56px, yazı 16px */
+.alan .secici { width: 100%; height: 56px; padding: 0 16px; background: transparent; font-size: 16px; }
+/* Moderasyon menüsündeki kategori seçimi */
+.kategori-degistir-formu .secici { flex: 1; width: auto; height: 40px; font-size: 14px; }
+
+.secici-liste {
+  position: fixed; inset: auto; z-index: 1000; margin: 0; padding: 6px; box-sizing: border-box;
+  max-height: 320px; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--yuzey-2); color: var(--yazi);
+  border: 1px solid var(--kenar-ince); border-radius: 14px; box-shadow: var(--kat-2);
+  /* Kapalı hâl: görünmez ve biraz yukarıda. Açılınca .acik sınıfı gelir ve CSS geçişi oynar. */
+  opacity: 0; transform: translateY(calc(-4px * var(--hareket))) scale(calc(1 - .02 * var(--hareket)));
+  transform-origin: top center;
+  transition: opacity var(--sure-hizli) var(--egri-giris), transform var(--sure-hizli) var(--egri-giris);
+}
+/* Tarayıcı popover'ı destekliyorsa panel üst katmana (top layer) açılır; kapalıyken gizlemeyi tarayıcı yapar.
+   Desteklemiyorsa (popover özniteliği yoksa) .acik-yer sınıfıyla gösterilir. */
+.secici-liste:not([popover]):not(.acik-yer) { display: none; }
+.secici-liste[data-yon="ust"] { transform-origin: bottom center; transform: translateY(calc(4px * var(--hareket))) scale(calc(1 - .02 * var(--hareket))); }
+.secici-liste.acik { opacity: 1; transform: none; transition-duration: var(--sure-orta); transition-timing-function: var(--egri-cikis); }
+.secici-oge {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 40px; padding: 0 12px; border-radius: 10px; font-size: 14px; line-height: 1.3; cursor: pointer;
+  transition: background-color var(--sure-hizli) ease;
+}
+.secici-oge + .secici-oge { margin-top: 2px; }
+.secici-oge > span { min-width: 0; overflow-wrap: anywhere; padding: 8px 0; }
+.secici-oge.aktif { background: var(--yuzey-3); background: color-mix(in srgb, var(--yazi) 7%, var(--yuzey-2)); }
+.secici-oge[aria-selected="true"] { background: var(--ton); color: var(--ton-ustu); font-weight: 600; }
+.secici-oge[aria-selected="true"].aktif { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ton-ustu) 35%, transparent); }
+.secici-oge[aria-selected="true"] .secici-tik { display: block; }
+.secici-oge.secici-oge-bos { color: var(--yazi-2); }
+.secici-oge[aria-selected="true"].secici-oge-bos { color: var(--ton-ustu); }
+.secici-oge[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.secici-tik { display: none; flex: none; }
+.secici-grup-ad { padding: 10px 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--yazi-2); }
+.secici-grup-ad:first-child { padding-top: 4px; }
+
+/* Süz düğmesi: JS açıkken seçim değişince form kendiliğinden gönderilir. Metin/tarih alanı olan formlar düğmesini korur (JS .yn-suz-kalsin ekler). */
+.js .yn-filtre:not(.yn-suz-kalsin) .yn-suz-dugme { display: none; }

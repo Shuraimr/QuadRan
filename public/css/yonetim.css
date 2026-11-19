@@ -217,6 +217,13 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-islem-grup .yn-girdi { width: 100%; }
 
 /* ---------- Tablet (801-1179px): 72px simge şeridi; ayrıntı listenin üstünde yan katman ---------- */
+
+/* ---------- Kenar çubuğu bir popover'dır (telefonda çekmece). Masaüstü ve tablette tarayıcının popover
+   varsayılanları (ortalama, kenarlık, içeriğe göre yükseklik, gizleme) geçersiz kılınır; çubuk her zaman görünür. ---------- */
+.yn-yan[popover] { margin: 0; height: auto; color: var(--yazi); border: 0; border-right: 1px solid var(--kenar-ince); }
+.yn-menu-dugme, .yn-cekmece-kapat { display: none; }
+@media (min-width: 801px) { .yn-yan[popover] { display: flex; } }
+
 @media (max-width: 1179px) {
   .yn-yan { width: 72px; padding: 16px 8px; align-items: stretch; }
   .yn-marka { justify-content: center; padding: 4px 0 12px; }
@@ -239,13 +246,26 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 }
 /* ---------- Telefon (≤800px): menü üstte yatay kaydırmalı şerit; liste ve ayrıntı ayrı görünümler ---------- */
 @media (max-width: 800px) {
-  .yn-yan { position: static; width: auto; flex-direction: row; align-items: center; gap: 4px; padding: 8px; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--kenar-ince); }
-  .yn-marka { padding: 0 4px; flex: none; }
-  .yn-nav { display: flex; flex: none; gap: 4px; }
-  .yn-grup { display: flex; align-items: center; gap: 2px; }
-  .yn-grup + .yn-grup { padding: 0 0 0 6px; border-top: 0; border-left: 1px solid var(--kenar-ince); }
-  .yn-oge { flex: none; width: 44px; }
-  .yn-site { margin-top: 0; width: 44px; border-top: 0; border-radius: 22px; height: 44px; }
+  /* Çekmece: kenar çubuğu kapalıyken hiç görünmez; Menü düğmesi onu soldan kayan tam boy bir panel olarak açar.
+     Tablet kuralındaki (≤1179px) "yalnızca simge" ayarları burada geri alınır: çekmecede etiketler okunur olmalı. */
+  .yn-yan:not(:popover-open) { display: none; }
+  .yn-yan:popover-open {
+    inset: 0 auto 0 0; width: min(300px, 86vw); padding: 16px 12px; gap: 8px; align-items: stretch;
+    box-shadow: var(--kat-2); border-right: 1px solid var(--kenar);
+    transform: none; transition: transform var(--sure-orta) var(--egri-cikis), overlay var(--sure-orta) allow-discrete, display var(--sure-orta) allow-discrete;
+  }
+  @starting-style { .yn-yan:popover-open { transform: translateX(calc(-100% * var(--hareket))); } }
+  .yn-yan::backdrop { background: rgb(0 0 0 / .5); }
+  .yn-marka { justify-content: flex-start; padding: 4px 8px 12px; }
+  .yn-marka-ad, .yn-oge-ad { display: inline; }
+  .yn-yakinda { display: inline; margin-left: auto; }
+  .yn-grup-ad { display: block; }
+  .yn-nav { gap: 14px; }
+  .yn-grup + .yn-grup { padding-top: 0; border-top: 0; }
+  .yn-oge { justify-content: flex-start; height: 44px; padding: 0 12px; border-radius: 12px; }
+  .yn-sayi { position: static; margin-left: auto; }
+  .yn-cekmece-kapat { display: inline-flex; position: absolute; top: 12px; right: 10px; }
+  .yn-menu-dugme { display: inline-flex; margin-left: -6px; }
   .yn-ana { margin-left: 0; }
   .yn-ust { position: static; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
   .yn-ust-baslik { flex: 1 1 60%; }
@@ -284,3 +304,35 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 
 /* Şikâyetler: durum hapları liste sütununun üstünde, dar ekranda yana kayar */
 .yn-durum-haplari { margin-bottom: 8px; overflow-x: auto; scrollbar-width: none; }
+
+/* ---------- Telefon: katlanan süzgeçler ve seçim çubuğu (quadran.js) ---------- */
+.yn-filtre-ac { display: none; }
+.yn-filtre-sayi { min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--vurgu); color: var(--vurgu-ustu); font-size: 12px; }
+.yn-secim-sayi:empty { display: none; }
+.yn-secim-sayi { font-size: 13px; font-weight: 600; color: var(--vurgu); }
+@media (max-width: 800px) {
+  .js .yn-filtre-ac { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .js .yn-filtre.katli { display: none; }
+  /* Seçim yokken yalnızca "Hepsini seç" görünür */
+  .js #toplu-form:not(.secim-var) .yn-toplu > :not(.onay) { display: none; }
+  .js #toplu-form:not(.secim-var) .yn-toplu { padding: 10px 14px; }
+  /* sticky işe yaramaz: kutu tablonun ÜSTÜNDE, satır seçmek için aşağı kaydırınca gözden kaybolurdu. Bu yüzden ekranın altına sabitlenir. */
+  .js #toplu-form.secim-var .yn-toplu { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; margin: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-radius: 16px 16px 0 0; box-shadow: var(--kat-2); border-color: var(--vurgu); background: var(--yuzey-1);
+    animation: toast-giris var(--sure-orta) var(--egri-cikis) backwards; }
+}
+
+/* ---------- Telefon: tablo kartlarını sıkılaştır ----------
+   Her satır bir kart; etiket/değer çiftleri iki sütunlu ızgarada durur (bir kart 8 satır yerine ~4 satır tutar).
+   Kartın "adı" olan hücre (Başlık, Üye, Konu, Mesaj, Ayrıntı) tam genişlikte ve büyük yazılır; # numarası gizlenir. */
+@media (max-width: 800px) {
+  .yn-tablo tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; row-gap: 2px; }
+  .yn-tablo td { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 0; text-align: left; min-width: 0; overflow-wrap: anywhere; }
+  .yn-tablo td[data-etiket]::before { font-size: 11px; }
+  .yn-tablo td[data-etiket="#"] { display: none; }
+  .yn-tablo td:has(> input[type="checkbox"]:only-child) { grid-column: 1 / -1; flex-direction: row; padding-bottom: 0; }
+  .yn-tablo td:is([data-etiket="Başlık"], [data-etiket="Üye"], [data-etiket="Konu"], [data-etiket="Mesaj"], [data-etiket="Ayrıntı"], [data-etiket="Hedef"]) {
+    grid-column: 1 / -1; font-size: 15px; font-weight: 600; padding-bottom: 6px;
+  }
+  .yn-tablo td:is([data-etiket="Başlık"], [data-etiket="Üye"], [data-etiket="Konu"], [data-etiket="Mesaj"], [data-etiket="Ayrıntı"], [data-etiket="Hedef"])::before { display: none; }
+}

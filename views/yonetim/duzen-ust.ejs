@@ -3,11 +3,14 @@
   Beklenen veriler: baslik (üst çubuktaki sayfa başlığı), aktif (kenar menüdeki öğe kimliği: "bakis" | "sikayetler" | "yaptirimlar" | "filtre" |
   "forum" | "sohbet" | "uyeler" | "puan" | "duyurular" | "kayit-erisim" | "islem-kaydi"), locals.menu (yonetim.ts, role göre süzülmüş gruplar),
   locals.kullanici. geri: { ad, href } verilirse başlığın üstünde "← ad" bağlantısı çıkar (üye kartı).
-  Düzen: ≥1180px solda 248px sabit kenar çubuğu; 801-1179px 72px simge şeridi (ipucu title ile); ≤800px menü üstte yatay kaydırmalı şerit.
+  Düzen: ≥1180px solda 248px sabit kenar çubuğu; 801-1179px 72px simge şeridi (ipucu title ile); ≤800px kenar çubuğu gizlenir; üst çubuktaki Menü düğmesi onu soldan kayan bir çekmece olarak açar
+  (tarayıcının yerleşik popover özelliği: JS gerekmez, Esc ve dışarı tıklama kendiliğinden kapatır).
 %>
 <%- include("../partials/bas", { sade: true, baslik: "Yönetim · " + locals.baslik }) %>
 <div class="yn">
-  <aside class="yn-yan">
+  <%# popover: masaüstü ve tablette CSS onu her zaman görünür tutar; telefonda yalnızca Menü düğmesiyle açılır %>
+  <aside class="yn-yan" id="yn-cekmece" popover aria-label="Yönetim menüsü">
+    <button class="ikon-dugme yn-cekmece-kapat" type="button" popovertarget="yn-cekmece" popovertargetaction="hide" aria-label="Menüyü kapat"><%- include("../partials/ikon", { ad: "kapat", boyut: 20 }) %></button>
     <a class="yn-marka" href="/yonetim" title="Yönetim"><span class="yn-marka-isaret">Q</span><span class="yn-marka-ad">Yönetim</span></a>
     <nav class="yn-nav" aria-label="Yönetim menüsü">
       <% for (const g of locals.menu || []) { %>
@@ -30,6 +33,7 @@
   </aside>
   <div class="yn-ana">
     <header class="yn-ust">
+      <button class="ikon-dugme yn-menu-dugme" type="button" popovertarget="yn-cekmece" aria-label="Menüyü aç"><%- include("../partials/ikon", { ad: "menu", boyut: 22 }) %></button>
       <div class="yn-ust-baslik">
         <% if (locals.geri) { %><a class="yn-geri" href="<%= geri.href %>">← <%= geri.ad %></a><% } %>
         <h1 class="yn-baslik"><%= locals.baslik %></h1>

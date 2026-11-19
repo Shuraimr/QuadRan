@@ -1,4 +1,4 @@
-<article class="kart gonderi">
+<article class="kart gonderi"<%- konu.ilk_post_id ? " id=\"mesaj-" + konu.ilk_post_id + "\"" : "" %>>
   <div class="oy">
     <% if (konu.ilk_post_id) { %>
       <%- include("oy", { hedef: { id: konu.ilk_post_id, skor: konu.skor, benim_oyum: konu.benim_oyum } }) %>

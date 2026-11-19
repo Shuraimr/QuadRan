@@ -20,7 +20,7 @@
       <input type="hidden" name="durum" value="<%= qs.durum %>">
       <select class="yn-girdi" name="tur" aria-label="Hedef türü"><option value="hepsi">Tüm türler</option><% for (const t of turler) { %><option value="<%= t %>"<%= qs.tur === t ? " selected" : "" %>><%= turEtiket[t] %></option><% } %></select>
       <select class="yn-girdi" name="sebep" aria-label="Sebep"><option value="hepsi">Tüm sebepler</option><% for (const s of sebepler) { %><option value="<%= s %>"<%= qs.sebep === s ? " selected" : "" %>><%= s %></option><% } %></select>
-      <button class="buton buton-tonal">Süz</button>
+      <button class="buton buton-tonal yn-suz-dugme">Süz</button>
     </form>
     <% if (!gruplar.length) { %>
       <%- include("bos", { filtreli: filtreli, bosMetin: "Bekleyen şikâyet yok", sifirla: "/yonetim/sikayetler" }) %>

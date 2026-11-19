@@ -15,7 +15,7 @@
       <% for (const c of kategoriler) { %><option value="<%= c.id %>"<%= String(qs.kategori) === String(c.id) ? " selected" : "" %>><%= c.name %></option><% } %></select>
   <% } %>
   <select class="yn-girdi" name="durum" aria-label="Durum"><% for (const [d, e] of [["aktif","Yayında"],["silinmis","Silinmiş"],["hepsi","Hepsi"]]) { %><option value="<%= d %>"<%= qs.durum === d ? " selected" : "" %>><%= e %></option><% } %></select>
-  <button class="buton buton-tonal">Süz</button>
+  <button class="buton buton-tonal yn-suz-dugme">Süz</button>
 </form>
 
 <form method="post" action="/yonetim/toplu" id="toplu-form"><%- include("csrf") %><input type="hidden" name="tur" value="<%= tur %>">

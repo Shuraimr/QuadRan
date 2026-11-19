@@ -10,7 +10,7 @@
 <% const ilk = mesajlar[0]; const yorumlar = mesajlar.slice(1); %>
 <div class="govde-iki">
   <main class="sutun-genis">
-    <article class="kart konu">
+    <article class="kart konu"<%- ilk ? " id=\"mesaj-" + ilk.id + "\"" : "" %>>
       <div class="satir kucuk">
         <span class="etiket"><%= konu.kategori %></span>
         <span class="ikincil"><%= zaman(konu.created_at) %><%= konu.duzenlendi ? " · düzenlendi" : "" %></span>

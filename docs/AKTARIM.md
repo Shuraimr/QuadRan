@@ -130,6 +130,18 @@ Konu açmak +5, cevap yazmak +2, mesajına gelen artı oy +1 (eksi oy -1; oy ger
 konu/cevap açma, mesaj silme (geri alma), oy ve `/siralama` hafta/ay sorgusu (üç `?` ile). Değişiklik yalnızca sonraki işlemleri etkiler; var olan puanlar baştan hesaplanmaz.
 Puan sıfırın altına inmez. Kendi mesajına oy verilmez. Rütbe, `ranks` tablosunda puanın geçtiği en yüksek eşiktir.
 
+## Arayüz: seçici, hareket ve telefon düzeni (v0.4.0)
+
+- Seçici: `public/js/quadran.js` her `<select>`'i özel açılır listeye çevirir (JS yoksa yerel liste çalışır; `data-yerel` ile kapatılır).
+  Gerçek select DOM'da kalır ve forma o gönderilir. Klavye: ↑ ↓ Home End, harfle atlama, Enter, Esc. Zorunlu alan boşsa seçici kırmızı olur.
+  Yönetim panelinde yalnızca seçicilerden oluşan süzgeç formları seçince kendiliğinden gönderilir ("Süz" gizlenir).
+- Hareket: `public/css/hareket.css` ve `quadran.css`'teki `--sure-*`, `--egri-*`, `--hareket` değişkenleri. "Animasyonları azalt"
+  (`<html data-az-animasyon>`) ve işletim sisteminin `prefers-reduced-motion` tercihi hepsini kapatır.
+- Yönetim paneli telefonda (≤800px): kenar çubuğu bir popover'dır; üst çubuktaki Menü düğmesi onu soldan kayan çekmece olarak açar.
+  Süzgeçler "Süzgeçler" düğmesinin arkasına katlanır; toplu işlem çubuğu satır seçilince ekranın altına sabitlenir;
+  tablolar iki sütunlu kartlara dönüşür.
+- `/onizleme` sayfaları yalnızca `NODE_ENV` production değilken açıktır (`npm start` yayın modudur).
+
 ## Bilinen eksikler
 
 - Avatar ve banner yükleme yok: avatar/profil efekti sistemiyle birlikte yapılacak; ayarlar sayfasında bu alanlar kapalı.

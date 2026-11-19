@@ -1,11 +1,12 @@
 {
   "name": "quadran",
-  "version": "0.3.0",
-  "description": "",
+  "version": "0.4.0",
+  "description": "Türkçe forum sitesi: konular, sohbet, özel mesaj, rütbe/rozet ve gelişmiş yönetim paneli",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node --watch --env-file=.env src/server.ts"
+    "dev": "node --watch --env-file=.env src/server.ts",
+    "start": "NODE_ENV=production node --env-file=.env src/server.ts"
   },
   "keywords": [],
   "author": "",
