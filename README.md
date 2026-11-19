@@ -1,8 +1,8 @@
 # QuadRan
 
-Türkçe bir forum sitesi. Üyeler kategorilere ayrılmış konular açar, cevap yazar, oy verir; puan topladıkça rütbe ve rozet kazanır. Genel sohbet, özel mesajlar, bildirimler ve moderatörler için gelişmiş bir yönetim paneli vardır.
+Türkçe bir forum sitesi. Üyeler kategorilere ayrılmış konular açar, cevap yazar, oy verir; puan topladıkça rütbe ve rozet kazanır. Genel sohbet, davetle girilen özel odalar, özel mesajlar, bildirimler ve moderatörler için gelişmiş bir yönetim paneli vardır.
 
-**Sürüm:** 0.5.0 · **Teknolojiler:** Node.js 22 (TypeScript'i doğrudan çalıştırır) · Express 5 · EJS · MySQL 8.4 (ORM yok, saf SQL) · Docker Compose
+**Sürüm:** 0.6.0 · **Teknolojiler:** Node.js 22 (TypeScript'i doğrudan çalıştırır) · Express 5 · EJS · MySQL 8.4 (ORM yok, saf SQL) · Docker Compose
 
 ## Özellikler
 
@@ -10,7 +10,7 @@ Türkçe bir forum sitesi. Üyeler kategorilere ayrılmış konular açar, cevap
 - Akış: kategori süzgeci, Yeni / Popüler / En iyi sıralaması, sabitlenmiş konular en üstte
 - Konu sayfası: cevap, oy (+1 / −1), kendi mesajını düzenleme ve silme, kilitli konular
 - Profil: konular ve yorumlar sekmeleri, rütbe ilerlemesi, rozetler, haftalık katkı grafiği
-- Genel sohbet, özel mesajlar ("görüldü" bilgisiyle), bildirimler
+- Genel sohbet ve özel odalar (davetle ya da davet bağlantısıyla girilen grup sohbetleri; oda açmak rütbe ister), özel mesajlar ("görüldü" bilgisiyle), engelleme, bildirimler
 - Arama (konu, kullanıcı, kategori), sıralama (hafta / ay / tüm zamanlar)
 - Şikâyet: konu mesajı, kullanıcı, sohbet mesajı ve özel mesaj şikâyet edilebilir
 - Görünüm ayarları: koyu / açık / sistem teması, 5 vurgu rengi, kompakt kartlar, animasyonları azaltma
@@ -107,4 +107,4 @@ Arayüz Figma'da tasarlandı: bilgi mimarisi, tasarım sistemi (renk değişkenl
 
 ## Durum ve sıradakiler
 
-Temel özellikler çalışıyor. Bilinen eksikler (avatar yükleme, gerçek e-posta gönderimi) [`docs/AKTARIM.md`](docs/AKTARIM.md) içinde. Sıradaki büyük işler: özel odalar, çok oyunculu oyunlar, avatar ve profil efektleri.
+Temel özellikler çalışıyor. Bilinen eksikler (avatar yükleme, gerçek e-posta gönderimi) [`docs/AKTARIM.md`](docs/AKTARIM.md) içinde. Sıradaki büyük işler: referans ve üyelik sistemi, rütbe ve profil geliştirmeleri, çok oyunculu oyunlar, avatar ve profil efektleri.

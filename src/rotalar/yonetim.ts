@@ -15,6 +15,7 @@ import { hedefOnizleme, TUR_ETIKET } from "../sikayet.ts";
 import { sayfala, tarihFiltresi, menuKur, kalanSure } from "./yonetim-ortak.ts";
 import { yonetimKullanici } from "./yonetim-kullanici.ts";
 import { yonetimIcerik } from "./yonetim-icerik.ts";
+import { yonetimOda } from "./yonetim-oda.ts";
 import { yonetimSikayet } from "./yonetim-sikayet.ts";
 import { yonetimSite } from "./yonetim-site.ts";
 
@@ -59,6 +60,7 @@ yonetim.get("/yonetim/icerik", (req, res) => {
 
 yonetim.use(yonetimKullanici);
 yonetim.use(yonetimIcerik);
+yonetim.use(yonetimOda);
 yonetim.use(yonetimSikayet);
 yonetim.use(yonetimSite);
 
@@ -110,7 +112,7 @@ yonetim.get("/yonetim", async (req, res) => {
 
   const [bekleyenler]: any = await pool.query(
     `SELECT reports.id, reports.hedef_tur, reports.sebep, reports.created_at, bildiren.username AS bildiren,
-            ${"COALESCE(reports.post_id, reports.reported_user_id, reports.chat_message_id, reports.message_id)"} AS hedef_id
+            ${"COALESCE(reports.post_id, reports.reported_user_id, reports.chat_message_id, reports.message_id, reports.room_message_id)"} AS hedef_id
        FROM reports JOIN users bildiren ON bildiren.id = reports.reporter_id
       WHERE reports.durum = 'bekliyor' ORDER BY reports.id DESC LIMIT 5`
   );

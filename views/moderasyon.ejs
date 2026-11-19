@@ -7,7 +7,7 @@
       id, durum, sebep, aciklama, created_at,          reports: sebep, aciklama, durum, created_at
       bildiren,                                        reports.reporter_id -> users.username
       ayni_post_sayisi,                                aynı hedefe kaç şikâyet var (bu dahil)
-      tur,                                             reports.hedef_tur: "konu_mesaji" | "kullanici" | "sohbet_mesaji" | "ozel_mesaj"
+      tur,                                             reports.hedef_tur: "konu_mesaji" | "kullanici" | "sohbet_mesaji" | "ozel_mesaj" | "oda_mesaji"
       hedef: {                                         src/sikayet.ts hedefOnizleme()
         yazar, rutbe, banli, icerik, tarih, silindi,   şikâyet edilen kişi (kullanıcı şikâyetinde kişinin kendisi) ve içerik
         link,                                          içeriğin adresi ("" = özel mesaj, adres yok)
@@ -98,16 +98,17 @@
                 <% if (h.rutbe) { %><span class="rozet"><%= h.rutbe %></span><% } %>
                 <% if (s.tur === "sohbet_mesaji") { %><span class="cip-cerceveli">Genel sohbet</span><% } %>
                 <% if (s.tur === "ozel_mesaj") { %><span class="cip-cerceveli">Özel mesaj → <%= h.alici %></span><% } %>
+                <% if (s.tur === "oda_mesaji") { %><span class="cip-cerceveli">Oda: <%= h.oda %></span><% } %>
                 <span class="zaman">· <%= zaman(h.tarih) %></span>
               </div>
-              <% if (s.tur === "ozel_mesaj") { %>
+              <% if (s.tur === "ozel_mesaj" || s.tur === "oda_mesaji") { %>
                 <%# GİZLİLİK: özel mesajın yalnızca şikâyet edilen kısmı ve çevresindeki birkaç mesaj gösterilir, konuşmanın tamamı değil %>
                 <div class="moderasyon-baglam" aria-label="Konuşmanın şikâyet edilen mesaj çevresi">
                   <% for (const b of h.baglam) { %>
                     <div class="moderasyon-baglam-satir<%= b.hedef ? ' hedef' : '' %><%= b.silindi ? ' silinmis-icerik' : '' %>"><strong><%= b.gonderen %></strong> <span><%= b.icerik %></span></div>
                   <% } %>
                 </div>
-                <p class="ikincil kucuk">Gizlilik için konuşmanın yalnızca bu bölümü gösterilir.</p>
+                <p class="ikincil kucuk">Gizlilik için <%= s.tur === "oda_mesaji" ? "odanın" : "konuşmanın" %> yalnızca bu bölümü gösterilir.</p>
               <% } else { %>
                 <div class="metin"><%= h.silindi ? "Bu mesaj silindi." : h.icerik %></div>
                 <% if (s.tur === "konu_mesaji") { %>

@@ -5,7 +5,7 @@
 %>
 <%- include("duzen-ust", { baslik: baslik, aktif: aktif }) %>
 <% if (tur === "sohbet") { %>
-  <div class="yn-sekmeler siralama"><a class="aktif" href="/yonetim/sohbet">Genel sohbet</a><span class="devre" title="Yakında">Odalar — yakında</span></div>
+  <div class="yn-sekmeler siralama"><a class="aktif" href="/yonetim/sohbet">Genel sohbet</a><a href="/yonetim/sohbet/odalar">Odalar</a></div>
 <% } else { %><%- include("forum-sekmeler", { sekme: tur }) %><% } %>
 <form class="yn-filtre kart" method="get" action="<%= yol %>">
   <input class="yn-girdi" type="search" name="q" value="<%= qs.q %>" placeholder="<%= tur === 'konu' ? 'Başlıkta ara' : 'Metinde ara' %>" aria-label="Ara">

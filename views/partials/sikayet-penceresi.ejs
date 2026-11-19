@@ -8,6 +8,7 @@
   yazar    engelleme kutusundaki ad (JS'siz /sikayet sayfası ve profildeki pencere için sunucudan gelir)
   Kullanıcı şikâyeti bağlantısı: <a href="/sikayet?kullanici=ayse" data-sikayet-ac data-kullanici="ayse" data-yazar="ayse">
   Genel sohbet mesajı: <a href="/sikayet?sohbet_id=3" data-sikayet-ac data-sohbet-id="3" data-baslik="Bu sohbet mesajını şikâyet et">
+  Oda mesajı (yalnızca odanın üyesi): <a href="/sikayet?oda_mesaj_id=9" data-sikayet-ac data-oda-mesaj-id="9" data-baslik="Bu oda mesajını şikâyet et"> ("Konu dışı" seçilebilir: data-hedef "sohbet")
   Özel mesaj (yalnızca alıcı): <a href="/sikayet?mesaj_id=5" data-sikayet-ac data-mesaj-id="5" data-baslik="Bu özel mesajı şikâyet et">
   sohbet_id, mesaj_id  pencere ilk açıldığında ilgili gizli alana yazılacak id (JS yoksa /sikayet sayfası bunları doldurur)
   statik   true ise <dialog> yerine açık kutu (yalnızca /sikayet sayfası ve önizleme için)
@@ -23,8 +24,9 @@
     <input type="hidden" name="kullanici" value="<%= locals.hedef_kullanici ?? '' %>">
     <input type="hidden" name="sohbet_id" value="<%= locals.sohbet_id ?? '' %>">
     <input type="hidden" name="mesaj_id" value="<%= locals.mesaj_id ?? '' %>">
+    <input type="hidden" name="oda_mesaj_id" value="<%= locals.oda_mesaj_id ?? '' %>">
     <div class="sikayet-baslik-blok">
-      <h2<%- statik_ ? "" : ' id="sikayet-baslik"' %>><%= hedef_ === "kullanici" ? "Bu kullanıcıyı şikâyet et" : hedef_ === "sohbet" ? "Bu sohbet mesajını şikâyet et" : hedef_ === "ozel" ? "Bu özel mesajı şikâyet et" : "Bu mesajı şikâyet et" %></h2>
+      <h2<%- statik_ ? "" : ' id="sikayet-baslik"' %>><%= hedef_ === "kullanici" ? "Bu kullanıcıyı şikâyet et" : locals.oda_mesaj_id ? "Bu oda mesajını şikâyet et" : hedef_ === "sohbet" ? "Bu sohbet mesajını şikâyet et" : hedef_ === "ozel" ? "Bu özel mesajı şikâyet et" : "Bu mesajı şikâyet et" %></h2>
       <p class="ikincil kucuk">Şikâyetini yalnızca moderatörler görür. Şikâyet ettiğin kişi kimin bildirdiğini öğrenmez.</p>
     </div>
     <fieldset class="sikayet-sebepler">

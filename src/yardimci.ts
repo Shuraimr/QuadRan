@@ -32,7 +32,7 @@ export async function puanEkle(userId: number, miktar: number) {
 // ---------------------------------------------------------------------------
 // Bildirim oluştur. Kişi kendi kendine bildirim almaz.
 // ---------------------------------------------------------------------------
-type BildirimTuru = "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon" | "duyuru";
+type BildirimTuru = "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon" | "duyuru" | "oda";
 
 export async function bildirimGonder(b: { alan: number; yapan: number | null; tur: BildirimTuru; metin: string; link: string }) {
   if (b.yapan !== null && b.alan === b.yapan) return;

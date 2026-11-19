@@ -10,3 +10,6 @@ node_modules/
 *.log
 *.swp
 .vscode/
+
+# Claude: kişisel notlar (Figma bağlantısı, hesap notları)
+CLAUDE.local.md

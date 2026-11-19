@@ -1,0 +1,68 @@
+<%#
+  Genel sohbetin gövdesi (başlık, mesaj akışı, yazı kutusu). /sohbet'te iki yerleşimde kullanılır:
+  misafir (merkez_ = false: sağda Çevrimiçi ve Kurallar yan sütunu) ve üye (merkez_ = true: sohbet merkezi, bilgiler başlığın altındaki <details>'te).
+  Beklenen veriler sohbet.ejs ile aynı (shMesajlar, shOgeler, shCevrimici, shKurallar); merkez_ (bool)
+%>
+    <header class="sohbet-baslik">
+      <% if (merkez_) { %><a class="ikon-dugme mesaj-geri" href="/sohbet" aria-label="Sohbet listesine dön"><%- include("ikon", { ad: "cevap", boyut: 20 }) %></a><% } %>
+      <%- include("ikon", { ad: "sohbet", boyut: 22 }) %>
+      <h1>Genel sohbet</h1>
+      <% if (shCevrimici.length) { %><span class="kucuk ikincil"><%= shCevrimici.length %> kişi çevrimiçi</span><% } %>
+    </header>
+    <% if (merkez_) { %>
+      <%# Sohbet merkezinde yan sütun yok: çevrimiçi listesi ve kurallar başlığın altında açılır (JS gerekmez) %>
+      <details class="sohbet-bilgi">
+        <summary>Çevrimiçi olanlar ve kurallar</summary>
+        <div class="sohbet-bilgi-ic">
+          <div class="sohbet-cevrimici">
+            <% if (shCevrimici.length === 0) { %><p class="ikincil kucuk">Şu an kimse görünmüyor.</p><% } %>
+            <% for (const c of shCevrimici) { %><a href="/profil/<%= c.username %>"><span class="sohbet-nokta" aria-hidden="true"></span><%= c.username %></a><% } %>
+          </div>
+          <ol class="sohbet-kurallar"><% for (const k of shKurallar) { %><li><span><%= k %></span></li><% } %></ol>
+        </div>
+      </details>
+    <% } %>
+
+    <div class="sohbet-akis" tabindex="0" aria-label="Sohbet mesajları">
+      <div class="sohbet-akis-ic">
+        <% if (shOgeler.length === 0) { %>
+          <div class="bos">Sohbet henüz sessiz. İlk mesajı sen yaz.</div>
+        <% } %>
+        <% for (const o of shOgeler) { %>
+          <div class="sohbet-mesaj <%= o.devam ? '' : 'yeni' %>" id="s-<%= o.m.id %>">
+            <% if (o.devam) { %>
+              <span class="sohbet-yer"></span>
+            <% } else { %>
+              <a class="avatar avatar-36" href="/profil/<%= o.m.yazar %>" aria-label="<%= o.m.yazar %> profili"><%= o.m.yazar[0] %></a>
+            <% } %>
+            <div class="sohbet-icerik">
+              <% if (!o.devam) { %>
+                <div class="sohbet-meta">
+                  <a class="kullanici" href="/profil/<%= o.m.yazar %>"><%= o.m.yazar %></a>
+                  <% if (o.m.rutbe) { %><span class="rozet"><%= o.m.rutbe %></span><% } %>
+                  <span class="zaman"><%= zaman(o.m.created_at) %></span>
+                </div>
+              <% } %>
+              <div class="sohbet-metin"><%= o.m.content %></div>
+            </div>
+            <% if (locals.kullanici && o.m.yazar !== locals.kullanici.username) { %>
+              <a class="sohbet-bayrak" href="/sikayet?sohbet_id=<%= o.m.id %>" data-sikayet-ac data-sohbet-id="<%= o.m.id %>" data-yazar="<%= o.m.yazar %>" data-baslik="Bu sohbet mesajını şikâyet et" aria-label="<%= o.m.yazar %> kişisinin mesajını şikâyet et" title="Şikâyet et"><%- include("ikon", { ad: "bayrak", boyut: 16 }) %></a>
+            <% } %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (locals.hata) { %><div class="bilgi-notu hata-notu sohbet-hata" role="alert"><%- include("ikon", { ad: "uyari", boyut: 18 }) %><span><%= hata %></span></div><% } %>
+    <% if (locals.kullanici) { %>
+      <form class="sohbet-yaz" method="post" action="/sohbet"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+        <textarea name="content" rows="1" maxlength="500" required placeholder="Bir şey yaz" aria-label="Sohbet mesajın"></textarea>
+        <button class="buton buton-birincil">Gönder</button>
+      </form>
+    <% } else { %>
+      <div class="sohbet-kilit">
+        <%- include("ikon", { ad: "kilit", boyut: 18 }) %>
+        <span>Yazmak için giriş yapmalısın.</span>
+        <a href="/giris?don=/sohbet">Giriş yap</a>
+      </div>
+    <% } %>

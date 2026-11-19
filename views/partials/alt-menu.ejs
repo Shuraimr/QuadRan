@@ -3,6 +3,7 @@
   Beklenen veriler (hepsi isteğe bağlı):
   aktifMenu          "akis" | "kesfet" | "konu-ac" | "sohbet" | "giris" | "profil" (yoksa "akis")
   kullanici          giriş yapmışsa { username }
+  okunmamisOda       true ise Sohbet üzerinde küçük nokta (okunmamış oda mesajı)
   okunmamisBildirim  0'dan büyükse Bildirimler üzerinde küçük nokta çıkar
   statik             true ise sabit olmadan gösterilir (yalnızca önizleme sayfası için)
 %>
@@ -32,6 +33,7 @@
     <a class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" href="<%= o.href %>"<%- o.arama ? ' data-arama-ac' : '' %><%- aktifMenu_ === o.id ? ' aria-current="page"' : '' %>>
       <span class="menu-hap">
         <%- include("ikon", { ad: o.ikon, boyut: 24 }) %>
+        <% if (o.id === "sohbet" && locals.okunmamisOda) { %><span class="menu-nokta" role="img" aria-label="Okunmamış oda mesajı var"></span><% } %>
         <% if (o.nokta) { %><span class="menu-nokta" role="img" aria-label="Okunmamış bildirim var"></span><% } %>
       </span>
       <span class="menu-etiket"><%= o.ad %></span>

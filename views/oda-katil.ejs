@@ -1,0 +1,41 @@
+<%#
+  Davet bağlantısı sayfası: /oda/katil/:kod  (giriş gerekir; misafir girişe gider ve geri döner)
+  Beklenen veriler:
+  hal        "ok" | "yok" | "iptal" | "doldu" | "sinir" | "kapali" | "yasak"  ("uye" olan zaten odaya yönlenir)
+  oda        { ad, aciklama, uye (sayı), olusturan } | null (kod hiç yoksa)
+  gecerlilik "Bağlantı 6 gün daha geçerli." ya da boş (süresiz)
+  kod        adresteki kod (forma yazılır)
+  Form: POST /oda/katil/:kod
+%>
+<%- include("partials/bas", { baslik: baslik }) %>
+<%- include("partials/ust-cubuk") %>
+<%
+  const hatalar_ = {
+    yok: ["Bu bağlantı geçerli değil", "Bağlantıyı yanlış kopyalamış olabilirsin ya da oda silinmiş. Daveti gönderen kişiden yenisini iste."],
+    iptal: ["Bu bağlantı iptal edildi", "Odanın yöneticisi bu davet bağlantısını iptal etmiş. Yeni bir bağlantı isteyebilirsin."],
+    doldu: ["Bu bağlantının süresi dolmuş", "Davet bağlantılarının geçerlilik süresi sınırlı olabilir. Odanın yöneticisinden yenisini iste."],
+    sinir: ["Bu bağlantı kullanım sınırına ulaştı", "Bağlantı en fazla kaç kişi tarafından kullanılabileceği belirlenmişti ve bu sayıya ulaşıldı. Yeni bir bağlantı iste."],
+    kapali: ["Bu oda şu an kapalı", "Oda yöneticiler tarafından kapatıldığı için yeni üye alamıyor."],
+    yasak: ["Şu an bu odaya katılamazsın", "Odadan çıkarıldığın için 24 saat boyunca bağlantıyla geri dönemezsin. Odanın bir yöneticisi seni yeniden davet edebilir."],
+  };
+%>
+<main class="oda-katil">
+  <section class="kart oda-katil-kart">
+    <% if (hal === "ok") { %>
+      <span class="oda-avatar oda-avatar-80"><%= oda.ad[0].toLocaleUpperCase("tr") %></span>
+      <h1><%= oda.ad %></h1>
+      <% if (oda.aciklama) { %><p class="oda-katil-aciklama"><%= oda.aciklama %></p><% } %>
+      <p class="ikincil"><%= oda.uye %> üye · <%= oda.olusturan %> seni davet etti</p>
+      <form method="post" action="/oda/katil/<%= encodeURIComponent(kod) %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+        <button class="buton buton-birincil buton-genis" type="submit">Odaya katıl</button>
+      </form>
+      <% if (gecerlilik) { %><p class="ikincil kucuk"><%= gecerlilik %></p><% } %>
+    <% } else { %>
+      <span class="mesaj-bos-ikon"><%- include("partials/ikon", { ad: hal === "kapali" || hal === "yasak" ? "kilit" : "baglanti", boyut: 28 }) %></span>
+      <h1><%= hatalar_[hal][0] %></h1>
+      <p class="ikincil"><%= hatalar_[hal][1] %></p>
+      <a class="buton buton-cerceveli" href="/sohbet">Sohbete dön</a>
+    <% } %>
+  </section>
+</main>
+<%- include("partials/son") %>

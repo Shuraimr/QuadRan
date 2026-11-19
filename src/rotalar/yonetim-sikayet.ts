@@ -1,6 +1,6 @@
 // Yönetim paneli: Moderasyon grubu (Şikâyetler, Yaptırımlar). Otomatik filtre yonetim-site.ts'te.
 //
-// Şikâyetler: tek kuyruk, dört hedef türü (konu_mesaji, kullanici, sohbet_mesaji, ozel_mesaj).
+// Şikâyetler: tek kuyruk, beş hedef türü (konu_mesaji, kullanici, sohbet_mesaji, ozel_mesaj, oda_mesaji).
 // Ekran "ana/ayrıntı" (master/detail): solda aynı hedefe gelenlerin gruplandığı liste, sağda seçili şikâyetin (?id=) ayrıntısı.
 // /moderasyon'dan farkı: filtre, gruplama, zorunlu sebep, yazarın geçmiş yaptırımları.
 import express from "express";
@@ -15,8 +15,8 @@ import { sayfala, secim, onayIste } from "./yonetim-ortak.ts";
 export const yonetimSikayet = express.Router();
 
 const DURUMLAR = ["bekliyor", "islendi", "reddedildi", "hepsi"] as const;
-// Hedef kimliği: dört sütundan hangisi doluysa o (reports.hedef_tur ile uyumlu, CHECK garanti eder)
-const HEDEF_ID = "COALESCE(reports.post_id, reports.reported_user_id, reports.chat_message_id, reports.message_id)";
+// Hedef kimliği: beş sütundan hangisi doluysa o (reports.hedef_tur ile uyumlu, CHECK garanti eder)
+const HEDEF_ID = "COALESCE(reports.post_id, reports.reported_user_id, reports.chat_message_id, reports.message_id, reports.room_message_id)";
 
 yonetimSikayet.get("/yonetim/sikayetler", async (req, res) => {
   const yapan = res.locals.kullanici;

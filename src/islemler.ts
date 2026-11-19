@@ -96,6 +96,7 @@ export const HEDEF_SUTUN: Record<string, string> = {
   kullanici: "reported_user_id",
   sohbet_mesaji: "chat_message_id",
   ozel_mesaj: "message_id",
+  oda_mesaji: "room_message_id",
 };
 
 export async function sikayetleriKapat(tur: string, hedefId: number, durum: "islendi" | "reddedildi", yetkiliId: number): Promise<number> {
@@ -193,7 +194,7 @@ export async function sohbetMesajiSil(id: number, yetkiliId: number, sebep?: str
   await sikayetleriKapat("sohbet_mesaji", id, "islendi", yetkiliId);
   await bildirimGonder({
     alan: m.user_id, yapan: null, tur: "moderasyon",
-    metin: `Sohbetteki mesajın moderatörler tarafından kaldırıldı: “${kisalt(m.content, 50)}”.${sebepEki(sebep)}`, link: "/sohbet",
+    metin: `Sohbetteki mesajın moderatörler tarafından kaldırıldı: “${kisalt(m.content, 50)}”.${sebepEki(sebep)}`, link: "/sohbet?genel=1",
   });
   return m;
 }
@@ -213,6 +214,20 @@ export async function ozelMesajiSil(id: number, yetkiliId: number, sebep?: strin
   await bildirimGonder({
     alan: m.sender_id, yapan: null, tur: "moderasyon",
     metin: `Gönderdiğin bir özel mesaj şikâyet üzerine moderatörler tarafından kaldırıldı.${sebepEki(sebep)}`, link: "/mesajlar",
+  });
+  return m;
+}
+
+// Oda mesajı (özel oda, sql/12): yetkili yalnızca şikâyet kuyruğundan siler (odaların mesajları panelde gezilmez, gizlilik).
+export async function odaMesajiSil(id: number, yetkiliId: number, sebep?: string) {
+  const [satirlar]: any = await pool.query("SELECT id, user_id, content FROM room_messages WHERE id = ? AND tur = 'mesaj' AND deleted_at IS NULL", [id]);
+  const m = satirlar[0];
+  if (!m) return null;
+  await pool.query("UPDATE room_messages SET deleted_at = NOW() WHERE id = ?", [id]);
+  await sikayetleriKapat("oda_mesaji", id, "islendi", yetkiliId);
+  await bildirimGonder({
+    alan: m.user_id, yapan: null, tur: "moderasyon",
+    metin: `Bir oda mesajın şikâyet üzerine moderatörler tarafından kaldırıldı: “${kisalt(m.content, 50)}”.${sebepEki(sebep)}`, link: "/sohbet",
   });
   return m;
 }

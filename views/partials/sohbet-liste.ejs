@@ -1,0 +1,85 @@
+<%#
+  Sohbet merkezinin sol listesi (yalnızca üyeler): /sohbet ve /oda/:id sayfalarında aynı parça.
+  Beklenen veriler:
+  hub        { odalar [{ id, ad, sessiz, kapali, okunmamis, son_metin, son_zaman }], davetler [{ id, oda, davet_eden }],
+               genel { metin, zaman } | null, olustur { izinli, rutbeYeter, sinirDolu, rutbeAd, kalanPuan, sinir } }
+  aktifOda   açık odanın numarası; 0 ise "Genel sohbet" açıktır
+  Davete cevap: POST /oda/davet/:id/kabul | /ret · "Oda aç": /oda/yeni (JS varsa pencere, #oda-yeni)
+  Telefonda (≤960px) bu liste ile konuşma ayrı görünümlerdir: listede iken konuşma gizlenir (.mesaj-acik sınıfı sayfada).
+%>
+<%
+  const sl_ = locals.hub;
+  const slAktif_ = locals.aktifOda || 0;
+  const slGunBasi_ = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+  const slZaman_ = (d) => {
+    if (!d) return "";
+    const f = Math.round((slGunBasi_(new Date()) - slGunBasi_(d)) / 86400000);
+    if (f === 0) return new Date(d).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+    if (f === 1) return "Dün";
+    return new Date(d).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+  };
+  const slOl_ = sl_.olustur;
+%>
+<section class="kart mesaj-liste oda-liste" aria-label="Sohbetler">
+  <div class="mesaj-liste-ust">
+    <div class="mesaj-liste-baslik">
+      <h1>Sohbet</h1>
+      <% if (slOl_.izinli) { %>
+        <a class="buton buton-tonal yeni-mesaj-dugme" href="/oda/yeni" data-oda-panel="yeni"><%- include("ikon", { ad: "arti", boyut: 18 }) %> Oda aç</a>
+      <% } %>
+    </div>
+  </div>
+  <div class="oda-liste-kaydir">
+    <% if (!slOl_.izinli) { %>
+      <div class="oda-kilit-kart">
+        <%- include("ikon", { ad: "kilit", boyut: 18 }) %>
+        <% if (!slOl_.rutbeYeter) { %>
+          <span>Oda açmak için <strong><%= slOl_.rutbeAd %></strong> olmalısın · <%= slOl_.kalanPuan %> puan kaldı</span>
+        <% } else { %>
+          <span>En çok <strong><%= slOl_.sinir %></strong> oda açabilirsin. Yeni oda için birini sil ya da sahipliğini devret.</span>
+        <% } %>
+      </div>
+    <% } %>
+
+    <% for (const d of sl_.davetler) { %>
+      <div class="oda-davet">
+        <p><strong><%= d.davet_eden %></strong> seni “<%= d.oda %>” odasına davet etti</p>
+        <div class="oda-davet-eylem">
+          <form method="post" action="/oda/davet/<%= d.id %>/kabul"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><button class="buton buton-birincil">Kabul et</button></form>
+          <form method="post" action="/oda/davet/<%= d.id %>/ret"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><button class="buton buton-cerceveli">Reddet</button></form>
+        </div>
+      </div>
+    <% } %>
+
+    <nav class="mesaj-satirlar" aria-label="Sohbetler">
+      <a class="mesaj-satir<%= slAktif_ === 0 ? ' aktif' : '' %>" href="/sohbet?genel=1"<%- slAktif_ === 0 ? ' aria-current="page"' : '' %>>
+        <span class="oda-avatar oda-avatar-48 genel"><%- include("ikon", { ad: "sohbet", boyut: 24 }) %></span>
+        <span class="mesaj-satir-govde">
+          <span class="mesaj-satir-ust"><strong>Genel sohbet</strong><span class="kucuk ikincil"><%= sl_.genel ? slZaman_(sl_.genel.zaman) : "" %></span></span>
+          <span class="mesaj-satir-alt"><span class="mesaj-onizleme ikincil"><%= sl_.genel ? sl_.genel.metin : "Herkese açık" %></span></span>
+        </span>
+      </a>
+
+      <h2 class="oda-etiket">Odalarım</h2>
+      <% if (!sl_.odalar.length) { %>
+        <p class="oda-bos ikincil">Henüz bir odan yok. Bir odaya davet edilince ya da davet bağlantısıyla katılınca burada görünür.</p>
+      <% } %>
+      <% for (const o of sl_.odalar) { const aktif = slAktif_ === o.id; %>
+        <a class="mesaj-satir<%= aktif ? ' aktif' : '' %><%= o.okunmamis > 0 && !o.sessiz ? ' okunmamis' : '' %>" href="/oda/<%= o.id %>"<%- aktif ? ' aria-current="page"' : '' %>>
+          <span class="oda-avatar oda-avatar-48"><%= o.ad[0].toLocaleUpperCase("tr") %></span>
+          <span class="mesaj-satir-govde">
+            <span class="mesaj-satir-ust">
+              <strong><%= o.ad %></strong><span class="oda-kilit-ikon" title="Özel oda"><%- include("ikon", { ad: "kilit", boyut: 14 }) %></span>
+              <span class="kucuk ikincil"><%= slZaman_(o.son_zaman) %></span>
+            </span>
+            <span class="mesaj-satir-alt">
+              <span class="mesaj-onizleme ikincil"><%= o.kapali ? "Oda kapatıldı" : (o.son_metin || "Henüz mesaj yok") %></span>
+              <% if (o.sessiz) { %><span class="oda-sessiz" title="Sessize alındı"><%- include("ikon", { ad: "sessiz", boyut: 14 }) %></span><% } %>
+              <% if (o.okunmamis > 0) { %><span class="mesaj-rozet<%= o.sessiz ? ' sessiz' : '' %>" role="img" aria-label="<%= o.okunmamis %> okunmamış mesaj"><%= o.okunmamis %></span><% } %>
+            </span>
+          </span>
+        </a>
+      <% } %>
+    </nav>
+  </div>
+</section>

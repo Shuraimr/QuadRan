@@ -54,3 +54,6 @@ export const girisHesap = new HizSiniri(5, 15);
 export const sifirlamaIp = new HizSiniri(5, 15);
 // Kayıt: aynı IP'den 5 hesap / 60 dakika (toplu sahte hesap açılmasın)
 export const kayitIp = new HizSiniri(5, 60);
+// Oda mesajı: aynı kullanıcıdan dakikada en çok 20 mesaj (art arda gönderip odayı doldurmasın).
+// Sayaç yalnızca bu kullanım için kurulur: giriş sayaçlarından farklı olarak her gönderimde say() çağrılır.
+export const odaMesaj = new HizSiniri(20, 1);

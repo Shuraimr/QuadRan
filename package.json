@@ -1,6 +1,6 @@
 {
   "name": "quadran",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Türkçe forum sitesi: konular, sohbet, özel mesaj, rütbe/rozet ve gelişmiş yönetim paneli",
   "main": "index.js",
   "scripts": {

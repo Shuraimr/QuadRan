@@ -33,7 +33,7 @@
           <% if (g.adet > 1) { %><span class="moderasyon-sayi"><%= g.adet %> şikâyet</span><% } %>
           <small class="ikincil yn-sag"><%= zaman(g.son) %></small>
         </span>
-        <span class="yn-kisa yn-lr-metin"><%= !h ? "Hedef artık yok" : g.tur === "kullanici" ? h.yazar : h.silindi ? "(silinmiş içerik)" : g.tur === "ozel_mesaj" ? "Özel mesaj · " + h.yazar + " → " + h.alici : h.icerik %></span>
+        <span class="yn-kisa yn-lr-metin"><%= !h ? "Hedef artık yok" : g.tur === "kullanici" ? h.yazar : h.silindi ? "(silinmiş içerik)" : g.tur === "ozel_mesaj" ? "Özel mesaj · " + h.yazar + " → " + h.alici : g.tur === "oda_mesaji" ? "Oda “" + h.oda + "” · " + h.yazar + ": " + h.icerik : h.icerik %></span>
         <small class="ikincil"><%= h ? h.yazar : "" %></small>
       </a>
     <% } %>
@@ -63,13 +63,14 @@
       <section class="kart yn-kart">
         <div class="yn-kart-ust"><h3 class="yn-etiket-ust">Bağlam</h3>
           <% if (s.tur === "kullanici") { %><a class="baglanti kucuk" href="/profil/<%= h.yazar %>">Sitede gör →</a>
-          <% } else if (s.tur !== "ozel_mesaj") { %><a class="baglanti kucuk" href="<%= h.link %>">Sitede gör →</a><% } %></div>
-        <% if (s.tur === "ozel_mesaj") { %>
-          <%# GİZLİLİK: yalnızca şikâyet edilen mesaj ve çevresi (öncesinden 3, sonrasından 2 mesaj) %>
+          <% } else if (s.tur !== "ozel_mesaj" && s.tur !== "oda_mesaji") { %><a class="baglanti kucuk" href="<%= h.link %>">Sitede gör →</a><% } %></div>
+        <% if (s.tur === "ozel_mesaj" || s.tur === "oda_mesaji") { %>
+          <%# GİZLİLİK: yalnızca şikâyet edilen mesaj ve çevresi (öncesinden 3, sonrasından 2 mesaj); oda mesajlarında yetkili odayı gezemez %>
+          <% if (s.tur === "oda_mesaji") { %><p class="ikincil kucuk">Oda: <strong><%= h.oda %></strong></p><% } %>
           <div class="moderasyon-baglam">
             <% for (const b of h.baglam) { %><div class="moderasyon-baglam-satir<%= b.hedef ? ' hedef' : '' %><%= b.silindi ? ' silinmis-icerik' : '' %>"><strong><%= b.gonderen %></strong> <span><%= b.icerik %></span></div><% } %>
           </div>
-          <p class="ikincil kucuk">Gizlilik için konuşmanın yalnızca bu bölümü gösterilir.</p>
+          <p class="ikincil kucuk">Gizlilik için <%= s.tur === "oda_mesaji" ? "odanın" : "konuşmanın" %> yalnızca bu bölümü gösterilir.</p>
         <% } else if (s.tur === "kullanici") { %>
           <div class="yn-hedef-vurgu">
             <div class="gonderi-meta"><span class="avatar"><%= h.yazar[0] %></span><strong><%= h.yazar %></strong><% if (h.rutbe) { %><span class="rozet"><%= h.rutbe %></span><% } %></div>

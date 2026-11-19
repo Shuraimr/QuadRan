@@ -5,6 +5,7 @@
   Beklenen veriler (hepsi isteğe bağlı):
   menuKategoriler  [ { id, name } ] (oturum.ts, önbellekli); kategoriId seçili kategori (yalnızca akışta)
   aktifMenu   "akis" | "kategoriler" | "sohbet" | "siralama" | "ayarlar" (yoksa "akis")
+  okunmamisOda  true ise Sohbet öğesinde küçük nokta (sessize alınmamış bir odada okunmamış mesaj var; src/odalar.ts)
   kullanici   giriş yapmışsa { username }; yoksa "Konu aç" ve "Ayarlar" gösterilmez
   statik      true ise sayfanın içinde sabit olmadan gösterilir (yalnızca önizleme sayfası için)
 %>
@@ -25,7 +26,7 @@
     <% for (const o of ogeler_) { %>
       <%# Kategori seçiliyken "Kategoriler" yalnızca rayda (tablet) aktif görünür; geniş çubukta aktif olan alt satırdır (.kisa-aktif) %>
       <a class="menu-ogesi<%= aktifMenu_ === o.id ? (o.id === 'kategoriler' && kategoriId_ ? ' kisa-aktif' : ' aktif') : '' %>" href="<%= o.href %>"<%- aktifMenu_ === o.id && !kategoriId_ ? ' aria-current="page"' : '' %>>
-        <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %></span>
+        <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %><% if (o.id === "sohbet" && locals.okunmamisOda) { %><span class="menu-nokta" role="img" aria-label="Okunmamış oda mesajı var"></span><% } %></span>
         <span class="menu-etiket"><%= o.ad %></span>
       </a>
       <% if (o.id === "kategoriler" && (locals.menuKategoriler || []).length) { %>

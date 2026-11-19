@@ -1,0 +1,134 @@
+<%#
+  Özel oda: /oda/:id  (ve /oda/:id/uyeler|davet|baglantilar|ayarlar|ayril: aynı sayfa, ilgili pencere açık; JS'siz yedek yol)
+  Beklenen veriler (src/rotalar/odalar.ts odaCiz):
+  oda        { id, ad, aciklama, rol ("sahip"|"yonetici"|"uye"), sessiz, kapali (yetkililer kapattı) }
+  mesajlar   [ { id, tur ("mesaj"|"sistem"), content, created_at, user_id, yazar, rutbe, oda_rol, engelli } ]  eskiden yeniye, son 100
+  uyeler     [ { id, username, rutbe, rol, cevrimici } ], cevrimiciSayisi, baglantilar, bekleyenDavetler (yalnızca yöneticilerde dolu)
+  hub, aktifOda  sol liste için; yonetebilir (bool); panelAcik; taban; kalanSure
+  Gönderim: POST /oda/:id/mesaj (content) · Sil: POST /oda/:id/mesaj/:mid/sil · Şikâyet: /sikayet?oda_mesaj_id=
+  Engellediğim kişinin mesajı: kesikli çerçeveli, <details> ile açılan "Göster" çipi (JS gerekmez).
+%>
+<%- include("partials/bas", { baslik: oda.ad }) %>
+<%- include("partials/ust-cubuk") %>
+<%
+  // Art arda gelen mesajları grupla: aynı kişi, aralarında 10 dakikadan az ve araya sistem satırı/engelli çipi girmemiş
+  const odOgeler = [];
+  let odSon = null;
+  for (const m of mesajlar) {
+    const t = new Date(m.created_at).getTime();
+    const normal = m.tur === "mesaj" && !m.engelli;
+    const devam = normal && odSon && odSon.user_id === m.user_id && t - odSon.t < 10 * 60 * 1000;
+    odOgeler.push({ m, devam: !!devam });
+    odSon = normal ? { user_id: m.user_id, t } : null;
+  }
+  const odRol = { sahip: "Sahip", yonetici: "Yönetici" };
+%>
+<main class="mesaj-sayfa oda-sayfa mesaj-acik">
+  <%- include("partials/sohbet-liste") %>
+
+  <section class="kart mesaj-pano" aria-label="<%= oda.ad %> odası">
+    <header class="mesaj-ust oda-ust">
+      <a class="ikon-dugme mesaj-geri" href="/sohbet" aria-label="Sohbet listesine dön"><%- include("partials/ikon", { ad: "cevap", boyut: 20 }) %></a>
+      <div class="oda-ust-kimlik">
+        <span class="oda-avatar oda-avatar-40"><%= oda.ad[0].toLocaleUpperCase("tr") %></span>
+        <span class="mesaj-ust-bilgi">
+          <strong><%= oda.ad %><span class="oda-kilit-ikon" title="Özel oda"><%- include("partials/ikon", { ad: "kilit", boyut: 14 }) %></span></strong>
+          <span class="kucuk ikincil"><%= uyeler.length %> üye · <%= cevrimiciSayisi %> çevrimiçi · davetle</span>
+        </span>
+      </div>
+      <button class="ikon-dugme mesaj-ust-menu-dugme" type="button" popovertarget="oda-menusu" data-menu-ac aria-label="Oda işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
+      <div class="acilir-menu acilir-menu-konumlu" id="oda-menusu" popover aria-label="Oda işlemleri">
+        <a class="acilir-oge" href="/oda/<%= oda.id %>/uyeler" data-oda-panel="uyeler"><%- include("partials/ikon", { ad: "kisiler", boyut: 20 }) %><span class="acilir-ad">Üyeler (<%= uyeler.length %>)</span></a>
+        <% if (yonetebilir && !oda.kapali) { %>
+          <a class="acilir-oge" href="/oda/<%= oda.id %>/davet" data-oda-panel="davet"><%- include("partials/ikon", { ad: "kisi", boyut: 20 }) %><span class="acilir-ad">Davet et</span></a>
+          <a class="acilir-oge" href="/oda/<%= oda.id %>/baglantilar" data-oda-panel="baglantilar"><%- include("partials/ikon", { ad: "baglanti", boyut: 20 }) %><span class="acilir-ad">Davet bağlantıları</span></a>
+          <a class="acilir-oge" href="/oda/<%= oda.id %>/ayarlar" data-oda-panel="ayarlar"><%- include("partials/ikon", { ad: "ayar", boyut: 20 }) %><span class="acilir-ad">Oda ayarları</span></a>
+        <% } %>
+        <hr class="acilir-ayirici">
+        <form method="post" action="/oda/<%= oda.id %>/sessiz"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="sessiz" value="<%= oda.sessiz ? '0' : '1' %>">
+          <button class="acilir-oge" type="submit"><%- include("partials/ikon", { ad: oda.sessiz ? "zil" : "sessiz", boyut: 20 }) %><span class="acilir-ad"><%= oda.sessiz ? "Sesi aç" : "Sessize al" %></span></button>
+        </form>
+        <% if (oda.rol === "sahip") { %>
+          <%# Sahip ayrılamaz: öğe, ne yapması gerektiğini anlatan pencereyi açar %>
+          <a class="acilir-oge acilir-oge-tehlikeli" href="/oda/<%= oda.id %>/ayril" data-oda-panel="ayril"><%- include("partials/ikon", { ad: "cikis", boyut: 20 }) %><span class="acilir-ad">Odadan ayrıl</span></a>
+        <% } else { %>
+          <form method="post" action="/oda/<%= oda.id %>/ayril" data-onay="“<%= oda.ad %>” odasından ayrılmak istiyor musun?"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+            <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("partials/ikon", { ad: "cikis", boyut: 20 }) %><span class="acilir-ad">Odadan ayrıl</span></button>
+          </form>
+        <% } %>
+      </div>
+    </header>
+    <% if (oda.aciklama) { %><p class="oda-aciklama ikincil kucuk" title="<%= oda.aciklama %>"><%= oda.aciklama %></p><% } %>
+
+    <div class="sohbet-akis" tabindex="0" aria-label="Oda mesajları">
+      <div class="sohbet-akis-ic">
+        <% if (!odOgeler.length) { %><div class="bos">Bu odada henüz mesaj yok.</div><% } %>
+        <% for (const o of odOgeler) { const m = o.m; %>
+          <% if (m.tur === "sistem") { %>
+            <div class="oda-sistem" id="o-<%= m.id %>"><%= m.content %></div>
+          <% } else if (m.engelli) { %>
+            <%# Engellediğim kişinin mesajı: kesikli çip; <details> sayesinde JS'siz açılır %>
+            <div class="sohbet-mesaj yeni" id="o-<%= m.id %>">
+              <span class="sohbet-yer"></span>
+              <details class="oda-engelli">
+                <summary>Engellediğin kişinin mesajı · Göster</summary>
+                <div class="oda-engelli-ic"><strong><%= m.yazar %></strong> <span><%= m.content %></span></div>
+              </details>
+            </div>
+          <% } else { %>
+            <div class="sohbet-mesaj <%= o.devam ? '' : 'yeni' %>" id="o-<%= m.id %>">
+              <% if (o.devam) { %>
+                <span class="sohbet-yer"></span>
+              <% } else { %>
+                <a class="avatar avatar-36" href="/profil/<%= m.yazar %>" aria-label="<%= m.yazar %> profili"><%= m.yazar[0] %></a>
+              <% } %>
+              <div class="sohbet-icerik">
+                <% if (!o.devam) { %>
+                  <div class="sohbet-meta">
+                    <a class="kullanici" href="/profil/<%= m.yazar %>"><%= m.yazar %></a>
+                    <% if (odRol[m.oda_rol]) { %><span class="oda-rol rol-<%= m.oda_rol %>"><%= odRol[m.oda_rol] %></span><% } else if (m.rutbe) { %><span class="rozet"><%= m.rutbe %></span><% } %>
+                    <span class="zaman"><%= zaman(m.created_at) %></span>
+                  </div>
+                <% } %>
+                <div class="sohbet-metin" id="ot-<%= m.id %>"><%= m.content %></div>
+              </div>
+              <%
+                const benim = m.user_id === kullanici.id;
+                const silebilir = !oda.kapali && (benim || yonetebilir);
+              %>
+              <button class="mesaj-menu-dugme" type="button" popovertarget="oda-mm-<%= m.id %>" data-menu-ac aria-label="Mesaj işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 18 }) %></button>
+              <div class="acilir-menu acilir-menu-konumlu mesaj-menusu" id="oda-mm-<%= m.id %>" popover aria-label="Mesaj işlemleri">
+                <button class="acilir-oge mesaj-kopyala" type="button" data-kopyala="#ot-<%= m.id %>"><%- include("partials/ikon", { ad: "kopyala", boyut: 20 }) %><span class="acilir-ad">Kopyala</span></button>
+                <% if (!benim) { %>
+                  <a class="acilir-oge" href="/sikayet?oda_mesaj_id=<%= m.id %>" data-sikayet-ac data-oda-mesaj-id="<%= m.id %>" data-yazar="<%= m.yazar %>" data-baslik="Bu oda mesajını şikâyet et"><%- include("partials/ikon", { ad: "bayrak", boyut: 20 }) %><span class="acilir-ad">Şikâyet et</span></a>
+                <% } %>
+                <% if (silebilir) { %>
+                  <form method="post" action="/oda/<%= oda.id %>/mesaj/<%= m.id %>/sil" data-onay="Bu mesaj silinsin mi?"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+                    <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("partials/ikon", { ad: "cop", boyut: 20 }) %><span class="acilir-ad">Sil</span></button>
+                  </form>
+                <% } %>
+              </div>
+            </div>
+          <% } %>
+        <% } %>
+      </div>
+    </div>
+
+    <% if (oda.kapali) { %>
+      <div class="mesaj-kilit">
+        <span class="mesaj-bos-ikon"><%- include("partials/ikon", { ad: "kilit", boyut: 24 }) %></span>
+        <strong>Bu oda yöneticiler tarafından kapatıldı</strong>
+        <p>Mesajları okuyabilirsin ama yeni mesaj yazılamaz.</p>
+      </div>
+    <% } else { %>
+      <form class="sohbet-yaz" method="post" action="/oda/<%= oda.id %>/mesaj"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+        <textarea name="content" rows="1" maxlength="2000" required placeholder="<%= oda.ad %> odasına yaz" aria-label="Mesajın"></textarea>
+        <button class="buton buton-birincil">Gönder</button>
+      </form>
+    <% } %>
+  </section>
+</main>
+<%- include("partials/oda-pencereleri") %>
+<%- include("partials/oda-ac-penceresi") %>
+<%- include("partials/sikayet-penceresi") %>
+<%- include("partials/son") %>

@@ -341,3 +341,126 @@
 .kesfet-lider strong { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .kesfet-sira { width: 20px; font-family: var(--baslik-tipi); font-size: 18px; font-weight: 700; color: var(--vurgu); }
 .kesfet .bolum-etiketi { display: block; } /* telefonda genel ".bolum-etiketi" gizleme kuralını geçersiz kıl: burada bölüm başlığıdır */
+
+/* =====================================================================
+   Özel odalar (sql/12) ve sohbet merkezi
+   Sol liste ve konuşma /mesajlar ile aynı ana/ayrıntı düzenini kullanır (.mesaj-sayfa, .mesaj-liste, .mesaj-pano, 960px altında ayrı görünümler).
+   ===================================================================== */
+.oda-avatar { display: grid; place-items: center; flex: none; background: var(--ton); color: var(--ton-ustu); font-family: var(--baslik-tipi); font-weight: 700; }
+.oda-avatar-40 { width: 40px; height: 40px; border-radius: 12px; font-size: 18px; }
+.oda-avatar-48 { width: 48px; height: 48px; border-radius: 14px; font-size: 20px; }
+.oda-avatar-80 { width: 80px; height: 80px; border-radius: 22px; font-size: 34px; }
+.oda-avatar.genel { background: var(--yuzey-3); color: var(--yazi-2); }
+
+/* Sol liste: başlık sabit, geri kalanı (davetler, genel sohbet, odalarım) kayar */
+.oda-liste .mesaj-liste-ust { padding-bottom: 8px; }
+.oda-liste-kaydir { flex: 1; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 10px; padding: 0 8px 12px; }
+.oda-liste .mesaj-satirlar { flex: none; overflow: visible; padding: 0; }
+.oda-liste .mesaj-satir-ust strong { flex: 0 1 auto; }
+.oda-liste .mesaj-satir-ust .kucuk { margin-left: auto; }
+.oda-etiket { margin: 0; padding: 14px 12px 4px; font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--yazi-2); }
+.oda-bos { margin: 0; padding: 6px 12px 12px; font-size: 13px; line-height: 1.5; }
+.oda-kilit-ikon { display: inline-grid; place-items: center; flex: none; margin-left: 6px; color: var(--yazi-2); vertical-align: middle; }
+.oda-sessiz { display: grid; flex: none; color: var(--yazi-2); }
+.mesaj-rozet.sessiz { background: var(--yuzey-3); color: var(--yazi-2); }
+
+/* Oda açma izni yoksa: kesikli kilit kartı. Bekleyen davet: sarı (bekliyor) kart */
+.oda-kilit-kart { display: flex; align-items: flex-start; gap: 10px; margin: 0 4px; padding: 12px 14px; border: 1px dashed var(--kenar); border-radius: 16px; color: var(--yazi-2); font-size: 13px; line-height: 1.45; }
+.oda-kilit-kart svg { flex: none; margin-top: 1px; }
+.oda-kilit-kart strong { color: var(--yazi); }
+.oda-davet { display: grid; gap: 10px; margin: 0 4px; padding: 12px 14px; border: 1px solid var(--d-bekliyor); border-radius: 16px; background: var(--d-bekliyor-zemin); font-size: 14px; line-height: 1.45; }
+.oda-davet p { margin: 0; overflow-wrap: anywhere; }
+.oda-davet-eylem { display: flex; gap: 8px; }
+.oda-davet-eylem form { flex: 1; display: block; }
+.oda-davet-eylem .buton { width: 100%; height: 40px; }
+
+/* Oda başlığı */
+.oda-ust-kimlik { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.oda-ust .mesaj-ust-bilgi strong { display: flex; align-items: center; min-width: 0; }
+.oda-aciklama { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--kenar-ince); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Mesajlar: sistem satırı, engellenen kişinin kesikli çipi, ⋮ düğmesi */
+.oda-sistem { justify-self: center; max-width: 92%; margin: 8px 0; padding: 4px 12px; border-radius: 12px; background: var(--yuzey-2); color: var(--yazi-2); font-size: 12px; text-align: center; overflow-wrap: anywhere; }
+.oda-engelli { min-width: 0; max-width: 100%; padding: 6px 12px; border: 1px dashed var(--kenar); border-radius: 14px; color: var(--yazi-2); font-size: 13px; }
+.oda-engelli summary { cursor: pointer; list-style: none; }
+.oda-engelli summary::-webkit-details-marker { display: none; }
+.oda-engelli[open] summary { margin-bottom: 4px; }
+.oda-engelli-ic { color: var(--yazi); line-height: 1.5; overflow-wrap: anywhere; white-space: pre-wrap; }
+.sohbet-mesaj .mesaj-menu-dugme { align-self: center; }
+.sohbet-mesaj:hover .mesaj-menu-dugme, .sohbet-mesaj:has(.mesaj-menusu:popover-open) .mesaj-menu-dugme { opacity: 1; }
+.oda-rol { padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.oda-rol.rol-sahip { background: var(--vurgu); color: var(--vurgu-ustu); }
+.oda-rol.rol-yonetici { background: var(--ton); color: var(--ton-ustu); }
+
+/* Genel sohbet (merkezde): çevrimiçi ve kurallar başlığın altında açılır */
+.sohbet-bilgi { border-bottom: 1px solid var(--kenar-ince); font-size: 13px; }
+.sohbet-bilgi summary { cursor: pointer; padding: 8px 20px; color: var(--yazi-2); }
+.sohbet-bilgi-ic { display: grid; gap: 14px; max-height: 40vh; overflow-y: auto; padding: 4px 20px 14px; }
+
+/* Pencereler */
+.oda-pencere::backdrop { background: rgb(0 0 0 / .55); }
+/* JS yokken pencere "açık" çizilir (modal olmadan): sabit konumda, çevresi kararır */
+.oda-pencere[open]:not(:modal) { position: fixed; inset: 0; z-index: 60; height: fit-content; box-shadow: 0 0 0 100vmax rgb(0 0 0 / .55), var(--kat-2); }
+.oda-hakkinda { margin: 0; overflow-wrap: anywhere; }
+.oda-sekmeler { display: flex; gap: 4px; padding: 4px; border-radius: 22px; background: var(--yuzey-2); }
+.oda-sekmeler a { flex: 1; display: grid; place-items: center; min-height: 40px; border-radius: 18px; font-size: 14px; font-weight: 600; color: var(--yazi-2); text-align: center; }
+.oda-sekmeler a.aktif { background: var(--ton); color: var(--ton-ustu); }
+.oda-uyeler, .oda-baglantilar { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.oda-uye { display: flex; align-items: center; gap: 8px; min-height: 56px; padding: 4px 4px 4px 8px; border-radius: 14px; }
+.oda-uye:hover { background: var(--yuzey-2); }
+.oda-uye-kimlik { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+.oda-uye-ad { display: grid; min-width: 0; }
+.oda-uye-ad strong { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oda-uye-ad small { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.oda-kisi { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 6px 8px; border-radius: 14px; }
+.oda-kisi strong { flex: 1; min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oda-kisi form { display: block; flex: none; }
+.oda-form { display: grid; gap: 12px; }
+.oda-iki { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.oda-aciklama-alan textarea { min-height: 88px; height: auto; padding: 14px 16px; line-height: 1.45; }
+.oda-form-eylem { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.oda-form-eylem .buton { min-height: 44px; }
+.oda-baglanti { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--kenar-ince); border-radius: 14px; background: var(--yuzey-2); }
+.oda-baglanti-govde { flex: 1 1 100%; display: grid; gap: 4px; min-width: 0; }
+.oda-baglanti-metin { font-family: "Roboto Mono", monospace; font-size: 13px; overflow-wrap: anywhere; }
+.oda-baglanti form { display: block; margin-left: auto; }
+.oda-kopyala { display: none; min-height: 40px; gap: 6px; }
+.js .oda-kopyala { display: inline-flex; }
+.buton.oda-iptal { color: var(--hata); min-height: 40px; }
+.oda-tehlike { display: grid; gap: 8px; margin-top: 8px; padding: 14px; border: 1px solid var(--hata); border-radius: 16px; }
+.oda-tehlike h3 { margin: 0; font-size: 16px; color: var(--hata); }
+.oda-tehlike p { margin: 0; }
+.oda-tehlike .onay { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.oda-yol-listesi { display: grid; gap: 8px; margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.5; }
+
+/* Davet bağlantısı sayfası */
+.oda-katil { display: grid; justify-items: center; padding: 40px 16px; }
+.oda-katil-kart { display: grid; justify-items: center; gap: 12px; width: min(440px, 100%); padding: 32px 24px; text-align: center; }
+.oda-katil-kart h1 { margin: 0; font-family: var(--baslik-tipi); font-size: 24px; overflow-wrap: anywhere; }
+.oda-katil-kart p { margin: 0; }
+.oda-katil-aciklama { line-height: 1.5; overflow-wrap: anywhere; }
+.oda-katil-kart form { width: 100%; margin-top: 4px; }
+.oda-katil-kart .mesaj-bos-ikon { width: 56px; height: 56px; }
+
+/* Menüdeki okunmamış oda noktası: geniş kenar çubuğunda simge 20px, nokta simgenin köşesine oturur */
+@media (min-width: 1181px) { .kenar-menu .menu-nokta { top: -4px; right: -5px; } }
+
+@media (max-width: 800px) {
+  .oda-sekmeler a { min-height: 44px; }
+  .oda-davet-eylem .buton { height: 48px; }
+  .oda-kisi .buton, .oda-kopyala, .buton.oda-iptal { min-height: 44px; }
+  .sohbet-bilgi summary { padding: 12px 14px; }
+  .sohbet-bilgi-ic { padding: 4px 14px 14px; }
+}
+/* Telefonda listeyi gösterirken (konuşma açık değil) hiçbir satır "açık" vurgulanmaz: genel sohbet yalnızca masaüstü/tablette varsayılan açık konuşmadır */
+@media (max-width: 960px) {
+  .sohbet-merkez:not(.mesaj-acik) .mesaj-satir.aktif { background: none; color: inherit; }
+  .sohbet-merkez:not(.mesaj-acik) .mesaj-satir.aktif .ikincil { color: var(--yazi-2); opacity: 1; }
+  .sohbet-merkez:not(.mesaj-acik) .mesaj-satir.aktif:hover { background: var(--yuzey-2); }
+  .sohbet-merkez:not(.mesaj-acik) .mesaj-satir.aktif .mesaj-onizleme { color: var(--yazi-2); }
+}
+@media (max-width: 800px) {
+  /* ⋮ düğmesi görsel olarak 32px kalır (her mesaj satırı şişmesin) ama dokunma alanı 44px'e genişler */
+  .sohbet-mesaj .mesaj-menu-dugme { position: relative; }
+  .sohbet-mesaj .mesaj-menu-dugme::after { content: ""; position: absolute; inset: -6px; }
+}

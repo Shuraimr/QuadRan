@@ -68,14 +68,14 @@
           form.reset();
           /* Bağlantı hedefini data- alanlarıyla verir: mesaj (data-post-id), kullanıcı (data-kullanici),
              sohbet mesajı (data-sohbet-id), özel mesaj (data-mesaj-id). Hepsi gizli alana yazılır, kullanılmayanlar boşalır. */
-          var alanlar = { post_id: "data-post-id", kullanici: "data-kullanici", sohbet_id: "data-sohbet-id", mesaj_id: "data-mesaj-id" };
+          var alanlar = { post_id: "data-post-id", kullanici: "data-kullanici", sohbet_id: "data-sohbet-id", mesaj_id: "data-mesaj-id", oda_mesaj_id: "data-oda-mesaj-id" };
           Object.keys(alanlar).forEach(function (ad) {
             var gizli = bul('input[name="' + ad + '"]', form);
             if (gizli) gizli.value = sikayet.getAttribute(alanlar[ad]) || "";
           });
           /* Hedef türü: CSS buna bakıp "Konu dışı"yı kullanıcı ve özel mesaj şikâyetinde gizler */
           dlg.setAttribute("data-hedef", sikayet.getAttribute("data-kullanici") ? "kullanici"
-            : sikayet.getAttribute("data-sohbet-id") ? "sohbet" : sikayet.getAttribute("data-mesaj-id") ? "ozel" : "konu");
+            : sikayet.getAttribute("data-sohbet-id") || sikayet.getAttribute("data-oda-mesaj-id") ? "sohbet" : sikayet.getAttribute("data-mesaj-id") ? "ozel" : "konu");
           var baslik = bul("#sikayet-baslik", dlg);
           if (baslik) {
             baslik.textContent = sikayet.getAttribute("data-baslik") ||
@@ -117,7 +117,12 @@
     }
 
     var kapatici = hedef.closest("[data-dialog-kapat]");
-    if (kapatici) { kapat(kapatici.closest("dialog")); }
+    if (kapatici) {
+      var kdlg = kapatici.closest("dialog");
+      /* Kapat bağlantısı JS yokken sayfaya döner; pencere gerçekten kapanabiliyorsa gezinme gereksiz */
+      if (kdlg && acilabilir(kdlg) && kapatici.tagName === "A") e.preventDefault();
+      kapat(kdlg);
+    }
   });
 
   /* Klavye kısayolları: Ctrl/Cmd+K arama, Ctrl/Cmd+, ayarlar */
@@ -682,5 +687,79 @@
     }
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(metin).then(function () { bitti(true); }, yedek);
     else yedek();
+  });
+
+  /* ---------- Özel odalar: pencereler, onay, kişi davet araması ----------
+     Pencereler <dialog>. JS yokken menüdeki bağlantılar /oda/:id/<panel> adresine gider ve sayfa pencereyi AÇIK (modal olmadan) çizer;
+     JS varsa burada o açık pencere modal olarak yeniden açılır, bağlantılar sayfayı yenilemeden pencereyi açar. */
+  hepsi("dialog.oda-pencere[open]").forEach(function (dlg) {
+    if (!acilabilir(dlg) || dlg.matches(":modal")) return;
+    dlg.close(); dlg.showModal();
+  });
+  /* Pencere kapanınca adres çubuğu yedek adresten (/oda/5/uyeler) odanın kendi adresine dönsün */
+  d.addEventListener("close", function (e) {
+    var dlg = e.target;
+    if (!dlg || !dlg.classList || !dlg.classList.contains("oda-pencere")) return;
+    var geri = dlg.getAttribute("data-geri");
+    if (geri && window.history && history.replaceState && location.pathname !== geri.split("?")[0]) history.replaceState(null, "", geri);
+  }, true);
+  d.addEventListener("click", function (e) {
+    var a = e.target && e.target.closest ? e.target.closest("[data-oda-panel]") : null;
+    if (!a) return;
+    var dlg = bul("#oda-" + a.getAttribute("data-oda-panel"));
+    if (!acilabilir(dlg)) return; /* eski tarayıcı: bağlantı sayfaya gider */
+    e.preventDefault();
+    var menu = a.closest("[popover]");
+    if (menu && menu.hidePopover) { try { menu.hidePopover(); } catch (x) { /* kapalı */ } }
+    hepsi("dialog.oda-pencere[open]").forEach(kapat); /* sekme geçişi: önce açık olanı kapat */
+    ac(dlg);
+    var girdi = bul("input:not([type=hidden]), textarea", dlg);
+    if (girdi && a.getAttribute("data-oda-panel") !== "ayarlar") girdi.focus();
+  });
+  /* Tehlikeli ya da geri dönüşü zor işlemler: form data-onay metniyle sorar (metin kullanıcı içeriği içerebildiği için satır içi onsubmit kullanılmaz) */
+  d.addEventListener("submit", function (e) {
+    var f = e.target;
+    var soru = f && f.getAttribute ? f.getAttribute("data-onay") : null;
+    if (soru && !window.confirm(soru)) e.preventDefault();
+  });
+  /* Davet için kişi ara: yazdıkça /oda/:id/kisi-ara'dan en çok 8 kişi gelir; her satırda kendi "Davet et" formu (CSRF belirteci listeden okunur) */
+  hepsi("[data-oda-kisi-ara]").forEach(function (girdi) {
+    var odaId = girdi.getAttribute("data-oda-kisi-ara");
+    var dlg = girdi.closest("dialog"), liste = bul("[data-oda-kisi-sonuc]", dlg);
+    var csrf = liste.getAttribute("data-csrf");
+    var zamanlayici = null, sayac = 0;
+    function yaz(metin) {
+      liste.textContent = "";
+      var p = d.createElement("li"); p.className = "kisi-bos"; p.textContent = metin; liste.appendChild(p);
+    }
+    function gizli(ad, deger) {
+      var i = d.createElement("input"); i.type = "hidden"; i.name = ad; i.value = deger; return i;
+    }
+    function goster(kisiler) {
+      if (!kisiler.length) { yaz("Davet edilebilecek eşleşen kullanıcı yok."); return; }
+      liste.textContent = "";
+      kisiler.forEach(function (k) {
+        var li = d.createElement("li"), av = d.createElement("span"), ad = d.createElement("strong");
+        li.className = "oda-kisi"; av.className = "avatar avatar-36"; av.textContent = k.username[0]; ad.textContent = k.username;
+        li.appendChild(av); li.appendChild(ad);
+        if (k.rutbe) { var r = d.createElement("span"); r.className = "rozet"; r.textContent = k.rutbe; li.appendChild(r); }
+        var f = d.createElement("form"), b = d.createElement("button");
+        f.method = "post"; f.action = "/oda/" + odaId + "/davet";
+        f.appendChild(gizli("_csrf", csrf)); f.appendChild(gizli("panel", "davet")); f.appendChild(gizli("kullanici", k.username));
+        b.className = "buton buton-tonal"; b.type = "submit"; b.textContent = "Davet et";
+        f.appendChild(b); li.appendChild(f); liste.appendChild(li);
+      });
+    }
+    function ara() {
+      var q = girdi.value.trim(), benim = ++sayac;
+      if (!q) { yaz("Bir kullanıcı adı yazmaya başla."); return; }
+      fetch("/oda/" + odaId + "/kisi-ara?q=" + encodeURIComponent(q), { headers: { Accept: "application/json" }, credentials: "same-origin" })
+        .then(function (r) { return r.ok ? r.json() : []; })
+        .then(function (k) { if (benim === sayac) goster(k); })
+        .catch(function () { if (benim === sayac) yaz("Arama şu an yapılamadı."); });
+    }
+    girdi.addEventListener("input", function () { window.clearTimeout(zamanlayici); zamanlayici = window.setTimeout(ara, 250); });
+    /* Enter: sayfa yenilemek yerine aramayı hemen yap */
+    girdi.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); window.clearTimeout(zamanlayici); ara(); } });
   });
 })();

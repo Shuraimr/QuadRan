@@ -6,6 +6,7 @@ import { hesap } from "./rotalar/hesap.ts";
 import { forum } from "./rotalar/forum.ts";
 import { mesaj } from "./rotalar/mesaj.ts";
 import { iletisim } from "./rotalar/iletisim.ts";
+import { odalar } from "./rotalar/odalar.ts";
 import { moderasyon } from "./rotalar/moderasyon.ts";
 import { yonetim } from "./rotalar/yonetim.ts";
 import { duyuruRotasi } from "./ayarlar.ts";
@@ -36,6 +37,7 @@ app.use(hesap);
 app.use(forum);
 app.use(mesaj);
 app.use(iletisim);
+app.use(odalar);       // /oda: özel odalar (davetle girilen grup sohbetleri)
 app.use(moderasyon);
 app.use(yonetim);      // /yonetim: gelişmiş yönetim paneli (moderatör + admin)
 app.use(duyuruRotasi); // POST /duyuru/kapat

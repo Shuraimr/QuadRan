@@ -3,12 +3,13 @@
 //
 // Şikâyet modeli (sql/08_yonetim.sql): reports.hedef_tur hangi sütunun dolu olduğunu söyler.
 //   konu_mesaji -> post_id | kullanici -> reported_user_id | sohbet_mesaji -> chat_message_id | ozel_mesaj -> message_id
+//   oda_mesaji -> room_message_id (özel oda mesajı, sql/12)
 import type { Request, Response } from "express";
 import { pool } from "./db.ts";
 import { denetim } from "./denetim.ts";
 import { rutbeSql, bildirimGonder, kisalt, banliSql } from "./yardimci.ts";
 import {
-  HEDEF_SUTUN, banla, mesajiSil, sohbetMesajiSil, ozelMesajiSil, sikayetleriKapat, type Yetkili,
+  HEDEF_SUTUN, banla, mesajiSil, sohbetMesajiSil, ozelMesajiSil, odaMesajiSil, sikayetleriKapat, type Yetkili,
 } from "./islemler.ts";
 
 export const TUR_ETIKET: Record<string, string> = {
@@ -16,6 +17,7 @@ export const TUR_ETIKET: Record<string, string> = {
   kullanici: "Kullanıcı",
   sohbet_mesaji: "Sohbet mesajı",
   ozel_mesaj: "Özel mesaj",
+  oda_mesaji: "Oda mesajı",
 };
 export const TURLER = Object.keys(TUR_ETIKET);
 // Şikâyet sebepleri: reports.sebep'e ETİKET yazılır (kod yok), yönetim paneli de aynı etiketle süzer.
@@ -51,6 +53,7 @@ export type Onizleme = {
   link: string;
   konu?: { id: number; title: string };
   alici?: string;
+  oda?: string; // yalnızca oda_mesaji: odanın adı
   onceki?: { yazar: string; icerik: string } | null; // şikâyet edilenden hemen önceki mesaj (bağlam için; konu ve sohbet)
   baglam?: { id: number; gonderen: string; icerik: string; hedef: boolean; silindi: boolean; tarih: Date }[];
 };
@@ -85,7 +88,7 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
         WHERE c.id < ? AND c.deleted_at IS NULL ORDER BY c.id DESC LIMIT 1`, [id]);
     return {
       tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, banli: !!satir.banli,
-      icerik: satir.content, tarih: satir.created_at, silindi: !!satir.deleted_at, link: `/sohbet#s-${id}`,
+      icerik: satir.content, tarih: satir.created_at, silindi: !!satir.deleted_at, link: `/sohbet?genel=1#s-${id}`,
       onceki: once ? { yazar: once.username, icerik: once.content } : null,
     };
   }
@@ -124,6 +127,29 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
       baglam: [...oncesi.reverse().map((m: any) => bicim(m, false)), bicim({ ...satir, gonderen: satir.yazar }, true), ...sonrasi.map((m: any) => bicim(m, false))],
     };
   }
+  if (tur === "oda_mesaji") {
+    [[satir]] = (await pool.query(
+      `SELECT m.id, m.content, m.created_at, m.deleted_at, m.room_id, r.ad AS oda, ${kisi("u")}
+         FROM room_messages m JOIN users u ON u.id = m.user_id JOIN rooms r ON r.id = m.room_id WHERE m.id = ? AND m.tur = 'mesaj'`, [id])) as any;
+    if (!satir) return null;
+    // GİZLİLİK (özel mesajla aynı ilke): oda yalnızca üyelerinindir. Yetkili odanın mesajlarını gezemez; yalnızca
+    // şikâyet edilen mesajı ve çevresini (öncesinden 3, sonrasından 2 mesaj; sistem satırları hariç) görür.
+    const [oncesi]: any = await pool.query(
+      `SELECT m.id, m.content, m.created_at, m.deleted_at, g.username AS gonderen FROM room_messages m JOIN users g ON g.id = m.user_id
+        WHERE m.room_id = ? AND m.tur = 'mesaj' AND m.id < ? ORDER BY m.id DESC LIMIT 3`, [satir.room_id, id]);
+    const [sonrasi]: any = await pool.query(
+      `SELECT m.id, m.content, m.created_at, m.deleted_at, g.username AS gonderen FROM room_messages m JOIN users g ON g.id = m.user_id
+        WHERE m.room_id = ? AND m.tur = 'mesaj' AND m.id > ? ORDER BY m.id ASC LIMIT 2`, [satir.room_id, id]);
+    const bicim = (m: any, hedef: boolean) => ({
+      id: m.id, gonderen: m.gonderen, icerik: m.deleted_at ? "Bu mesaj silindi." : m.content, hedef, silindi: !!m.deleted_at, tarih: m.created_at,
+    });
+    return {
+      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, banli: !!satir.banli,
+      icerik: satir.content, tarih: satir.created_at, silindi: !!satir.deleted_at,
+      link: "", oda: satir.oda,
+      baglam: [...oncesi.reverse().map((m: any) => bicim(m, false)), bicim({ ...satir, gonderen: satir.yazar }, true), ...sonrasi.map((m: any) => bicim(m, false))],
+    };
+  }
   return null;
 }
 
@@ -136,7 +162,8 @@ function uyariBildirimi(o: Onizleme, sebep?: string) {
 function uyariBildirimiTaslak(o: Onizleme) {
   const alinti = o.icerik ? `“${kisalt(o.icerik, 50)}”` : "";
   if (o.tur === "konu_mesaji") return { metin: `Moderatörler mesajın için seni uyardı: ${alinti}. Lütfen topluluk kurallarına dikkat et.`, link: o.link };
-  if (o.tur === "sohbet_mesaji") return { metin: `Moderatörler sohbetteki mesajın için seni uyardı: ${alinti}. Lütfen topluluk kurallarına dikkat et.`, link: "/sohbet" };
+  if (o.tur === "sohbet_mesaji") return { metin: `Moderatörler sohbetteki mesajın için seni uyardı: ${alinti}. Lütfen topluluk kurallarına dikkat et.`, link: "/sohbet?genel=1" };
+  if (o.tur === "oda_mesaji") return { metin: `Moderatörler bir oda mesajın için seni uyardı: ${alinti}. Lütfen topluluk kurallarına dikkat et.`, link: "/sohbet" };
   if (o.tur === "ozel_mesaj") return { metin: "Moderatörler gönderdiğin bir özel mesaj için seni uyardı. Lütfen topluluk kurallarına dikkat et.", link: "/mesajlar" };
   return { metin: "Moderatörler hakkındaki şikâyetler nedeniyle seni uyardı. Lütfen topluluk kurallarına dikkat et.", link: "/profil/" + o.yazar };
 }
@@ -164,6 +191,7 @@ export async function sikayetIslemi(
     if (tur === "kullanici") return { ok: false, mesaj: "Bu bir kullanıcı şikâyeti, silinecek içerik yok." };
     const silinen = tur === "konu_mesaji" ? await mesajiSil(hedefId, yetkili.id, sebep)
       : tur === "sohbet_mesaji" ? await sohbetMesajiSil(hedefId, yetkili.id, sebep)
+      : tur === "oda_mesaji" ? await odaMesajiSil(hedefId, yetkili.id, sebep)
       : await ozelMesajiSil(hedefId, yetkili.id, sebep);
     // Zaten silinmişse yalnızca şikâyetleri kapat
     if (!silinen) await sikayetleriKapat(tur, hedefId, "islendi", yetkili.id);

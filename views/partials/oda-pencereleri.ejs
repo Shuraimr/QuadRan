@@ -1,0 +1,179 @@
+<%#
+  Oda pencereleri: Üyeler, Davet et (kişi), Davet bağlantıları, Oda ayarları, Odadan ayrıl (yalnızca sahip için açıklama).
+  Her biri bir <dialog>. JS varsa menüden açılır (data-oda-panel); JS yokken menüdeki bağlantılar /oda/:id/<panel> adresine gider
+  ve oda sayfası o pencereyi AÇIK çizer (panelAcik); kapat bağlantısı /oda/:id'ye döner. İşlemler POST ve işlemden sonra aynı pencereye dönülür.
+  Beklenen veriler: oda { id, ad, aciklama, rol, kapali }, uyeler [{ id, username, rutbe, rol, cevrimici }], baglantilar, bekleyenDavetler,
+  yonetebilir, panelAcik, aramaQ, aramaSonuc [{ username, rutbe }] | null, taban (https://site), kalanSure (yardımcı), kullanici
+%>
+<%
+  const opAc_ = locals.panelAcik || "";
+  const opGeri_ = "/oda/" + oda.id;
+  const opYon_ = !!locals.yonetebilir && !oda.kapali;
+  const opRol_ = { sahip: "Sahip", yonetici: "Yönetici" };
+  const opSekmeler_ = (aktif) => `<nav class="oda-sekmeler" aria-label="Davet yöntemi">
+    <a class="${aktif === "davet" ? "aktif" : ""}" href="/oda/${oda.id}/davet" data-oda-panel="davet"${aktif === "davet" ? ' aria-current="page"' : ""}>Kişi davet et</a>
+    <a class="${aktif === "baglantilar" ? "aktif" : ""}" href="/oda/${oda.id}/baglantilar" data-oda-panel="baglantilar"${aktif === "baglantilar" ? ' aria-current="page"' : ""}>Davet bağlantısı</a>
+  </nav>`;
+%>
+
+<%# ---------- Üyeler ---------- %>
+<dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-uyeler" aria-labelledby="oda-uyeler-baslik"<%- opAc_ === "uyeler" ? " open" : "" %> data-geri="<%= opGeri_ %>">
+  <div class="yeni-mesaj-ic">
+    <div class="yeni-mesaj-ust">
+      <h2 id="oda-uyeler-baslik">Üyeler (<%= uyeler.length %>)</h2>
+      <a class="ikon-dugme" href="<%= opGeri_ %>" data-dialog-kapat aria-label="Kapat"><%- include("ikon", { ad: "kapat", boyut: 20 }) %></a>
+    </div>
+    <% if (oda.aciklama) { %><p class="ikincil kucuk oda-hakkinda"><%= oda.aciklama %></p><% } %>
+    <ul class="oda-uyeler">
+      <% for (const u of uyeler) {
+           const benMi = u.id === kullanici.id;
+           // Kim kime ne yapabilir: sahip sahip dışındaki herkese, yönetici yalnızca sıradan üyeye; kapalı odada hiç kimse
+           const islemVar = !oda.kapali && !benMi && u.rol !== "sahip" && (oda.rol === "sahip" || (oda.rol === "yonetici" && u.rol === "uye")); %>
+        <li class="oda-uye">
+          <a class="oda-uye-kimlik" href="/profil/<%= u.username %>">
+            <span class="avatar avatar-36"><%= u.username[0] %></span>
+            <span class="oda-uye-ad"><strong><%= u.username %><%= benMi ? " (sen)" : "" %></strong>
+              <small class="ikincil"><% if (u.cevrimici) { %><span class="sohbet-nokta" aria-hidden="true"></span>Çevrimiçi<% } else if (u.rutbe) { %><%= u.rutbe %><% } %></small></span>
+          </a>
+          <% if (opRol_[u.rol]) { %><span class="oda-rol rol-<%= u.rol %>"><%= opRol_[u.rol] %></span><% } %>
+          <% if (islemVar) { %>
+            <button class="ikon-dugme" type="button" popovertarget="oda-uye-menu-<%= u.id %>" data-menu-ac aria-label="<%= u.username %> için işlemler"><%- include("ikon", { ad: "daha", boyut: 20 }) %></button>
+            <div class="acilir-menu acilir-menu-konumlu" id="oda-uye-menu-<%= u.id %>" popover aria-label="<%= u.username %> için işlemler">
+              <% if (oda.rol === "sahip") { %>
+                <form method="post" action="/oda/<%= oda.id %>/uye/<%= u.id %>/yonetici"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="uyeler">
+                  <input type="hidden" name="islem" value="<%= u.rol === 'yonetici' ? 'al' : 'yap' %>">
+                  <button class="acilir-oge" type="submit"><%- include("ikon", { ad: "kalkan", boyut: 20 }) %><span class="acilir-ad"><%= u.rol === "yonetici" ? "Yöneticiliği al" : "Yönetici yap" %></span></button>
+                </form>
+                <form method="post" action="/oda/<%= oda.id %>/uye/<%= u.id %>/sahiplik" data-onay="Oda sahipliği <%= u.username %> kullanıcısına devredilsin mi? Sen yönetici olarak kalırsın."><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="uyeler">
+                  <button class="acilir-oge" type="submit"><%- include("ikon", { ad: "cevap", boyut: 20 }) %><span class="acilir-ad">Sahipliği devret</span></button>
+                </form>
+              <% } %>
+              <form method="post" action="/oda/<%= oda.id %>/uye/<%= u.id %>/cikar" data-onay="<%= u.username %> odadan çıkarılsın mı? 24 saat bağlantıyla geri giremez."><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="uyeler">
+                <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("ikon", { ad: "yasak", boyut: 20 }) %><span class="acilir-ad">Odadan çıkar</span></button>
+              </form>
+            </div>
+          <% } %>
+        </li>
+      <% } %>
+    </ul>
+  </div>
+</dialog>
+
+<% if (opYon_) { %>
+<%# ---------- Davet et: kişi ---------- %>
+<dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-davet" aria-labelledby="oda-davet-baslik"<%- opAc_ === "davet" ? " open" : "" %> data-geri="<%= opGeri_ %>">
+  <div class="yeni-mesaj-ic">
+    <div class="yeni-mesaj-ust">
+      <h2 id="oda-davet-baslik">Davet et</h2>
+      <a class="ikon-dugme" href="<%= opGeri_ %>" data-dialog-kapat aria-label="Kapat"><%- include("ikon", { ad: "kapat", boyut: 20 }) %></a>
+    </div>
+    <%- opSekmeler_("davet") %>
+    <form class="kisi-ara-form" method="get" action="/oda/<%= oda.id %>/davet" role="search">
+      <label class="mesaj-ara">
+        <%- include("ikon", { ad: "ara", boyut: 18 }) %>
+        <input type="search" name="q" value="<%= locals.aramaQ || '' %>" maxlength="32" placeholder="Kullanıcı adı ara" aria-label="Kullanıcı ara" autocomplete="off" data-oda-kisi-ara="<%= oda.id %>">
+      </label>
+      <button class="buton buton-tonal kisi-ara-gonder" type="submit">Ara</button>
+    </form>
+    <ul class="kisi-sonuclar" data-oda-kisi-sonuc data-csrf="<%= locals.csrf %>">
+      <% if (!locals.aramaSonuc) { %>
+        <li class="kisi-bos">Bir kullanıcı adı yazmaya başla.</li>
+      <% } else if (!aramaSonuc.length) { %>
+        <li class="kisi-bos">Davet edilebilecek eşleşen kullanıcı yok.</li>
+      <% } else { for (const k of aramaSonuc) { %>
+        <li class="oda-kisi"><span class="avatar avatar-36"><%= k.username[0] %></span><strong><%= k.username %></strong><% if (k.rutbe) { %><span class="rozet"><%= k.rutbe %></span><% } %>
+          <form method="post" action="/oda/<%= oda.id %>/davet"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="davet"><input type="hidden" name="kullanici" value="<%= k.username %>"><button class="buton buton-tonal">Davet et</button></form></li>
+      <% } } %>
+    </ul>
+    <% if (bekleyenDavetler.length) { %>
+      <h3 class="oda-etiket">Bekleyen davetler</h3>
+      <ul class="kisi-sonuclar">
+        <% for (const b of bekleyenDavetler) { %>
+          <li class="oda-kisi"><span class="avatar avatar-36"><%= b.username[0] %></span><strong><%= b.username %></strong>
+            <form method="post" action="/oda/<%= oda.id %>/davet/<%= b.id %>/iptal"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="davet"><button class="buton buton-metin oda-iptal">Geri al</button></form></li>
+        <% } %>
+      </ul>
+    <% } %>
+  </div>
+</dialog>
+
+<%# ---------- Davet bağlantıları ---------- %>
+<dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-baglantilar" aria-labelledby="oda-baglantilar-baslik"<%- opAc_ === "baglantilar" ? " open" : "" %> data-geri="<%= opGeri_ %>">
+  <div class="yeni-mesaj-ic">
+    <div class="yeni-mesaj-ust">
+      <h2 id="oda-baglantilar-baslik">Davet et</h2>
+      <a class="ikon-dugme" href="<%= opGeri_ %>" data-dialog-kapat aria-label="Kapat"><%- include("ikon", { ad: "kapat", boyut: 20 }) %></a>
+    </div>
+    <%- opSekmeler_("baglantilar") %>
+    <form class="oda-form" method="post" action="/oda/<%= oda.id %>/baglanti"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="baglantilar">
+      <div class="oda-iki">
+        <label class="alan"><span>Geçerlilik</span>
+          <select name="sure"><option value="1">1 gün</option><option value="7" selected>7 gün</option><option value="0">Süresiz</option></select>
+        </label>
+        <label class="alan"><span>Kullanım sınırı</span>
+          <select name="sinir"><option value="0" selected>Sınırsız</option><option value="1">1</option><option value="5">5</option><option value="10">10</option><option value="25">25</option></select>
+        </label>
+      </div>
+      <button class="buton buton-birincil buton-genis" type="submit">Bağlantı oluştur</button>
+    </form>
+    <h3 class="oda-etiket">Etkin bağlantılar</h3>
+    <% if (!baglantilar.length) { %><p class="kisi-bos">Etkin davet bağlantısı yok.</p><% } %>
+    <ul class="oda-baglantilar">
+      <% for (const b of baglantilar) { %>
+        <li class="oda-baglanti">
+          <div class="oda-baglanti-govde">
+            <code class="oda-baglanti-metin" id="oda-bag-<%= b.id %>"><%= taban %>/oda/katil/<%= b.kod %></code>
+            <small class="ikincil"><%= b.son_kullanma ? kalanSure(b.son_kullanma) + " kaldı" : "Süresiz" %> · <%= b.kullanim_siniri ? (b.kullanim_siniri - b.kullanim) + " kullanım kaldı" : "Sınırsız kullanım" %> · <%= b.olusturan %></small>
+          </div>
+          <button class="buton buton-cerceveli oda-kopyala" type="button" data-kopyala="#oda-bag-<%= b.id %>"><%- include("ikon", { ad: "kopyala", boyut: 18 }) %><span class="acilir-ad">Kopyala</span></button>
+          <form method="post" action="/oda/<%= oda.id %>/baglanti/<%= b.id %>/iptal"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="baglantilar"><button class="buton buton-metin oda-iptal">İptal</button></form>
+        </li>
+      <% } %>
+    </ul>
+  </div>
+</dialog>
+
+<%# ---------- Oda ayarları ---------- %>
+<dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-ayarlar" aria-labelledby="oda-ayarlar-baslik"<%- opAc_ === "ayarlar" ? " open" : "" %> data-geri="<%= opGeri_ %>">
+  <div class="yeni-mesaj-ic">
+    <div class="yeni-mesaj-ust">
+      <h2 id="oda-ayarlar-baslik">Oda ayarları</h2>
+      <a class="ikon-dugme" href="<%= opGeri_ %>" data-dialog-kapat aria-label="Kapat"><%- include("ikon", { ad: "kapat", boyut: 20 }) %></a>
+    </div>
+    <form class="oda-form" method="post" action="/oda/<%= oda.id %>/ayarlar"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+      <label class="alan"><span>Oda adı</span><input name="ad" value="<%= oda.ad %>" required minlength="3" maxlength="60" autocomplete="off"></label>
+      <label class="alan oda-aciklama-alan"><span>Açıklama (isteğe bağlı)</span><textarea name="aciklama" maxlength="280" rows="3"><%= oda.aciklama || "" %></textarea></label>
+      <button class="buton buton-birincil buton-genis" type="submit">Kaydet</button>
+    </form>
+    <% if (oda.rol === "sahip") { %>
+      <form class="oda-tehlike" method="post" action="/oda/<%= oda.id %>/sil" data-onay="“<%= oda.ad %>” odası silinsin mi? Bu işlem geri alınamaz."><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="ayarlar">
+        <h3>Odayı sil</h3>
+        <p class="ikincil kucuk">Oda ve mesajları herkesten kaldırılır, davet bağlantıları iptal olur.</p>
+        <label class="onay"><input type="checkbox" name="onay" value="1" required> Odayı silmek istediğime eminim</label>
+        <button class="buton buton-tehlikeli" type="submit">Odayı sil</button>
+      </form>
+    <% } %>
+  </div>
+</dialog>
+<% } %>
+
+<% if (oda.rol === "sahip") { %>
+<%# ---------- Odadan ayrıl (sahip): ayrılamaz, ne yapacağı açıklanır ---------- %>
+<dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-ayril" aria-labelledby="oda-ayril-baslik"<%- opAc_ === "ayril" ? " open" : "" %> data-geri="<%= opGeri_ %>">
+  <div class="yeni-mesaj-ic">
+    <div class="yeni-mesaj-ust">
+      <h2 id="oda-ayril-baslik">Odadan ayrıl</h2>
+      <a class="ikon-dugme" href="<%= opGeri_ %>" data-dialog-kapat aria-label="Kapat"><%- include("ikon", { ad: "kapat", boyut: 20 }) %></a>
+    </div>
+    <p>Bu odanın sahibisin, bu yüzden doğrudan ayrılamazsın. Önce şunlardan birini yap:</p>
+    <ul class="oda-yol-listesi">
+      <li><strong>Sahipliği devret:</strong> Üyeler listesinde bir üyenin ⋮ menüsünden “Sahipliği devret”i seç; sonra odadan ayrılabilirsin.</li>
+      <li><strong>Odayı sil:</strong> Oda ayarlarındaki “Odayı sil” bölümü odayı herkes için kaldırır.</li>
+    </ul>
+    <div class="oda-form-eylem">
+      <a class="buton buton-cerceveli" href="/oda/<%= oda.id %>/uyeler" data-oda-panel="uyeler">Üyelere git</a>
+      <% if (!oda.kapali) { %><a class="buton buton-cerceveli" href="/oda/<%= oda.id %>/ayarlar" data-oda-panel="ayarlar">Oda ayarları</a><% } %>
+    </div>
+  </div>
+</dialog>
+<% } %>

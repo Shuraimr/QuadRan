@@ -15,7 +15,15 @@ export type SiteAyarlari = {
   duyuruSurum: string;
   yasakli: string[];
   puan: PuanKurallari;
+  oda: OdaAyarlari;
 };
+
+// Özel oda ayarları (sql/12): oda açmak için gereken en düşük PUAN (varsayılan 100 = Müdavim; rütbe puandan hesaplandığı için
+// eşik de puan olarak saklanır) ve bir kişinin sahibi olabileceği en çok oda sayısı. Yönetim: Sohbet > Odalar.
+export type OdaAyarlari = { rutbeEsigi: number; kisiSiniri: number };
+export const ODA_VARSAYILAN: OdaAyarlari = { rutbeEsigi: 100, kisiSiniri: 3 };
+export const ODA_ESIK_ENFAZLA = 100000;
+export const ODA_SINIR_ENFAZLA = 50;
 
 // Puan kuralları (site_settings: puan_konu, puan_cevap, puan_oy). Eskiden kodda sabitti (5 / 2 / 1);
 // artık yönetici panelinden (Puan ve ödüller > Puan kuralları) değiştirilir.
@@ -27,6 +35,12 @@ export const PUAN_ENFAZLA = 1000; // yanlışlıkla 99999 yazılmasın diye üst
 function puanDegeri(ham: string | undefined, varsayilan: number) {
   const n = Number(ham);
   return ham !== undefined && ham.trim() !== "" && Number.isInteger(n) && n >= 0 && n <= PUAN_ENFAZLA ? n : varsayilan;
+}
+
+// Oda ayarı için güvenli tam sayı (bozuksa varsayılan)
+function tamSayi(ham: string | undefined, varsayilan: number, enaz: number, enfazla: number) {
+  const n = Number(ham);
+  return ham !== undefined && ham.trim() !== "" && Number.isInteger(n) && n >= enaz && n <= enfazla ? n : varsayilan;
 }
 
 const OMUR_MS = 60_000;
@@ -47,6 +61,10 @@ export async function ayarlar(): Promise<SiteAyarlari> {
       konu: puanDegeri(h.puan_konu, PUAN_VARSAYILAN.konu),
       cevap: puanDegeri(h.puan_cevap, PUAN_VARSAYILAN.cevap),
       oy: puanDegeri(h.puan_oy, PUAN_VARSAYILAN.oy),
+    },
+    oda: {
+      rutbeEsigi: tamSayi(h.oda_rutbe_esigi, ODA_VARSAYILAN.rutbeEsigi, 0, ODA_ESIK_ENFAZLA),
+      kisiSiniri: tamSayi(h.kisi_basi_oda_siniri, ODA_VARSAYILAN.kisiSiniri, 1, ODA_SINIR_ENFAZLA),
     },
   };
   onbellek = { veri, zaman: Date.now() };

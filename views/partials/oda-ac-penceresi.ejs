@@ -1,0 +1,26 @@
+<%#
+  "Oda aç" penceresi (yalnızca oda açma izni olanlarda): JS varsa pencere, JS yokken /oda/yeni sayfası aynı pencereyi açık çizer.
+  Beklenen veriler: hub.olustur.izinli, panelAcik ("yeni" ise açık gelir)
+  Form: POST /oda  alanlar: ad (zorunlu, 3-60), aciklama (isteğe bağlı, en çok 280). Başarılıysa oda açılır, kişi ona yönlenir.
+%>
+<% if (locals.hub && hub.olustur.izinli) { %>
+<dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-yeni" aria-labelledby="oda-yeni-baslik"<%- locals.panelAcik === "yeni" ? " open" : "" %> data-geri="/sohbet">
+  <form class="yeni-mesaj-ic oda-form" method="post" action="/oda"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+    <div class="yeni-mesaj-ust">
+      <h2 id="oda-yeni-baslik">Oda aç</h2>
+      <a class="ikon-dugme" href="/sohbet" data-dialog-kapat aria-label="Kapat"><%- include("ikon", { ad: "kapat", boyut: 20 }) %></a>
+    </div>
+    <p class="ikincil kucuk">Özel oda yalnızca davet ettiklerinle ya da davet bağlantısıyla girenlerle dolar; listede görünmez.</p>
+    <label class="alan"><span>Oda adı</span>
+      <input name="ad" required minlength="3" maxlength="60" autocomplete="off" placeholder="Örn. Linux çalışma grubu">
+    </label>
+    <label class="alan oda-aciklama-alan"><span>Açıklama (isteğe bağlı)</span>
+      <textarea name="aciklama" maxlength="280" rows="3" placeholder="Oda ne için?"></textarea>
+    </label>
+    <div class="oda-form-eylem">
+      <a class="buton buton-cerceveli" href="/sohbet" data-dialog-kapat>Vazgeç</a>
+      <button class="buton buton-birincil" type="submit">Oda aç</button>
+    </div>
+  </form>
+</dialog>
+<% } %>

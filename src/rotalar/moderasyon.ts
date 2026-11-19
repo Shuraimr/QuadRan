@@ -31,7 +31,7 @@ const KUYRUK = "/yonetim/sikayetler";
 async function sikayetiBul(id: number | null) {
   if (!id) return null;
   const [satirlar]: any = await pool.query(
-    `SELECT id, hedef_tur, COALESCE(post_id, reported_user_id, chat_message_id, message_id) AS hedef_id FROM reports WHERE id = ?`,
+    `SELECT id, hedef_tur, COALESCE(post_id, reported_user_id, chat_message_id, message_id, room_message_id) AS hedef_id FROM reports WHERE id = ?`,
     [id]
   );
   return satirlar[0] ?? null;

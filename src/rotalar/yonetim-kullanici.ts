@@ -116,8 +116,9 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
             (SELECT COUNT(*) FROM reports WHERE reported_user_id = ?
                 OR post_id IN (SELECT id FROM posts WHERE user_id = ?)
                 OR chat_message_id IN (SELECT id FROM chat_messages WHERE user_id = ?)
-                OR message_id IN (SELECT id FROM messages WHERE sender_id = ?)) AS sikayet`,
-    [id, id, id, id, id, id, id, id]
+                OR message_id IN (SELECT id FROM messages WHERE sender_id = ?)
+                OR room_message_id IN (SELECT id FROM room_messages WHERE user_id = ?)) AS sikayet`,
+    [id, id, id, id, id, id, id, id, id]
   );
   for (const s in ist) ist[s] = Number(ist[s]);
 
@@ -149,7 +150,8 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
            OR reports.post_id IN (SELECT id FROM posts WHERE user_id = ?)
            OR reports.chat_message_id IN (SELECT id FROM chat_messages WHERE user_id = ?)
            OR reports.message_id IN (SELECT id FROM messages WHERE sender_id = ?)
-        ORDER BY reports.id DESC LIMIT 30`, [id, id, id, id])) as any;
+           OR reports.room_message_id IN (SELECT id FROM room_messages WHERE user_id = ?)
+        ORDER BY reports.id DESC LIMIT 30`, [id, id, id, id, id])) as any;
     [veri.yaptigi] = (await pool.query(
       `SELECT reports.id, reports.hedef_tur, reports.sebep, reports.durum, reports.created_at FROM reports WHERE reporter_id = ? ORDER BY id DESC LIMIT 30`, [id])) as any;
   } else if (sekme === "yaptirim") {

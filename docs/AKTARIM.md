@@ -17,6 +17,7 @@ docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' 
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/08_yonetim.sql      # yönetim paneli tabloları (bir kez; ALTER TABLE tekrar çalışmaz)
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/10_panel.sql         # puan kuralları ayarı + 'duyuru' bildirim türü (tekrar çalıştırmak zararsız)
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/11_gizlilik.sql       # konum, web sitesi, gizlilik tercihleri, user_blocks (bir kez; ALTER TABLE tekrar çalışmaz)
+docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/12_odalar.sql          # özel odalar: 6 tablo, reports.oda_mesaji, bildirim türü 'oda', oda ayarları (bir kez; ALTER TABLE tekrar çalışmaz)
 node --env-file=.env src/server.ts
 ```
 
@@ -28,7 +29,8 @@ Deneme kullanıcıları (şifre hepsinde `test1234`): `shurai` (admin), `ayse` (
 |---|---|
 | `src/rotalar/hesap.ts` | `GET/POST /giris`, `/kayit`, `POST /cikis`, `/sifremi-unuttum`, `GET/POST /sifre-sifirla/:token`, `GET /ayarlar`, `POST /ayarlar/profil` (kullanıcı adı, hakkında, konum, web sitesi), `/ayarlar/gorunum`, `/ayarlar/gizlilik`, `GET/POST /hesap/sifre`, `GET/POST /hesap/eposta`, `POST /hesap/sil` |
 | `src/rotalar/forum.ts` | `/` (`?kategori=&sirala=yeni\|populer\|eniyi`), `/konu/yeni`, `/konu/:id` (`?sirala=eniyi\|yeni`), `POST /konu/:id/cevap`, `POST /oy`, `/profil/:username` (`?sekme=yorumlar`), `/ara?q=&sekme=`, `/siralama?donem=hafta\|ay\|tum`, `/kesfet` (telefon alt menüsünün kapısı: arama, kategori kartları, ilk 5 kullanıcı), `GET/POST /sikayet` (alanlar `post_id`, `kullanici`, `sohbet_id` ya da `mesaj_id`; isteğe bağlı `engelle=1`) |
-| `src/rotalar/iletisim.ts` | `/mesajlar`, `GET /mesajlar/yeni?q=` (JS'siz kullanıcı arama), `GET /mesajlar/kisi-ara?q=` (JSON, en fazla 8), `/mesajlar/:kullanici` (GET/POST), `POST /mesajlar/mesaj/:id/sil` (kendi mesajını yumuşak sil), `POST /engel/:kullanici`, `POST /engel/:kullanici/kaldir`, `/bildirimler`, `/bildirimler/:id`, `POST /bildirimler/okundu`, `/sohbet` (GET herkese açık, POST üyeye) |
+| `src/rotalar/iletisim.ts` | `/mesajlar`, `GET /mesajlar/yeni?q=` (JS'siz kullanıcı arama), `GET /mesajlar/kisi-ara?q=` (JSON, en fazla 8), `/mesajlar/:kullanici` (GET/POST), `POST /mesajlar/mesaj/:id/sil` (kendi mesajını yumuşak sil), `POST /engel/:kullanici`, `POST /engel/:kullanici/kaldir`, `/bildirimler`, `/bildirimler/:id`, `POST /bildirimler/okundu`, `/sohbet` (GET herkese açık, POST üyeye; üyede sohbet merkezi, `?genel=1` telefonda genel sohbet konuşmasını açar) |
+| `src/rotalar/odalar.ts` | Özel odalar, aşağıdaki "Özel odalar" bölümüne bak: `GET /oda/yeni`, `POST /oda`, `GET /oda/:id` (+ `/uyeler\|davet\|baglantilar\|ayarlar\|ayril` yedek pencere adresleri), `POST /oda/:id/mesaj\|sessiz\|ayril\|ayarlar\|sil\|davet\|baglanti`, `POST /oda/:id/mesaj/:mid/sil`, `POST /oda/:id/davet/:did/iptal`, `POST /oda/:id/baglanti/:lid/iptal`, `POST /oda/:id/uye/:uid/yonetici\|sahiplik\|cikar`, `GET /oda/:id/kisi-ara?q=` (JSON), `POST /oda/davet/:did/kabul\|ret`, `GET/POST /oda/katil/:kod` |
 | `src/rotalar/moderasyon.ts` | `GET /moderasyon` (301 → `/yonetim/sikayetler`), `POST /moderasyon/:id/sil\|uyar\|reddet\|uzaklastir` (şikâyet id'si; kullanıcı şikâyetinde `sil` yok), `POST /moderasyon/sabitle\|kilitle\|kategori-degistir\|sil\|uzaklastir` (alanlar `post_id`, `topic_id`, kategori için `category_id`) |
 | `src/rotalar/yonetim*.ts` | Yönetim paneli, aşağıdaki "Yönetim paneli" bölümüne bak |
 | `src/oturum.ts`, `src/yardimci.ts`, `src/sifre.ts` | Oturum (MySQL'de saklanır), ortak yardımcılar (puan, bildirim, rozet, toast), scrypt ile şifre özeti |
@@ -62,7 +64,7 @@ hem panel işlemleri hem `/moderasyon` işlemleri. Kenar menü rolün erişemedi
 | | Yaptırımlar (`filtre=aktif\|yakinda\|dolan\|hepsi`; son uyarılar; kullanıcı adıyla uzaklaştır) | `/yonetim/yaptirimlar`, `POST .../ban` | moderatör yalnızca "uye" rolündekileri banlar/kaldırır, admin tam |
 | | Otomatik filtre (yasaklı ifadeler) | `/yonetim/filtre` | moderatör görür, admin düzenler |
 | Site bölümleri | Forum: sekmeler Konular · Mesajlar · Kategoriler | `/yonetim/forum`, `/forum/mesajlar`, `/forum/kategoriler`, `POST /yonetim/toplu` | Konular/Mesajlar ikisi de, Kategoriler yalnızca admin |
-| | Sohbet (genel sohbet; "Odalar — yakında" sekmesi devre dışı) | `/yonetim/sohbet` | ikisi de |
+| | Sohbet: sekmeler Genel sohbet · Odalar (oda listesi + kapat/aç + oda açma kuralları, mesajlar GÖSTERİLMEZ) | `/yonetim/sohbet`, `/yonetim/sohbet/odalar`, `POST .../odalar/:id/kapat\|ac`, `POST .../odalar/ayar` | ikisi de (kuralları yalnızca admin değiştirir) |
 | | Üyeler (liste; `q, rol, banli, silinmis, kayit=24s, sirala, yon`), Üye kartı, Roller | `/yonetim/uyeler`, `/yonetim/uyeler/:id?sekme=ozet\|icerik\|sikayet\|yaptirim\|islem`, `/yonetim/uyeler/roller` | liste + kart: moderatör (e-posta gizli; yalnızca uyar + ban) ve admin; Roller yalnızca admin |
 | | Puan ve ödüller: Puan kuralları · Rütbeler · Rozetler | `/yonetim/puan`, `/puan/rutbeler`, `/puan/rozetler` | yalnızca admin |
 | | Oyunlar, Mağaza | (yok) | soluk "yakında" satırları |
@@ -118,11 +120,32 @@ Toplu bildirim `notifications.tur = 'duyuru'` ile aktif (silinmemiş, banlı olm
 
 ## Şikâyet modeli (sql/08)
 
-`reports.hedef_tur`: `konu_mesaji` (post_id), `kullanici` (reported_user_id), `sohbet_mesaji` (chat_message_id), `ozel_mesaj` (message_id);
-CHECK tam olarak ilgili sütunun dolu olmasını ister. Grup/oda sohbeti gelince: enum'a değer, yeni FK sütunu, UNIQUE ve CHECK'e bir dal eklenir (sql dosyasında yazılı).
-`POST /sikayet` alanları: `post_id | kullanici | sohbet_id | mesaj_id`. Özel mesajı yalnızca alıcı şikâyet edebilir; moderatör yalnızca o mesajı ve çevresini
+`reports.hedef_tur`: `konu_mesaji` (post_id), `kullanici` (reported_user_id), `sohbet_mesaji` (chat_message_id), `ozel_mesaj` (message_id), `oda_mesaji` (room_message_id, sql/12);
+CHECK tam olarak ilgili sütunun dolu olmasını ister.
+`POST /sikayet` alanları: `post_id | kullanici | sohbet_id | mesaj_id | oda_mesaj_id`. Oda mesajını yalnızca o odanın üyesi şikâyet eder (sistem satırları ve kendi mesajı hariç);
+yetkili özel mesajdaki gibi yalnızca o mesajı ve çevresini (öncesinden 3, sonrasından 2) görür, odayı gezemez; "Konu dışı" seçilebilir. Özel mesajı yalnızca alıcı şikâyet edebilir; moderatör yalnızca o mesajı ve çevresini
 (öncesinden 3, sonrasından 2 mesaj) görür. Sohbet ve özel mesajlar da yumuşak silinir (`deleted_at`).
 Eylemler: sil (silinen mesajın bekleyen şikâyetleri kapanır), uyar (bildirim), banla, reddet.
+
+## Özel odalar (sql/12_odalar.sql)
+
+Davetle girilen grup sohbetleri (konu yok; ad, açıklama, üyeler, mesajlar). Herkese açık ya da şifreli oda YOK. Kod: `src/odalar.ts` (kurallar + sorgular), `src/rotalar/odalar.ts` (route'lar),
+`src/rotalar/yonetim-oda.ts` (panel), şablonlar `views/oda.ejs`, `oda-katil.ejs`, `partials/sohbet-liste.ejs`, `oda-pencereleri.ejs`, `oda-ac-penceresi.ejs`, `genel-sohbet.ejs`; stil `sayfalar.css` sonu; betik `quadran.js` sonu.
+
+- Tablolar: `rooms` (`kapatildi_at` = yetkili kapattı, `deleted_at` = sahip sildi), `room_members` (`rol` sahip/yonetici/uye, `sessiz`, `son_okunan_id`; PK room_id+user_id), `room_invites` (durum bekliyor/kabul/ret/iptal; tek bekleyen davet kodda sağlanır),
+  `room_links` (`kod` DÜZ METİN + UNIQUE: bağlantı şifre değil davetiye, yöneticiler listede yeniden görüp kopyalayabilsin; süre, kullanım sınırı, `iptal_at`), `room_bans` (çıkarılan 24 saat bağlantıyla dönemez; sütun `bitis`, çünkü `until` MySQL'de ayrılmış kelime),
+  `room_messages` (`tur` mesaj/sistem; sistem satırı = "ayse odaya ahmet’i ekledi", `user_id` olayı yapan). `notifications.tur` += `oda`. `site_settings`: `oda_rutbe_esigi` (PUAN, 100 = Müdavim), `kisi_basi_oda_siniri` (3).
+- Oda açma (`olusturmaDurumu`): puan ≥ eşik (admin ve moderatör bu şarttan muaf) VE sahip olunan silinmemiş oda < sınır. Yetmezse `/sohbet` listesinde "Oda açmak için <rütbe> olmalısın · N puan kaldı" kilit kartı çıkar, `POST /oda` da reddeder.
+- Yetki: üye (oku/yaz, üyeleri gör, sessize al, ayrıl, şikâyet) < yönetici (+ kişi davet et, bağlantı oluştur/iptal, üyeyi çıkar [yalnızca sıradan üyeyi], mesaj sil, ad/açıklama) < sahip (+ yönetici yap/al, sahipliği devret [yeni sahip de oda sınırına tabi], odayı sil, yöneticiyi çıkar). Sahip ayrılamaz.
+  Yetkili (admin/moderatör) oda mesajlarını gezemez; kapatılmış odada üyeler okur ama yazamaz, yönetim işlemleri durur (ayrılma ve sessize alma açık).
+- Giriş yolları: davet (yönetici kişi arar → bekleyen davet + `oda` bildirimi → davetli sohbet merkezinde Kabul et/Reddet) ve bağlantı `/oda/katil/KOD` (geçerlilik 1 gün/7 gün/süresiz, kullanım sınırı sınırsız/1/5/10/25, en çok 10 etkin bağlantı; durumlar: geçersiz, iptal, süresi dolmuş, sınır dolu, oda kapalı, 24 saat çıkarılma engeli).
+  Misafir girişe gider (`don=`). Kabul/katılışta `son_okunan_id` son mesaja ayarlanır (geçmiş okunmamış sayılmaz). Kabul edilen davet çıkarılma engelini kaldırır.
+- Engelleme: aramızda engel (iki yönde) olan kişi davet edilemez ve davet aramasında çıkmaz (`engelSql`); odada ben engelledim kişinin mesajı kesikli "Engellediğin kişinin mesajı · Göster" çipi (`<details>`, JS'siz) olur, okunmamış sayısına girmez.
+- Yasaklı ifade oda adı/açıklaması/mesajına, hız sınırı (`odaMesaj`, dakikada 20) mesaja uygulanır.
+- Arayüz: `/sohbet` = sohbet merkezi (üye): solda "Oda aç" + bekleyen davet kartları + Genel sohbet + ODALARIM (okunmamış sayısı, sessize alınmışta gri), sağda açık konuşma; misafirde eski düzen. Telefonda (≤960px) liste ve konuşma ayrı görünüm (`.mesaj-acik`).
+  Oda başlığındaki tek ⋮ menü: Üyeler, Davet et, Davet bağlantıları, Oda ayarları (yöneticiler), Sessize al/Sesi aç, Odadan ayrıl. Her biri `<dialog>`; JS yokken `/oda/:id/<panel>` aynı sayfayı pencere açık (`open`, modal olmadan) çizer, JS modal yapar. Pencerelerdeki formlar `panel` alanıyla aynı pencereye döner.
+  Onay soran formlar `data-onay` taşır (kullanıcı içeriği satır içi JS'e girmesin diye `onsubmit` kullanılmaz). Sohbet menüleri (kenar çubuğu, ray, alt menü) sessize alınmamış odada okunmamış mesaj varsa Sohbet üzerinde nokta gösterir (`res.locals.okunmamisOda`, `oturum.ts`).
+- Panel (Sohbet > Odalar): liste (ad, sahip, üye ve mesaj SAYISI, oluşturulma, durum), kapat (sebep zorunlu, sahibe bildirim) / yeniden aç, oda açma kuralları formu (admin). İşlem kaydı eylemleri: `oda.kapat`, `oda.ac`, `ayar.oda`.
 
 ## Profil seçenekleri, gizlilik ve engelleme (sql/11_gizlilik.sql)
 

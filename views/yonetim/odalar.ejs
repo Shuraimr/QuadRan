@@ -1,0 +1,63 @@
+<%#
+  Sohbet > Odalar: /yonetim/sohbet/odalar?q=&durum=&sayfa=
+  satirlar [{ id, ad, sahip_id, sahip, uye, mesaj, created_at, kapatildi_at }], sf, qs { q, durum }, yol, filtreli
+  oda { rutbeEsigi, kisiSiniri }, esikEnfazla, sinirEnfazla, duzenleyebilir (yalnızca admin kuralları değiştirir)
+  GİZLİLİK: odaların mesajları burada gösterilmez; yalnızca sayılar. İçerik ancak şikâyet bağlamıyla görülür.
+  Formlar: POST /yonetim/sohbet/odalar/ayar (esik, sinir) · POST /yonetim/sohbet/odalar/:id/kapat (sebep zorunlu) | /ac
+%>
+<%- include("duzen-ust", { baslik: "Sohbet", aktif: "sohbet" }) %>
+<div class="yn-sekmeler siralama"><a href="/yonetim/sohbet">Genel sohbet</a><a class="aktif" href="/yonetim/sohbet/odalar" aria-current="page">Odalar</a></div>
+
+<section class="kart yn-kart yn-form" aria-label="Oda açma kuralları">
+  <h3>Oda açma kuralları</h3>
+  <% if (duzenleyebilir) { %>
+    <form class="yn-form" method="post" action="/yonetim/sohbet/odalar/ayar"><%- include("csrf") %>
+      <div class="yn-satir yn-genis">
+        <label class="yn-etiketli">Oda açmak için en az puan<input class="yn-girdi" type="number" name="esik" min="0" max="<%= esikEnfazla %>" step="1" value="<%= oda.rutbeEsigi %>" required></label>
+        <label class="yn-etiketli">Kişi başı en çok oda (sahip olunan)<input class="yn-girdi" type="number" name="sinir" min="1" max="<%= sinirEnfazla %>" step="1" value="<%= oda.kisiSiniri %>" required></label>
+      </div>
+      <p class="ikincil kucuk">Varsayılan 100 puan (Müdavim) ve 3 oda. Yönetici ve moderatörler puan şartından muaftır; oda sınırı herkese uygulanır. Değişiklik yalnızca bundan sonraki oda açmaları etkiler.</p>
+      <div><button class="buton buton-birincil">Kaydet</button></div>
+    </form>
+  <% } else { %>
+    <p class="kucuk">Oda açmak için en az <strong><%= oda.rutbeEsigi %></strong> puan, kişi başı en çok <strong><%= oda.kisiSiniri %></strong> oda. <span class="ikincil">Bu kuralları yalnızca yöneticiler değiştirir.</span></p>
+  <% } %>
+</section>
+
+<form class="yn-filtre kart" method="get" action="<%= yol %>">
+  <input class="yn-girdi" type="search" name="q" value="<%= qs.q %>" placeholder="Oda adı ya da sahip" aria-label="Ara">
+  <select class="yn-girdi" name="durum" aria-label="Durum"><% for (const [d, e] of [["hepsi","Hepsi"],["acik","Açık"],["kapali","Kapalı"]]) { %><option value="<%= d %>"<%= qs.durum === d ? " selected" : "" %>><%= e %></option><% } %></select>
+  <button class="buton buton-tonal yn-suz-dugme">Süz</button>
+</form>
+
+<div class="kart yn-tablo-kutu">
+  <table class="yn-tablo">
+    <thead><tr><th>#</th><th>Oda</th><th>Sahip</th><th>Üye sayısı</th><th>Mesaj sayısı</th><th>Oluşturuldu</th><th>Durum</th><th>İşlem</th></tr></thead>
+    <tbody>
+    <% if (!satirlar.length) { %><tr><td colspan="8" class="bos"><%- include("bos", { filtreli: filtreli, bosMetin: "Henüz oda açılmamış", sifirla: yol }) %></td></tr><% } %>
+    <% for (const s of satirlar) { %>
+      <tr>
+        <td data-etiket="#"><%= s.id %></td>
+        <td data-etiket="Oda" class="yn-kisa"><%= s.ad %></td>
+        <td data-etiket="Sahip"><a href="/yonetim/uyeler/<%= s.sahip_id %>"><%= s.sahip %></a></td>
+        <td data-etiket="Üye sayısı"><%= s.uye %></td>
+        <td data-etiket="Mesaj sayısı"><%= s.mesaj %></td>
+        <td data-etiket="Oluşturuldu"><%= zaman(s.created_at) %></td>
+        <td data-etiket="Durum"><% if (s.kapatildi_at) { %><span class="yn-etiket tehlike">Kapalı</span><% } else { %><span class="ikincil">Açık</span><% } %></td>
+        <td data-etiket="İşlem">
+          <% if (s.kapatildi_at) { %>
+            <form method="post" action="/yonetim/sohbet/odalar/<%= s.id %>/ac"><%- include("csrf") %><button class="buton buton-cerceveli">Yeniden aç</button></form>
+          <% } else { %>
+            <form class="yn-satir" method="post" action="/yonetim/sohbet/odalar/<%= s.id %>/kapat"><%- include("csrf") %>
+              <input class="yn-girdi" name="sebep" minlength="3" maxlength="255" required placeholder="Kapatma sebebi" aria-label="<%= s.ad %> için kapatma sebebi">
+              <button class="buton buton-tehlikeli">Kapat</button>
+            </form>
+          <% } %>
+        </td>
+      </tr>
+    <% } %>
+    </tbody>
+  </table>
+</div>
+<%- include("sayfalama") %>
+<%- include("duzen-alt") %>

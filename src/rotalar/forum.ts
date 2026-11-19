@@ -556,8 +556,8 @@ forum.get("/siralama", async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // Şikâyet: bir konu MESAJI, bir KULLANICI, bir SOHBET mesajı ya da (yalnızca alıcı) bir ÖZEL MESAJ şikâyet edilir.
-//   POST /sikayet  alanlar: post_id | kullanici (kullanıcı adı) | sohbet_id | mesaj_id, sebep, not, engelle (isteğe bağlı)
-//   GET  /sikayet?post_id=7  ya da  ?kullanici=ayse  ya da  ?sohbet_id=3  ya da  ?mesaj_id=5
+//   POST /sikayet  alanlar: post_id | kullanici (kullanıcı adı) | sohbet_id | mesaj_id | oda_mesaj_id, sebep, not, engelle (isteğe bağlı)
+//   GET  /sikayet?post_id=7  ya da  ?kullanici=ayse  ya da  ?sohbet_id=3  ya da  ?mesaj_id=5  ya da  ?oda_mesaj_id=9
 //        JavaScript kapalıysa pencere yerine bu sayfa açılır
 // reports.hedef_tur hangi hedef olduğunu söyler (sql/08_yonetim.sql). Sebepler src/sikayet.ts'te.
 // "engelle" işaretliyse şikâyetin yanında yazarı da engelleriz (user_blocks).
@@ -577,10 +577,18 @@ forum.get("/sikayet", girisGerekli("Şikâyet etmek için giriş yapman gerekiyo
   const postId = sayi(req.query.post_id);
   const sohbetId = sayi(req.query.sohbet_id);
   const mesajId = sayi(req.query.mesaj_id);
+  const odaMesajId = sayi(req.query.oda_mesaj_id);
   const kullanici = metin(req.query.kullanici);
   if (postId) return res.render("sikayet", { post_id: postId, yazar: await hedefYazari("posts", postId) });
   if (sohbetId) return res.render("sikayet", { sohbet_id: sohbetId, yazar: await hedefYazari("chat_messages", sohbetId) });
   if (mesajId) return res.render("sikayet", { mesaj_id: mesajId, yazar: await hedefYazari("messages", mesajId, res.locals.kullanici.id) });
+  if (odaMesajId) {
+    // Yalnızca o odanın üyesi şikâyet edebilir (yoksa mesajın varlığı da söylenmez)
+    const [[o]]: any = await pool.query(
+      `SELECT u.username FROM room_messages m JOIN users u ON u.id = m.user_id
+        WHERE m.id = ? AND m.tur = 'mesaj' AND m.deleted_at IS NULL AND EXISTS (SELECT 1 FROM room_members WHERE room_id = m.room_id AND user_id = ?)`, [odaMesajId, res.locals.kullanici.id]);
+    if (o) return res.render("sikayet", { oda_mesaj_id: odaMesajId, yazar: o.username });
+  }
   if (kullanici) return res.render("sikayet", { hedef_kullanici: kullanici, yazar: kullanici });
   bildir(req, "hata", "Şikâyet edilecek öğe seçilmedi.");
   res.redirect(geriAdres(req));
@@ -605,6 +613,7 @@ forum.post("/sikayet", girisGerekli("Şikâyet etmek için giriş yapman gerekiy
   const postId = sayi(req.body.post_id);
   const sohbetId = sayi(req.body.sohbet_id);
   const mesajId = sayi(req.body.mesaj_id);
+  const odaMesajId = sayi(req.body.oda_mesaj_id);
   const kullaniciAdi = metin(req.body.kullanici);
   const sebep = SEBEPLER.includes(req.body.sebep) ? req.body.sebep : null;
   const aciklama = metin(req.body.not).slice(0, 1000) || null;
@@ -612,6 +621,7 @@ forum.post("/sikayet", girisGerekli("Şikâyet etmek için giriş yapman gerekiy
 
   // Form dört gizli alan gönderir; hangisi doluysa o şikâyet edilir (öncelik: konu mesajı, sohbet, özel mesaj, kullanıcı)
   if (!postId && sohbetId) return sohbetSikayeti(req, res, sohbetId, sebep, aciklama, engelleIstendi);
+  if (!postId && odaMesajId) return odaMesajiSikayeti(req, res, odaMesajId, sebep, aciklama, engelleIstendi);
   if (!postId && mesajId) return ozelMesajSikayeti(req, res, mesajId, sebep, aciklama, engelleIstendi);
   if (!postId && kullaniciAdi) return kullaniciSikayeti(req, res, kullaniciAdi, sebep, aciklama, engelleIstendi);
 
@@ -642,7 +652,7 @@ async function sohbetSikayeti(req: express.Request, res: express.Response, sohbe
   const k = res.locals.kullanici;
   const [satirlar]: any = await pool.query("SELECT id, user_id FROM chat_messages WHERE id = ? AND deleted_at IS NULL", [sohbetId]);
   const m = satirlar[0];
-  const geri = m ? `/sohbet#s-${m.id}` : "/sohbet";
+  const geri = m ? `/sohbet?genel=1#s-${m.id}` : "/sohbet?genel=1";
   const hata = !m ? "Şikâyet edilecek sohbet mesajı bulunamadı." : sebepHatasi(sebep, aciklama, "sohbet_mesaji");
   if (hata) {
     bildir(req, "hata", hata);
@@ -677,6 +687,29 @@ async function ozelMesajSikayeti(req: express.Request, res: express.Response, me
     [mesajId, k.id, sebep, aciklama]
   );
   await sikayetSonu(req, res, sonuc.affectedRows > 0, m.sender_id, engelleIstendi, geri, "Bu mesajı");
+}
+
+// Oda mesajı şikâyeti: YALNIZCA o odanın üyesi şikâyet edebilir (sorgu üyeliği arar; üye olmayan mesaj id'sini
+// tahmin ederek şikâyet açamaz). Sistem satırları ("ayse odadan ayrıldı") şikâyet edilemez.
+async function odaMesajiSikayeti(req: express.Request, res: express.Response, odaMesajId: number, sebep: string | null, aciklama: string | null, engelleIstendi: boolean) {
+  const k = res.locals.kullanici;
+  const [satirlar]: any = await pool.query(
+    `SELECT m.id, m.user_id, m.room_id FROM room_messages m
+      WHERE m.id = ? AND m.tur = 'mesaj' AND m.deleted_at IS NULL
+        AND EXISTS (SELECT 1 FROM room_members WHERE room_id = m.room_id AND user_id = ?)`, [odaMesajId, k.id]);
+  const m = satirlar[0];
+  const geri = m ? `/oda/${m.room_id}#o-${m.id}` : "/sohbet";
+  const hata = !m ? "Şikâyet edilecek oda mesajı bulunamadı." : sebepHatasi(sebep, aciklama, "oda_mesaji");
+  if (hata) {
+    bildir(req, "hata", hata);
+    return res.redirect(geri);
+  }
+  if (m.user_id === k.id) { bildir(req, "hata", "Kendi mesajını şikâyet edemezsin."); return res.redirect(geri); }
+  const [sonuc]: any = await pool.query(
+    "INSERT IGNORE INTO reports (hedef_tur, room_message_id, reporter_id, sebep, aciklama) VALUES ('oda_mesaji', ?, ?, ?, ?)",
+    [odaMesajId, k.id, sebep, aciklama]
+  );
+  await sikayetSonu(req, res, sonuc.affectedRows > 0, m.user_id, engelleIstendi, geri, "Bu mesajı");
 }
 
 // Profildeki "Şikâyet et": mesaj yerine kullanıcı hedeflenir (reports.reported_user_id)

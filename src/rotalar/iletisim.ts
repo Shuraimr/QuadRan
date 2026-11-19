@@ -4,6 +4,7 @@ import { pool } from "../db.ts";
 import { yasakliIfade } from "../ayarlar.ts";
 import { rutbeSql, bildirimGonder, bildir, kisalt, girisGerekli, sayi, metin, likeKac, geriAdres } from "../yardimci.ts";
 import { mesajDurumu, cevrimiciSql } from "../gizlilik.ts";
+import { hubVerisi } from "../odalar.ts";
 
 export const iletisim = express.Router();
 
@@ -266,27 +267,35 @@ async function sohbetVerisi() {
   return { mesajlar, cevrimici };
 }
 
+// Sohbet merkezi: üyeler için solda liste (genel sohbet + davetler + odalarım), sağda açık sohbet (burada genel sohbet).
+// Misafirler yalnızca genel sohbeti okur (eski düzen). Hem /sohbet hem /oda/yeni (JS'siz "Oda aç" sayfası) bunu çizer.
+// genelAcik: telefonda liste ve konuşma ayrı görünümdür; ?genel=1 konuşmayı açar (hata durumunda da açık kalır).
+export async function sohbetSayfasi(req: express.Request, res: express.Response, ekstra: Record<string, unknown> = {}) {
+  const ben = res.locals.kullanici;
+  res.render("sohbet", {
+    ...(await sohbetVerisi()),
+    hub: ben ? await hubVerisi(ben) : null,
+    genelAcik: !!req.query.genel,
+    aktifOda: 0, panelAcik: "", aktifMenu: "sohbet",
+    ...ekstra,
+  });
+}
+
 iletisim.get("/sohbet", async (req, res) => {
-  res.render("sohbet", { ...(await sohbetVerisi()), aktifMenu: "sohbet" });
+  await sohbetSayfasi(req, res);
 });
 
 iletisim.post("/sohbet", girisGerekli("Sohbete yazmak için giriş yapman gerekiyor."), async (req, res) => {
   const content = metin(req.body.content);
   if (!content || content.length > 500) {
-    return res.status(400).render("sohbet", {
-      ...(await sohbetVerisi()),
-      hata: content ? "Mesaj en fazla 500 karakter olabilir." : "Mesaj boş olamaz.",
-      aktifMenu: "sohbet",
-    });
+    res.status(400);
+    return sohbetSayfasi(req, res, { hata: content ? "Mesaj en fazla 500 karakter olabilir." : "Mesaj boş olamaz.", genelAcik: true });
   }
   const yasak = await yasakliIfade(content);
   if (yasak) {
-    return res.status(400).render("sohbet", {
-      ...(await sohbetVerisi()),
-      hata: `Mesajında yasaklı bir ifade var: “${yasak}”.`,
-      aktifMenu: "sohbet",
-    });
+    res.status(400);
+    return sohbetSayfasi(req, res, { hata: `Mesajında yasaklı bir ifade var: “${yasak}”.`, genelAcik: true });
   }
   const [sonuc]: any = await pool.query("INSERT INTO chat_messages (user_id, content) VALUES (?, ?)", [res.locals.kullanici.id, content]);
-  res.redirect("/sohbet#s-" + sonuc.insertId);
+  res.redirect("/sohbet?genel=1#s-" + sonuc.insertId);
 });

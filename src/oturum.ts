@@ -14,6 +14,7 @@ import type { Request, Response, NextFunction } from "express";
 import { pool } from "./db.ts";
 import { rutbeSql, banliSql, bildir, geriAdres } from "./yardimci.ts";
 import { ayarlar } from "./ayarlar.ts";
+import { okunmamisOdaVar } from "./odalar.ts";
 
 // req.session içinde hangi alanların olduğunu TypeScript'e anlatıyoruz
 declare module "express-session" {
@@ -191,6 +192,8 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
   );
   res.locals.okunmamisBildirim = Number(sayilar.bildirim);
   res.locals.okunmamisMesaj = Number(sayilar.mesaj);
+  // Menülerde "Sohbet" üzerindeki nokta: sessize alınmamış bir odada okunmamış mesaj var mı (src/odalar.ts)
+  res.locals.okunmamisOda = await okunmamisOdaVar(k.id);
 
   const [sonBildirimler]: any = await pool.query(
     `SELECT notifications.id, notifications.metin, notifications.created_at, notifications.read_at,
