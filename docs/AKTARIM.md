@@ -27,7 +27,7 @@ Deneme kullanıcıları (şifre hepsinde `test1234`): `shurai` (admin), `ayse` (
 | Dosya | Adresler |
 |---|---|
 | `src/rotalar/hesap.ts` | `GET/POST /giris`, `/kayit`, `POST /cikis`, `/sifremi-unuttum`, `GET/POST /sifre-sifirla/:token`, `GET /ayarlar`, `POST /ayarlar/profil` (kullanıcı adı, hakkında, konum, web sitesi), `/ayarlar/gorunum`, `/ayarlar/gizlilik`, `GET/POST /hesap/sifre`, `GET/POST /hesap/eposta`, `POST /hesap/sil` |
-| `src/rotalar/forum.ts` | `/` (`?kategori=&sirala=yeni\|populer\|eniyi`), `/konu/yeni`, `/konu/:id` (`?sirala=eniyi\|yeni`), `POST /konu/:id/cevap`, `POST /oy`, `/profil/:username` (`?sekme=yorumlar`), `/ara?q=&sekme=`, `/siralama?donem=hafta\|ay\|tum`, `GET/POST /sikayet` (alanlar `post_id`, `kullanici`, `sohbet_id` ya da `mesaj_id`; isteğe bağlı `engelle=1`) |
+| `src/rotalar/forum.ts` | `/` (`?kategori=&sirala=yeni\|populer\|eniyi`), `/konu/yeni`, `/konu/:id` (`?sirala=eniyi\|yeni`), `POST /konu/:id/cevap`, `POST /oy`, `/profil/:username` (`?sekme=yorumlar`), `/ara?q=&sekme=`, `/siralama?donem=hafta\|ay\|tum`, `/kesfet` (telefon alt menüsünün kapısı: arama, kategori kartları, ilk 5 kullanıcı), `GET/POST /sikayet` (alanlar `post_id`, `kullanici`, `sohbet_id` ya da `mesaj_id`; isteğe bağlı `engelle=1`) |
 | `src/rotalar/iletisim.ts` | `/mesajlar`, `GET /mesajlar/yeni?q=` (JS'siz kullanıcı arama), `GET /mesajlar/kisi-ara?q=` (JSON, en fazla 8), `/mesajlar/:kullanici` (GET/POST), `POST /mesajlar/mesaj/:id/sil` (kendi mesajını yumuşak sil), `POST /engel/:kullanici`, `POST /engel/:kullanici/kaldir`, `/bildirimler`, `/bildirimler/:id`, `POST /bildirimler/okundu`, `/sohbet` (GET herkese açık, POST üyeye) |
 | `src/rotalar/moderasyon.ts` | `GET /moderasyon` (301 → `/yonetim/sikayetler`), `POST /moderasyon/:id/sil\|uyar\|reddet\|uzaklastir` (şikâyet id'si; kullanıcı şikâyetinde `sil` yok), `POST /moderasyon/sabitle\|kilitle\|kategori-degistir\|sil\|uzaklastir` (alanlar `post_id`, `topic_id`, kategori için `category_id`) |
 | `src/rotalar/yonetim*.ts` | Yönetim paneli, aşağıdaki "Yönetim paneli" bölümüne bak |
@@ -165,6 +165,30 @@ Puan sıfırın altına inmez. Kendi mesajına oy verilmez. Rütbe, `ranks` tabl
   Süzgeçler "Süzgeçler" düğmesinin arkasına katlanır; toplu işlem çubuğu satır seçilince ekranın altına sabitlenir;
   tablolar iki sütunlu kartlara dönüşür.
 - `/onizleme` sayfaları yalnızca `NODE_ENV` production değilken açıktır (`npm start` yayın modudur).
+
+## Gezinme modeli (hangi hedef nerede)
+
+Kural: bir ekran genişliğinde aynı hedef kalıcı arayüzde (üst çubuk, kenar menü, alt menü, hesap menüsü) iki kez bulunmaz.
+Sayfa içeriği doğal bağlantı verebilir (konunun kategori çipi gibi). Ana bölümler masaüstü/tablette en çok 1, telefonda Akış/Sohbet 1, Kategoriler/Sıralama 2 dokunuş (Keşfet üzerinden). Kişisel hedefler her yerde en çok 2.
+
+| Hedef | Masaüstü (>1180px) | Tablet (801–1180px) | Telefon (≤800px) |
+|---|---|---|---|
+| Akış `/` | kenar çubuğu | simge rayı | alt menü |
+| Kategoriler | kenar çubuğu (+ altında kategori listesi) | rayda Kategoriler (`/kategoriler`) | alt menü Keşfet > kart; akışta yatay çipler (içerik) |
+| Sohbet | kenar çubuğu | raylı | alt menü |
+| Sıralama | kenar çubuğu | raylı | Keşfet > "Tümünü gör" |
+| Keşfet `/kesfet` | yalnızca adresle | yalnızca adresle | alt menü |
+| Konu aç | üst çubuk | rayda kalem (FAB) | alt menü (üyeler) |
+| Ara | üst çubuk (Ctrl K) | üst çubuk | Keşfet'teki arama kutusu |
+| Bildirimler | üst çubukta zil (panel) | üst çubukta zil | üst çubukta zil (panel tam genişliğe yakın) |
+| Mesajlar | hesap menüsü | hesap menüsü | üst çubuk simgesi |
+| Profil | hesap menüsü | hesap menüsü | alt menü Profil > hesap menüsü |
+| Ayarlar | kenar çubuğu altı | rayın altı | hesap menüsü |
+| Yönetim (yetkili) / Çıkış | hesap menüsü | hesap menüsü | hesap menüsü (alt menü Profil'den) |
+
+Kod: `views/partials/kenar-menu.ejs` tek parçadır; 801–1180px'te 88px simge rayı, 1181px+ 248px etiketli sol çubuk olarak görünür
+(`katmanlar.css`; `data-menu="sag"` sağa alır). Kategori listesi `res.locals.menuKategoriler` (`src/oturum.ts`, 30 sn bellek önbelleği).
+Telefonda alt menü ve üst çubuğun CSS ile gizlenen parçaları "Tekrarı önleme" bloğundadır. Akıştaki sol kategori sütunu (`.akis-kategoriler`) yalnızca telefonda çip olarak görünür.
 
 ## Bilinen eksikler
 

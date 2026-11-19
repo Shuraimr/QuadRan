@@ -1,8 +1,9 @@
 <%- include("partials/bas") %>
   <%- include("partials/ust-cubuk") %>
 
-  <div class="govde">
-    <nav class="sutun" id="kategoriler" aria-label="Kategoriler">
+  <div class="govde govde-akis">
+    <%# Masaüstü ve tabletteki kategori listesi kenar menüde; bu sütun yalnızca telefonda yatay çipler olarak kalır (CSS) %>
+    <nav class="sutun akis-kategoriler" id="kategoriler" aria-label="Kategoriler">
       <div class="bolum-etiketi">KATEGORİLER</div>
       <div class="kategoriler">
         <a class="kategori-ogesi <%= !locals.kategoriId ? 'aktif' : '' %>" href="/?sirala=<%= locals.sirala || 'yeni' %>">
@@ -87,6 +88,7 @@
             <span class="puan"><%= lider.points %></span>
           </div>
         <% }) %>
+        <a class="baglanti" href="/siralama">Sıralamanın tamamı →</a>
       </section>
     </aside>
   </div>

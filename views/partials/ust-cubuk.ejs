@@ -15,10 +15,10 @@
   <div class="ust-eylemler">
     <% if (locals.kullanici) { %>
       <%# Her eylemin bir ekran genişliğinde tek yeri olur (CSS): telefonda alt menü, tablette kenar menü "Konu aç"ı taşır;
-          Mesajlar telefonda alt menüde olmadığı için yalnızca orada üst çubukta görünür. %>
+          Telefonda üst çubukta yalnızca zil ve Mesajlar durur (alt menüde yerleri yok); masaüstü/tabletteki Mesajlar hesap menüsündedir. %>
       <a class="buton buton-birincil ust-konu-ac" href="/konu/yeni">Konu aç</a>
       <a class="ikon-dugme ust-mesajlar<%= (locals.okunmamisMesaj || 0) > 0 ? ' zil' : '' %>" href="/mesajlar" aria-label="Mesajlar<%= (locals.okunmamisMesaj || 0) > 0 ? ' (' + okunmamisMesaj + ' okunmamış)' : '' %>"><%- include("ikon", { ad: "mektup" }) %></a>
-      <button class="ikon-dugme<%= locals.okunmamisBildirim === 0 ? '' : ' zil' %>" type="button" popovertarget="bildirim-paneli" aria-label="Bildirimler"><%- include("ikon", { ad: "zil" }) %></button>
+      <button class="ikon-dugme ust-zil<%= locals.okunmamisBildirim === 0 ? '' : ' zil' %>" type="button" popovertarget="bildirim-paneli" aria-label="Bildirimler"><%- include("ikon", { ad: "zil" }) %></button>
       <button class="avatar avatar-ust" type="button" popovertarget="avatar-menusu" aria-label="Hesap menüsü"><%= kullanici.username[0] %></button>
     <% } else { %>
       <a class="buton buton-cerceveli" href="/giris">Giriş yap</a>

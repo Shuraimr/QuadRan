@@ -20,7 +20,7 @@
 .menu-ogesi.aktif .menu-etiket { font-weight: 700; }
 .menu-nokta { position: absolute; top: 3px; right: 15px; width: 9px; height: 9px; border-radius: 50%; background: var(--hata); border: 2px solid var(--yuzey-1); box-sizing: content-box; }
 
-/* ---------- Tablet kenar menüsü (801-1180px) ---------- */
+/* ---------- Kenar menü: tablet simge rayı (801-1180px) ve masaüstü etiketli çubuk (1181px+, dosya sonunda) ---------- */
 .kenar-menu { display: none; }
 .kenar-menu-fab {
   display: grid; place-items: center; flex: none;
@@ -29,6 +29,7 @@
 }
 .kenar-menu-fab:hover { filter: brightness(1.1); }
 .kenar-menu-liste { display: flex; flex-direction: column; gap: 12px; width: 100%; padding-top: 4px; }
+.kenar-menu-kategoriler { display: none; }
 .kenar-menu-alt { margin-top: auto; width: 100%; padding-bottom: 16px; }
 
 @media (min-width: 801px) and (max-width: 1180px) {
@@ -46,6 +47,10 @@
   /* Kategoriler sütununun yerini kenar menü alıyor */
   body:not(.sade) .govde > nav { display: none; }
   body:not(.sade) .govde { grid-template-columns: minmax(0, 720px); }
+  /* Kategori seçiliyken rayda Kategoriler aktif görünür */
+  .menu-ogesi.kisa-aktif { color: var(--yazi); }
+  .menu-ogesi.kisa-aktif .menu-hap { background: var(--ton); color: var(--ton-ustu); }
+  .menu-ogesi.kisa-aktif .menu-etiket { font-weight: 700; }
 }
 
 /* ---------- Mobil alt menü (en çok 800px) ---------- */
@@ -294,18 +299,23 @@ select.secici-yerel, .alan select.secici-yerel {
 
 /* =====================================================================
    Tekrarı önleme: bir eylem aynı ekranda iki yerde durmaz.
-   Masaüstü: üst çubuk + hesap menüsü. Tablet: kenar menü "Konu aç" (kalem) ve "Ayarlar"ı taşır.
+   Masaüstü: üst çubuk (Konu aç, ara, zil) + kenar çubuğu (ana bölümler, Ayarlar) + hesap menüsü (Profil, Mesajlar, Yönetim, Çıkış). Tablet: kenar menü "Konu aç" (kalem) ve "Ayarlar"ı taşır.
    Telefon: alt menü ana gezinmedir; üst çubukta yalnızca logo ve alt menüde olmayan Mesajlar kalır.
    ===================================================================== */
 .ust-mesajlar { display: none; }
 @media (min-width: 801px) and (max-width: 1180px) {
   .ust-konu-ac { display: none; }
-  .avatar-menu-ayarlar { display: none; }
 }
+/* Ayarlar tablette ve masaüstünde kenar menüde durur: hesap menüsünde tekrar edilmez */
+@media (min-width: 801px) { .avatar-menu-ayarlar { display: none; } }
 @media (max-width: 800px) {
   .arama-alani { visibility: hidden; }                 /* yer tutmaya devam eder, logo solda kalır */
-  .ust-konu-ac, .avatar-ust, .ust-eylemler .ikon-dugme:not(.ust-mesajlar) { display: none; }
-  .ust-eylemler .ust-mesajlar { display: inline-flex; } /* eski ".ust-eylemler .ikon-dugme" gizleme kuralından daha özgül */
+  .ust-konu-ac, .avatar-ust { display: none; }
+  /* Telefonda üst çubuk: logo + zil + Mesajlar (üyeler). Zil, alt menüde yeri olmadığı için burada; hesap menüsünde yok. */
+  .ust-eylemler .ust-mesajlar, .ust-eylemler .ust-zil { display: inline-grid; } /* eski ".ust-eylemler .ikon-dugme" gizleme kuralından daha özgül */
+  .ust-eylemler .ikon-dugme { width: 48px; height: 48px; }
+  /* Bildirim paneli: üst çubuğun altında, neredeyse tam genişlikte */
+  .bildirim-paneli.acilir-menu-ustte { inset: 60px 8px auto 8px; width: auto; max-width: none; }
   .avatar-menu-mesajlar, .acilir-kisayol { display: none; } /* telefonda klavye kısayolu ipucu anlamsız */
   /* Hesap menüsü alt menüdeki Profil'den açılır: ekranın altında, menünün hemen üstünde */
   .avatar-menusu.acilir-menu-ustte { inset: auto 8px calc(88px + env(safe-area-inset-bottom, 0px)) auto; width: min(320px, calc(100vw - 16px)); transform-origin: bottom right; }
@@ -320,3 +330,52 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
   body:not(.sade) .cubuk-alani { padding-left: 100px; }
   [data-menu="sag"] body:not(.sade) .cubuk-alani { padding-left: 12px; padding-right: 100px; }
 }
+
+/* =====================================================================
+   Masaüstü kalıcı kenar çubuğu (1181px+): aynı kenar-menu parçası, etiketli geniş görünüm.
+   Konu aç üst çubukta kaldığı için FAB yok; Ayarlar altta sabit.
+   ===================================================================== */
+@media (min-width: 1181px) {
+  .kenar-menu {
+    display: flex; flex-direction: column; align-items: stretch;
+    position: fixed; top: 64px; bottom: 0; left: 0; z-index: 5; width: 248px; padding: 12px;
+    background: var(--yuzey-1); border-right: 1px solid var(--kenar-ince); overflow-y: auto;
+  }
+  [data-menu="sag"] .kenar-menu { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--kenar-ince); }
+  .kenar-menu-fab { display: none; }
+  .kenar-menu-liste { gap: 2px; padding-top: 0; }
+  .kenar-menu-alt { padding-bottom: 0; padding-top: 8px; }
+  .kenar-menu .menu-ogesi {
+    flex-direction: row; justify-content: flex-start; gap: 12px;
+    width: 100%; min-width: 0; min-height: 40px; height: 40px; padding: 0 14px; border-radius: 20px;
+    transition: background .15s, color .15s;
+  }
+  .kenar-menu .menu-hap { width: 20px; height: 20px; border-radius: 0; background: none; }
+  .kenar-menu .menu-hap svg { width: 20px; height: 20px; }
+  .kenar-menu .menu-etiket { font-size: 14px; font-weight: 500; line-height: 20px; }
+  .kenar-menu .menu-ogesi:hover { background: var(--yuzey-3); color: var(--yazi); }
+  .kenar-menu .menu-ogesi:hover .menu-hap { background: none; }
+  .kenar-menu .menu-ogesi.aktif, .kenar-menu .menu-ogesi.aktif:hover { background: var(--ton); color: var(--ton-ustu); }
+  .kenar-menu .menu-ogesi.aktif .menu-hap { background: none; color: inherit; }
+  .kenar-menu .menu-ogesi.aktif .menu-etiket { font-weight: 600; }
+  .kenar-menu-kategoriler { display: grid; gap: 2px; }
+  .kenar-kategori {
+    display: flex; align-items: center; height: 34px; padding: 0 14px 0 46px; border-radius: 17px;
+    font-size: 13px; color: var(--yazi-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    transition: background .15s, color .15s;
+  }
+  .kenar-kategori:hover { background: var(--yuzey-3); color: var(--yazi); }
+  .kenar-kategori.aktif, .kenar-kategori.aktif:hover { background: var(--ton); color: var(--ton-ustu); font-weight: 600; }
+
+  body:not(.sade) { padding-left: 248px; }
+  [data-menu="sag"] body:not(.sade) { padding-left: 0; padding-right: 248px; }
+  /* Üst çubuk tam genişlikte kalsın, kenar çubuğu onun altında dursun */
+  body:not(.sade) .ust-cubuk { margin-left: -248px; }
+  [data-menu="sag"] body:not(.sade) .ust-cubuk { margin-left: 0; margin-right: -248px; }
+  /* Toast içerik alanının ortasında */
+  body:not(.sade) .cubuk-alani { padding-left: 260px; }
+  [data-menu="sag"] body:not(.sade) .cubuk-alani { padding-left: 12px; padding-right: 260px; }
+}
+/* Akıştaki kategori sütunu yalnızca telefonda (yatay çipler) görünür: masaüstü ve tablette kenar menü taşır */
+@media (min-width: 801px) { .govde > .akis-kategoriler { display: none; } }
+@media (min-width: 1181px) { .govde.govde-akis { grid-template-columns: minmax(0, 720px) 312px; } }

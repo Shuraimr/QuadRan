@@ -1,0 +1,46 @@
+<%#
+  Keşfet: /kesfet (telefonun alt menüsünden açılır; Ara, Kategoriler ve Sıralama'ya kapı)
+  Beklenen veriler:
+  kategoriler [ { id, name, konu_sayisi } ]
+  liderler    [ { username, points } ]   en çok puanlı 5 kullanıcı
+%>
+<%- include("partials/bas", { baslik: "Keşfet" }) %>
+<%- include("partials/ust-cubuk") %>
+<main class="kesfet">
+  <h1 class="baslik-tipi">Keşfet</h1>
+  <form class="kesfet-ara" action="/ara" method="get" role="search">
+    <%- include("partials/ikon", { ad: "ara", boyut: 20 }) %>
+    <input type="search" name="q" placeholder="Konu, kullanıcı ya da kategori ara" aria-label="Ara" autocomplete="off">
+  </form>
+
+  <section>
+    <div class="bolum-etiketi kesfet-etiket">KATEGORİLER</div>
+    <% if (kategoriler.length === 0) { %><div class="kart bos">Henüz kategori yok.</div><% } %>
+    <div class="kesfet-kategoriler">
+      <% for (const c of kategoriler) { %>
+        <a class="kart kesfet-kart" href="/?kategori=<%= c.id %>">
+          <span class="kesfet-diyez" aria-hidden="true">#</span>
+          <strong><%= c.name %></strong>
+          <span class="kucuk ikincil"><%= c.konu_sayisi %> konu</span>
+        </a>
+      <% } %>
+    </div>
+  </section>
+
+  <section>
+    <div class="kesfet-baslik-satiri">
+      <div class="bolum-etiketi kesfet-etiket">SIRALAMA</div>
+      <a class="baglanti" href="/siralama">Tümünü gör →</a>
+    </div>
+    <div class="kart kesfet-liderler">
+      <% liderler.forEach((l, i) => { %>
+        <a class="kesfet-lider" href="/profil/<%= l.username %>">
+          <span class="kesfet-sira"><%= i + 1 %></span>
+          <strong><%= l.username %></strong>
+          <span class="kucuk ikincil"><%= l.points %> puan</span>
+        </a>
+      <% }) %>
+    </div>
+  </section>
+</main>
+<%- include("partials/son") %>

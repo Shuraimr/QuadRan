@@ -320,3 +320,24 @@
   .yeni-mesaj-dugme { height: 48px; }
   .mesaj-ust-menu-dugme { width: 48px; height: 48px; }
 }
+
+/* ---------- Keşfet (/kesfet) ---------- */
+.kesfet { display: grid; gap: 20px; max-width: 720px; margin: 0 auto; padding: 16px 16px 40px; }
+.kesfet h1 { font-family: var(--baslik-tipi); font-size: 28px; }
+.kesfet-ara { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 16px; background: var(--yuzey-2); border-radius: 24px; color: var(--yazi-2); box-shadow: var(--kat-1); }
+.kesfet-ara input { flex: 1; min-width: 0; height: 48px; border: 0; outline: 0; background: none; color: var(--yazi); font: inherit; font-size: 15px; }
+.kesfet-ara input::placeholder { color: var(--yazi-2); }
+.kesfet-ara:focus-within { outline: 2px solid var(--vurgu); outline-offset: 2px; }
+.kesfet-etiket { padding: 0 4px 8px; }
+.kesfet-baslik-satiri { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-right: 4px; }
+.kesfet-baslik-satiri .baglanti { font-size: 13px; padding-bottom: 8px; }
+.kesfet-kategoriler { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.kesfet-kart { display: grid; gap: 2px; justify-items: start; min-height: 88px; padding: 14px 16px; align-content: center; }
+.kesfet-kart strong { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.kesfet-diyez { font-family: var(--baslik-tipi); font-size: 20px; font-weight: 700; color: var(--vurgu); line-height: 24px; }
+.kesfet-liderler { display: grid; padding: 4px 8px; }
+.kesfet-lider { display: flex; align-items: center; gap: 14px; min-height: 48px; padding: 0 8px; border-radius: 12px; }
+.kesfet-lider:hover { background: color-mix(in srgb, var(--yazi) 6%, transparent); }
+.kesfet-lider strong { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.kesfet-sira { width: 20px; font-family: var(--baslik-tipi); font-size: 18px; font-weight: 700; color: var(--vurgu); }
+.kesfet .bolum-etiketi { display: block; } /* telefonda genel ".bolum-etiketi" gizleme kuralını geçersiz kıl: burada bölüm başlığıdır */

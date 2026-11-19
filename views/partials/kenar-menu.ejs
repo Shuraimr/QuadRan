@@ -1,11 +1,16 @@
 <%#
-  Tablet kenar menüsü (801-1180px arası görünür, CSS'te).
+  Kenar menü: tek kaynak, iki görünüm (CSS'te).
+  801-1180px: 88px'lik simge rayı (FAB + simgeler). 1181px ve üstü: 248px'lik etiketli kalıcı sol kenar çubuğu,
+  Kategoriler'in altında kategori listesiyle (rayda gizli). Telefonda görünmez (orada alt menü var).
   Beklenen veriler (hepsi isteğe bağlı):
+  menuKategoriler  [ { id, name } ] (oturum.ts, önbellekli); kategoriId seçili kategori (yalnızca akışta)
   aktifMenu   "akis" | "kategoriler" | "sohbet" | "siralama" | "ayarlar" (yoksa "akis")
   kullanici   giriş yapmışsa { username }; yoksa "Konu aç" ve "Ayarlar" gösterilmez
   statik      true ise sayfanın içinde sabit olmadan gösterilir (yalnızca önizleme sayfası için)
 %>
-<% const aktifMenu_ = locals.aktifMenu || "akis"; const uye_ = !!locals.kullanici;
+<% const kategoriId_ = locals.kategoriId || 0;
+   // Kategori seçiliyken akış öğesi aktif sayılmaz: seçili olan kategori satırıdır
+   const aktifMenu_ = (locals.aktifMenu || "akis") === "akis" && kategoriId_ ? "kategoriler" : (locals.aktifMenu || "akis"); const uye_ = !!locals.kullanici;
    const ogeler_ = [
      { id: "akis", ad: "Akış", href: "/", ikon: "ev" },
      { id: "kategoriler", ad: "Kategoriler", href: "/kategoriler", ikon: "izgara" },
@@ -18,10 +23,18 @@
   <% } %>
   <div class="kenar-menu-liste">
     <% for (const o of ogeler_) { %>
-      <a class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" href="<%= o.href %>"<%- aktifMenu_ === o.id ? ' aria-current="page"' : '' %>>
+      <%# Kategori seçiliyken "Kategoriler" yalnızca rayda (tablet) aktif görünür; geniş çubukta aktif olan alt satırdır (.kisa-aktif) %>
+      <a class="menu-ogesi<%= aktifMenu_ === o.id ? (o.id === 'kategoriler' && kategoriId_ ? ' kisa-aktif' : ' aktif') : '' %>" href="<%= o.href %>"<%- aktifMenu_ === o.id && !kategoriId_ ? ' aria-current="page"' : '' %>>
         <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %></span>
         <span class="menu-etiket"><%= o.ad %></span>
       </a>
+      <% if (o.id === "kategoriler" && (locals.menuKategoriler || []).length) { %>
+        <div class="kenar-menu-kategoriler" role="group" aria-label="Kategoriler">
+          <% for (const c of menuKategoriler) { %>
+            <a class="kenar-kategori<%= kategoriId_ === c.id ? ' aktif' : '' %>" href="/?kategori=<%= c.id %>"<%- kategoriId_ === c.id ? ' aria-current="page"' : '' %>># <%= c.name %></a>
+          <% } %>
+        </div>
+      <% } %>
     <% } %>
   </div>
   <% if (uye_) { %>

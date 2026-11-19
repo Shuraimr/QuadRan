@@ -102,6 +102,16 @@ export function csrfKoru(req: Request, res: Response, next: NextFunction) {
   );
 }
 
+// Kenar menüdeki kategori listesi her sayfada gerekir; kategoriler seyrek değiştiği için 30 saniyelik bellek önbelleği yeter
+// (yönetimde kategori eklenince en geç 30 sn sonra menüde görünür).
+let menuKategoriOnbellegi: { bitis: number; liste: any[] } | null = null;
+async function menuKategorileri() {
+  if (menuKategoriOnbellegi && menuKategoriOnbellegi.bitis > Date.now()) return menuKategoriOnbellegi.liste;
+  const [liste]: any = await pool.query("SELECT id, name FROM categories ORDER BY sort_order, id");
+  menuKategoriOnbellegi = { bitis: Date.now() + 30_000, liste };
+  return liste;
+}
+
 // ---------------------------------------------------------------------------
 // Her istekte çalışır: kullanıcıyı, tercihlerini ve üst çubuk verilerini hazırlar.
 // ---------------------------------------------------------------------------
@@ -113,6 +123,7 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
   res.locals.kompakt = false;
   res.locals.azAnimasyon = false;
   res.locals.adres = req.path; // menülerde aktif öğe için
+  res.locals.menuKategoriler = await menuKategorileri();
 
   // Duyuru şeridi (partials/duyuru.ejs): yalnızca doluysa ve bu oturumda kapatılmadıysa
   const site = await ayarlar();

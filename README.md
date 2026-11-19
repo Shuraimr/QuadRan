@@ -2,7 +2,7 @@
 
 Türkçe bir forum sitesi. Üyeler kategorilere ayrılmış konular açar, cevap yazar, oy verir; puan topladıkça rütbe ve rozet kazanır. Genel sohbet, özel mesajlar, bildirimler ve moderatörler için gelişmiş bir yönetim paneli vardır.
 
-**Sürüm:** 0.4.0 · **Teknolojiler:** Node.js 22 (TypeScript'i doğrudan çalıştırır) · Express 5 · EJS · MySQL 8.4 (ORM yok, saf SQL) · Docker Compose
+**Sürüm:** 0.5.0 · **Teknolojiler:** Node.js 22 (TypeScript'i doğrudan çalıştırır) · Express 5 · EJS · MySQL 8.4 (ORM yok, saf SQL) · Docker Compose
 
 ## Özellikler
 

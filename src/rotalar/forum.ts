@@ -112,6 +112,25 @@ forum.get("/kategoriler", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Keşfet: telefonun alt menüsünde Kategoriler, Sıralama ve Ara'ya açılan tek kapı.
+// (Masaüstü/tablette bunlar kenar menüde olduğu için menüye eklenmez; adresle yine açılır.)
+// ---------------------------------------------------------------------------
+forum.get("/kesfet", async (req, res) => {
+  const [kategoriler] = await pool.query(
+    `SELECT categories.id, categories.name, COUNT(topics.id) AS konu_sayisi
+       FROM categories
+       LEFT JOIN topics ON topics.category_id = categories.id AND topics.deleted_at IS NULL
+      GROUP BY categories.id
+      ORDER BY categories.sort_order, categories.id`
+  );
+  const [liderler] = await pool.query(
+    `SELECT users.username, users.points FROM users WHERE users.deleted_at IS NULL
+      ORDER BY users.points DESC, users.username LIMIT 5`
+  );
+  res.render("kesfet", { kategoriler, liderler, aktifMenu: "kesfet" });
+});
+
+// ---------------------------------------------------------------------------
 // Konu açma
 // (Bu route /konu/:id'den ÖNCE tanımlanmalı; yoksa "yeni" bir id sanılırdı.)
 // ---------------------------------------------------------------------------

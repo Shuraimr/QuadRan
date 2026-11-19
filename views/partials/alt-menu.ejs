@@ -1,23 +1,24 @@
 <%#
   Mobil alt menü (en çok 800px genişlikte görünür, CSS'te).
   Beklenen veriler (hepsi isteğe bağlı):
-  aktifMenu          "akis" | "kategoriler" | "ara" | "giris" | "konu-ac" | "bildirimler" | "profil" (yoksa "akis")
+  aktifMenu          "akis" | "kesfet" | "konu-ac" | "sohbet" | "giris" | "profil" (yoksa "akis")
   kullanici          giriş yapmışsa { username }
   okunmamisBildirim  0'dan büyükse Bildirimler üzerinde küçük nokta çıkar
   statik             true ise sabit olmadan gösterilir (yalnızca önizleme sayfası için)
 %>
 <% const aktifMenu_ = locals.aktifMenu || "akis";
+   /* Kategoriler ve Sıralama telefonda Keşfet sayfasından açılır (2 dokunuş); Ara da orada. Bildirimler üst çubukta (zil). */
    const ogeler_ = locals.kullanici ? [
      { id: "akis", ad: "Akış", href: "/", ikon: "ev" },
-     { id: "ara", ad: "Ara", href: "/ara", ikon: "ara", arama: true },
+     { id: "kesfet", ad: "Keşfet", href: "/kesfet", ikon: "pusula" },
      { id: "konu-ac", ad: "Konu aç", href: "/konu/yeni", ikon: "kalem" },
-     { id: "bildirimler", ad: "Bildirimler", href: "/bildirimler", ikon: "zil", nokta: (locals.okunmamisBildirim || 0) > 0 },
+     { id: "sohbet", ad: "Sohbet", href: "/sohbet", ikon: "sohbet" },
      /* Profil hesap menüsünü açar (Profilim, Ayarlar, Yönetim, Çıkış): bu menüler telefonda başka yerde yok */
      { id: "profil", ad: "Profil", href: "/profil/" + locals.kullanici.username, ikon: "kisi", hesapMenusu: true }
    ] : [
      { id: "akis", ad: "Akış", href: "/", ikon: "ev" },
-     { id: "kategoriler", ad: "Kategoriler", href: "/kategoriler", ikon: "izgara" },
-     { id: "ara", ad: "Ara", href: "/ara", ikon: "ara", arama: true },
+     { id: "kesfet", ad: "Keşfet", href: "/kesfet", ikon: "pusula" },
+     { id: "sohbet", ad: "Sohbet", href: "/sohbet", ikon: "sohbet" },
      { id: "giris", ad: "Giriş", href: "/giris", ikon: "giris" }
    ]; %>
 <nav class="alt-menu<%= locals.statik ? ' katman-statik' : '' %>" aria-label="Alt gezinti"<%- locals.statik ? "" : " data-alt-cubuk" %>>
