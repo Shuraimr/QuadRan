@@ -336,3 +336,12 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
   }
   .yn-tablo td:is([data-etiket="Başlık"], [data-etiket="Üye"], [data-etiket="Konu"], [data-etiket="Mesaj"], [data-etiket="Ayrıntı"], [data-etiket="Hedef"])::before { display: none; }
 }
+
+/* Liste sütunu da örtük sütunla durum haplarının genişliğine büyüyordu; haplar zaten yana kayar */
+.yn-md-liste { grid-template-columns: minmax(0, 1fr); }
+.yn-durum-haplari { max-width: 100%; }
+/* Telefonda parmakla dokunulan küçük öğeler en az 44px'lik alan alır */
+@media (max-width: 800px) {
+  .yn-geri { display: inline-flex; align-items: center; min-height: 44px; }
+  .yn-ust-avatar { width: 40px; height: 40px; }
+}

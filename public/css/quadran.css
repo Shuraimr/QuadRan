@@ -494,3 +494,14 @@ svg { flex: none; }
 /* Çapa bağlantıları yumuşak kaysın (azaltılmış harekette quadran.css bunu "auto"ya çeker) */
 html { scroll-behavior: smooth; }
 [data-az-animasyon] { scroll-behavior: auto; } /* "*" seçicisi <html>in kendisini kapsamaz */
+
+/* ---------- Taşma güvenliği ----------
+   Sütun tanımı olmayan grid kapsayıcıları (örtük "auto" sütun) içlerindeki en geniş öğeye göre büyür ve
+   telefonda ekrandan taşar (arama formu, ayar bölümleri). Sütunu kapsayıcı genişliğiyle sınırlıyoruz. */
+.ara-sayfa, .ayarlar .bolumler, .ayarlar .bolum { grid-template-columns: minmax(0, 1fr); }
+.ara-form, .ara-form .alan { min-width: 0; }
+.ara-form .alan { flex: 1; }
+.taslar { flex-wrap: wrap; }
+/* Tema seçimi (Koyu/Açık/Sistem): üç etiket genişliği paylaşır, dar ekranda taşmaz */
+.ayarlar .siralama { max-width: 100%; }
+.ayarlar .siralama label { flex: 1 1 0; min-width: 0; justify-content: center; }

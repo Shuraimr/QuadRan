@@ -196,13 +196,18 @@
 
 /* ---------- Tablet ---------- */
 @media (max-width: 1180px) {
+  /* Tablette liste ve konuşma yan yana sığar: liste daralır (280px). Tek sütuna yalnızca 960px altında geçilir. */
+  .mesaj-sayfa { grid-template-columns: 280px minmax(0, 1fr); padding: 16px 20px; }
+  .siralama-sayfa { grid-template-columns: minmax(0, 1fr); max-width: 808px; }
+  .sohbet-sayfa { grid-template-columns: minmax(0, 1fr); max-width: 808px; }
+  .sohbet-yan { display: none; }
+}
+
+@media (max-width: 960px) {
   .mesaj-sayfa { grid-template-columns: minmax(0, 1fr); max-width: 760px; }
   .mesaj-sayfa.mesaj-acik .mesaj-liste { display: none; }
   .mesaj-sayfa:not(.mesaj-acik) .mesaj-pano { display: none; }
   .mesaj-geri { display: grid; }
-  .siralama-sayfa { grid-template-columns: minmax(0, 1fr); max-width: 808px; }
-  .sohbet-sayfa { grid-template-columns: minmax(0, 1fr); max-width: 808px; }
-  .sohbet-yan { display: none; }
 }
 
 /* ---------- Mobil ---------- */
