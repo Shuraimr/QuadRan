@@ -19,7 +19,8 @@ Ayrıntılı route / tablo / yetki listesi: `docs/AKTARIM.md` (önce oraya bak, 
 ```
 src/server.ts        ara katmanlar + router'lar (sıra: static, urlencoded, oturum, csrfKoru, ortakVeriler, router'lar, 404, hata)
 src/oturum.ts        express-session (MySQL deposu), CSRF (res.locals.csrf), her sayfada ortak veriler (kullanici, tema, bildirimler...)
-src/yardimci.ts      rutbeSql, skorSql, puanEkle, bildirimGonder, rozetVer, bildir (toast), girisGerekli, yetkiliGerekli, sayi, metin
+src/yardimci.ts      rutbeSql, skorSql, puanEkle (points_log'a yazar), rutbeKontrol, cozumPuaniGeriAl, bildirimGonder, rozetVer, bildir (toast), girisGerekli, yetkiliGerekli, sayi, metin
+src/rutbe.ts         rütbe önbelleği, ayrıcalık denetimi (izinli, kilitBilgisi), icerikHtml (rütbeye göre bağlantı)
 src/ayarlar.ts       site_settings önbelleği (puan kuralları, duyuru, kayıt açık mı, yasaklı kelimeler), yasakliIfade
 src/gizlilik.ts      engelleme, mesaj izni, çevrimiçi görünürlüğü
 src/islemler.ts      yetkili işlemleri (ban, soft delete/geri al), src/sikayet.ts şikâyet modeli, src/denetim.ts işlem kaydı
@@ -29,7 +30,7 @@ src/rotalar/         hesap, forum (akış/konu/profil/ara/sıralama/keşfet/şik
 views/partials/      ust-cubuk, kenar-menu (masaüstü sol menü + tablet rayı), alt-menu (telefon), avatar-menusu, bildirim-paneli,
                      sikayet-penceresi, oy, yorum, gonderi-karti, ikon (SVG ikon seti), bas/son
 views/yonetim/       panel şablonları (duzen-ust/duzen-alt ortak düzen)
-sql/01..12           sırayla uygulanan şema + seed + değişiklikler (Docker ilk kurulumda hepsini çalıştırır)
+sql/01..15           sırayla uygulanan şema + seed + değişiklikler (Docker ilk kurulumda hepsini çalıştırır)
 ```
 
 ## Kodlama kuralları
@@ -40,7 +41,7 @@ sql/01..12           sırayla uygulanan şema + seed + değişiklikler (Docker i
 - Yeni tablo/sütun → yeni numaralı `sql/NN_ad.sql` (canlı DB'ye de uygula, AKTARIM.md'ye yaz). Eski SQL dosyalarını değiştirme.
 - **Yeni npm paketi eklemeden önce kullanıcıya sor.**
 - Sunucu tarafı doğrulama her zaman yapılır (tarayıcıdaki required/pattern atlatılabilir).
-- Puanlar `site_settings`'teki puan kurallarından okunur (sabit yazma). Rütbe saklanmaz, puandan hesaplanır. Silme = soft delete (`deleted_at`).
+- Puanlar `site_settings`'teki puan kurallarından okunur (sabit yazma). Puan değişikliği YALNIZCA `puanEkle(..., sebep)` ile (points_log). Rütbe saklanmaz, puandan hesaplanır; ayrıcalık denetiminde admin/moderatör muaf. Silme = soft delete (`deleted_at`).
 
 ## Arayüz kuralları (kullanıcının açık talepleri)
 
@@ -69,15 +70,33 @@ Bir arayüz işinin tamamı (bilgi mimarisi → Figma → onay → kodlama → �
 2. Yerleşik tarayıcıda 375 / 1075 / 1440 genişlikte bak: yatay taşma yok, tekrar yok, toast/çubuk çakışması yok, konsol hatasız.
 3. Test verisini temizle, seed durumunu geri getir.
 4. Alt ajan kullandıysan raporuna güvenme, sonucu kendin doğrula.
+5. **Bağımsız eleştiri (zorunlu):** her aşamanın sonunda `elestirmen` alt ajanı (`.claude/agents/elestirmen.md`, ölçütler `.claude/skills/quadran-tasarim/elestiri.md`) işi puanlar. **8.0 altı** → revizyon listesi kullanıcıya olduğu gibi sunulur, kullanıcı onaylarsa uygulanır ve eleştiri tekrarlanır. Eleştirmene kendi savunmanı yazma. Sonuçlar `docs/elestiri-kaydi.md`'ye.
 
 ## Test kullanıcıları (seed)
 
-`shurai` (admin), `ayse` (moderatör), `ahmet` (üye) — şifreleri `test1234`. Test sonrası puanlar: shurai 9, ayse 3, ahmet 7; kimse uzaklaştırılmış değil.
+`shurai` (admin), `ayse` (moderatör), `ahmet` (üye) — şifreleri `test1234`. Kimse uzaklaştırılmış olmamalı.
+
+**Günlük ziyaret puanı** (`puan_gunluk`, sql/13) her kullanıcının günde İLK isteğinde puan değiştirir (ve `son_gunluk_puan`/`seri_gun` yazar): test sunucusuna giriş yapmak bile puanı +1 yapar. Seed puanı sabit sayı DEĞİL, **`points_log` toplamıdır** (başlangıç: shurai 9, ayse 3, ahmet 7 + önceki günlük satırları). Test bitince, `test` kullanıcısına (kullanıcının kendi hesabı) dokunmadan:
+
+```sql
+-- bugün test sırasında oluşan günlük/seri/test puan satırlarını sil (yalnızca seed kullanıcıları)
+DELETE FROM points_log WHERE sebep IN ('gunluk','seri','oy','cozum','cozum_geri','rozet_geri','geri_yukleme','konu','cevap','silme','rozet','duzeltme')
+  AND created_at >= CURDATE() AND user_id IN (SELECT id FROM users WHERE username IN ('shurai','ayse','ahmet'));
+-- puanı log toplamından yeniden hesapla, günlük giriş durumunu sıfırla
+UPDATE users SET points = (SELECT COALESCE(SUM(miktar),0) FROM points_log WHERE user_id = users.id),
+       son_gunluk_puan = NULL, seri_gun = 0, kutlama_rutbe_id = NULL
+ WHERE username IN ('shurai','ayse','ahmet');
+-- kontrol: her kullanıcıda points = log toplamı olmalı (sonuç boş dönmeli)
+SELECT id, username, points FROM users WHERE points <> (SELECT COALESCE(SUM(miktar),0) FROM points_log WHERE user_id = users.id);
+```
+
+Testte oluşturduğun konu/mesaj/oy/rozet satırlarını da ayrıca sil (puan satırı silinince o kayıtların kendisi kalmasın). Rütbe tablosunu (`ranks`) test için değiştirdiysen varsayılana döndür (docs/AKTARIM.md "Rütbe sistemi").
 
 ## Sürüm ve yayın
 
 - Kullanıcı istediğinde: `main`'e commit (Türkçe mesaj), `git push`, gerekiyorsa `package.json` sürümü + README'deki sürüm satırı + `git tag -a vX.Y.Z` + `gh release create` (Türkçe not, DB güncelleme komutu dahil).
-- `.env` asla commit'lenmez. Son sürüm: v0.5.0.
+- `.env` asla commit'lenmez. Son sürüm: v0.6.0.
+- Lisans: **AGPL-3.0-or-later** (`LICENSE`). Kullanıcının kararı: ücretli üyelik satılabilir ama proje asla kapalı kaynak olamaz. Yeni bağımlılık eklerken AGPL ile uyumlu lisansı olduğunu kontrol et (MIT, BSD, ISC, Apache-2.0, LGPL uyumlu; kapalı/ticari lisanslı paket ekleme).
 
 ## Yol haritası (kullanıcının belirlediği sıra)
 
@@ -87,7 +106,33 @@ Bir arayüz işinin tamamı (bilgi mimarisi → Figma → onay → kodlama → �
    - Giriş: **davetle** (oda yöneticisi üye davet eder; listede görünmez) ve **bağlantıyla** (davet bağlantısı, süresi dolabilir). Herkese açık ya da şifreli oda YOK.
    - Oluşturma: **belli bir rütbeden sonra** (eşik panelden ayarlanabilir; varsayılan Müdavim / 100 puan). Admin ve moderatör rütbe şartından **muaf** (kullanıcı onayladı); kişi başı oda sınırı herkese uygulanır.
    - Oda mesajı şikâyeti `reports.hedef_tur = 'oda_mesaji'`; panelde Sohbet › Odalar sekmesi. Yeni adresler: `/oda/yeni`, `/oda/:id[/uyeler|davet|baglantilar|ayarlar|ayril]`, `/oda/katil/:kod`, `/yonetim/sohbet/odalar`
-3. **Çok oyunculu oyunlar** (panelde "Oyunlar · yakında" yeri hazır)
-4. **Avatar ve profil efektleri** — bir kısmı premium, bir kısmı herkese açık (avatar/banner yükleme de burada yapılacak; panelde "Mağaza · yakında")
+3. **Rütbe, premium, profil, referans** — kullanıcı kararları (2026-11-19), bu SIRAYLA, her aşama ayrı tasarım + onay + sürüm:
+   1. **Rütbe sistemi** (kodlandı, eleştiri 5.0 → 7.7 → 7.4 → 7.7, revizyonda — kalan 6 madde docs/elestiri-kaydi.md son satırında; günlük konu/cevap puanı tavanı kullanıcıya sorulacak; kullanıcı kararları 2026-11-20: yetkililer bağlantı dahil BÜTÜN ayrıcalıklardan muaf; "davet" puanı referans aşamasına (3.4) ertelendi — `puan_davet` ayarı ve `points_log.sebep = 'davet'` hazır ama KULLANILMIYOR, referans/davet kabulü `puanEkle(..., "davet", ...)` ile bağlanacak; telefonda kartlarda rütbe çipi tam gösterilir; **kişinin kendi konusuna yazdığı cevap puan getirmez** (konu sil → puan kasma döngüsünü kapatır, kullanıcı kararı 2026-11-20); sql/13 + sql/14 + sql/15, `src/rutbe.ts`, `src/rotalar/rutbe.ts`; ayrıntı docs/AKTARIM.md "Rütbe sistemi"). İlk kararlar: rütbe ayrıcalıkları (her rütbe bir şey açar: oda açma, imza, profil efekti, günlük oy vb.; panelden rütbe başına ayarlanır),
+      rütbe görünümü (simge + renk, ad yanındaki rozet rütbe rengiyle, rütbe atlayınca kutlama bildirimi), daha fazla rütbe ve ilerleme
+      (profilde "sonraki rütbede ne açılır"), yeni puan kaynakları (günlük giriş, kabul edilen cevap, davet vb.).
+   2. **Premium üyelik + profil efektleri**: Ücretsiz / Premium seviyeleri; gerçek ödeme YOK, panelden elle verilir (ödeme sonra bağlanacak).
+      Efektler (çerçeve, isim rengi, banner efekti): bir kısmı herkese, bir kısmı rütbeyle, bir kısmı premiumla açılır. Panelde "Mağaza · yakında" yeri.
+      **Kullanıcı düzeltmesi (2026-11-20) — premium "renkli AI slop" OLMAYACAK:** gradyan, parlak altın/pembe, kendini öven reklam dili yok;
+      sitenin sade token'larıyla (vurgu/ton) çizilir. Premium'un verdikleri: **hareketli profil banner'ı**, **profil animasyonları**,
+      **ekstra az kısıtlama** (daha yüksek sınırlar), **profil efektleri**, **profil çerçevesi** ve **unvan (title)**. Premium'da geçen
+      **her ay yeni bir unvan açılır** (sadakat unvanları; kişi açtıkları arasından birini seçer). **Premium tanıtımı = kişiselleştirilmiş
+      örnek profil**: /premium, kullanıcının KENDİ profilini premium özellikler uygulanmış hâliyle gösterir (renkli reklam sayfası değil).
+      **İPTAL / YENİDEN TASARLANACAK (2026-11-20):** Figma "08 · Premium (sade)" tasarımı kullanıcı tarafından reddedildi ("bu çöp değil, Discord vari
+      profil efektleri ve animasyonları istiyordum"). İstenen: Discord benzeri **hareketli profil efektleri** (profil kartının üzerinde oynayan
+      kaplama animasyonları) ve **avatar süsleri** (avatarın çevresinde hareketli dekorasyonlar), hareketli banner. Sade çizgi çerçeveler ve
+      noktalı desenler İSTENMİYOR. Kullanıcı "şimdilik boşver" dedi: premium şimdilik beklemede, sırası gelince bu yönle baştan tasarlanacak.
+      **Şimdilik verilecek premium (kullanıcı, 2026-11-20):** "daha şekilli isim yazısı" (isim yazı stilleri: yazı tipi, renk/renk geçişi,
+      isteğe bağlı ince ışıltı animasyonu) ve "profil arka planını seçebilme" (profil sayfasının arka planı: hazır seçenekler; yükleme profil
+      aşamasıyla). Discord vari hareketli profil efektleri + avatar süsleri daha sonra ayrı tasarlanacak.
+   3. **Profil**: avatar ve banner yükleme — **multer + sharp** paketleri onaylandı. Küçültme/sıkıştırma profilde fark edilmemeli
+      (yüksek kalite, retina için 2x boyut). Depolama genel tasarlanmalı: ileride sohbet/oda/DM'lerde **fotoğraf ve video yükleme** gelecek.
+      Ayrıca profil vitrini ve sekmeler (rozet vitrini, sabitlenmiş konu, etkinlik), **takip sistemi** (takip/takipçi, takip edilenlerin konuları akışta).
+   4. **Referanslı odalar** — kefil modeli: oda ayarı "katılmak için N referans gerekir" (1–3); odanın sıradan üyeleri bir kişiye referans verir,
+      N'e ulaşınca kişi katılır. **Kefil sorumluluğu ayrı**: referans verilen kişi ciddi bir ceza (ban) alırsa, yetkili o kişinin kefillerini
+      **duruma göre** cezalandırabilir ya da cezalandırmayabilir (otomatik değil; ban ekranında kefiller listelenir ve her biri için karar verilir).
+4. **Çok oyunculu oyunlar** (panelde "Oyunlar · yakında" yeri hazır) — gerçek zamanlı iletişim gerektirir (WebSocket paketi için önce sor)
 
-Bilinen eksikler: gerçek e-posta gönderimi (SMTP yok, sıfırlama bağlantısı konsola yazılır), avatar yükleme.
+Bilinen eksikler / küçük işler: gerçek e-posta gönderimi (SMTP yok, sıfırlama bağlantısı konsola yazılır); sohbet, oda ve DM'ler
+canlı değil (sayfa yenileyince güncellenir); sitedeki ⋮ menüsünden yapılan eski moderasyon işlemleri sebep istemiyor; moderatörün sildiği
+özel mesaj gönderene "Bu mesajı sildin" görünüyor (ayırmak için sütun gerek); son admin koruması gerçek veride denenmedi; "Kopyala"nın
+gerçek panoya yazması kullanıcı tarayıcısında doğrulanmadı; telefonda oda başlığındaki bilgi satırı iki satıra kayıyor.

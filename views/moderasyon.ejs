@@ -84,7 +84,7 @@
                 <div class="gonderi-meta">
                   <span class="avatar"><%= h.yazar[0] %></span>
                   <a class="kullanici" href="/profil/<%= h.yazar %>"><%= h.yazar %></a>
-                  <% if (h.rutbe) { %><span class="rozet"><%= h.rutbe %></span><% } %>
+                  <% if (h.rutbe) { %><%- include("partials/rutbe", { rutbeAd: h.rutbe, rutbeId: h.rutbe_id }) %><% } %>
                   <span class="cip-cerceveli">Kullanıcı şikâyeti</span>
                   <% if (h.banli) { %><span class="cip-cerceveli">Uzaklaştırıldı</span><% } %>
                 </div>
@@ -95,7 +95,7 @@
               <div class="gonderi-meta">
                 <span class="avatar"><%= h.yazar[0] %></span>
                 <a class="kullanici" href="/profil/<%= h.yazar %>"><%= h.yazar %></a>
-                <% if (h.rutbe) { %><span class="rozet"><%= h.rutbe %></span><% } %>
+                <% if (h.rutbe) { %><%- include("partials/rutbe", { rutbeAd: h.rutbe, rutbeId: h.rutbe_id }) %><% } %>
                 <% if (s.tur === "sohbet_mesaji") { %><span class="cip-cerceveli">Genel sohbet</span><% } %>
                 <% if (s.tur === "ozel_mesaj") { %><span class="cip-cerceveli">Özel mesaj → <%= h.alici %></span><% } %>
                 <% if (s.tur === "oda_mesaji") { %><span class="cip-cerceveli">Oda: <%= h.oda %></span><% } %>

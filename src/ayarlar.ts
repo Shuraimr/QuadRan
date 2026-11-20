@@ -18,17 +18,19 @@ export type SiteAyarlari = {
   oda: OdaAyarlari;
 };
 
-// Özel oda ayarları (sql/12): oda açmak için gereken en düşük PUAN (varsayılan 100 = Müdavim; rütbe puandan hesaplandığı için
-// eşik de puan olarak saklanır) ve bir kişinin sahibi olabileceği en çok oda sayısı. Yönetim: Sohbet > Odalar.
-export type OdaAyarlari = { rutbeEsigi: number; kisiSiniri: number };
-export const ODA_VARSAYILAN: OdaAyarlari = { rutbeEsigi: 100, kisiSiniri: 3 };
-export const ODA_ESIK_ENFAZLA = 100000;
+// Özel oda ayarı (sql/12): bir kişinin sahibi olabileceği en çok oda sayısı. Yönetim: Sohbet > Odalar.
+// (Oda açabilecek rütbe artık ayar değil, rütbenin "oda_ac" ayrıcalığıdır: sql/13, Puan ve ödüller > Rütbeler.)
+export type OdaAyarlari = { kisiSiniri: number };
+export const ODA_VARSAYILAN: OdaAyarlari = { kisiSiniri: 3 };
 export const ODA_SINIR_ENFAZLA = 50;
 
-// Puan kuralları (site_settings: puan_konu, puan_cevap, puan_oy). Eskiden kodda sabitti (5 / 2 / 1);
-// artık yönetici panelinden (Puan ve ödüller > Puan kuralları) değiştirilir.
-export type PuanKurallari = { konu: number; cevap: number; oy: number };
-export const PUAN_VARSAYILAN: PuanKurallari = { konu: 5, cevap: 2, oy: 1 };
+// Puan kuralları (site_settings: puan_konu, puan_cevap, puan_oy, puan_gunluk, puan_seri, puan_cozum, puan_rozet, puan_davet).
+// Yönetici panelinden (Puan ve ödüller > Puan kuralları) değiştirilir.
+//   davet: KULLANILMIYOR, "davet" puan kaynağı referans aşamasına (CLAUDE.md yol haritası 3.4) ertelendi; ayar anahtarı ve
+//     points_log 'davet' sebebi şimdiden hazır, panelde gösterilmez. Referans/davet kabulü yazılırken puanEkle(..., "davet", ...) buraya bağlanacak.
+//   gunluk: günde ilk ziyaret · seri: 7 gün üst üste ziyaret · cozum: cevabı çözüm seçilen yazara · rozet: her yeni rozet
+export type PuanKurallari = { konu: number; cevap: number; oy: number; gunluk: number; seri: number; cozum: number; rozet: number; davet: number };
+export const PUAN_VARSAYILAN: PuanKurallari = { konu: 5, cevap: 2, oy: 1, gunluk: 1, seri: 5, cozum: 15, rozet: 10, davet: 5 };
 export const PUAN_ENFAZLA = 1000; // yanlışlıkla 99999 yazılmasın diye üst sınır
 
 // Ayardan gelen metni güvenli bir tam sayıya çevirir; bozuksa varsayılana döner (site hiç bozulmasın).
@@ -61,9 +63,13 @@ export async function ayarlar(): Promise<SiteAyarlari> {
       konu: puanDegeri(h.puan_konu, PUAN_VARSAYILAN.konu),
       cevap: puanDegeri(h.puan_cevap, PUAN_VARSAYILAN.cevap),
       oy: puanDegeri(h.puan_oy, PUAN_VARSAYILAN.oy),
+      gunluk: puanDegeri(h.puan_gunluk, PUAN_VARSAYILAN.gunluk),
+      seri: puanDegeri(h.puan_seri, PUAN_VARSAYILAN.seri),
+      cozum: puanDegeri(h.puan_cozum, PUAN_VARSAYILAN.cozum),
+      rozet: puanDegeri(h.puan_rozet, PUAN_VARSAYILAN.rozet),
+      davet: puanDegeri(h.puan_davet, PUAN_VARSAYILAN.davet), // henüz kullanılmıyor (referans aşamasında bağlanacak)
     },
     oda: {
-      rutbeEsigi: tamSayi(h.oda_rutbe_esigi, ODA_VARSAYILAN.rutbeEsigi, 0, ODA_ESIK_ENFAZLA),
       kisiSiniri: tamSayi(h.kisi_basi_oda_siniri, ODA_VARSAYILAN.kisiSiniri, 1, ODA_SINIR_ENFAZLA),
     },
   };

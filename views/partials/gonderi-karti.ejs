@@ -16,9 +16,10 @@
     <div class="gonderi-meta">
       <span class="etiket"><%= konu.kategori %></span>
       <% if (konu.pinned_at) { %><span class="etiket">Sabit</span><% } %>
+      <% if (konu.cozuldu) { %><span class="cozum-cip"><%- include("ikon", { ad: "onay", boyut: 13 }) %>Çözüldü</span><% } %>
       <span class="avatar"><%= konu.yazar[0] %></span>
       <span class="kullanici"><%= konu.yazar %></span>
-      <% if (konu.rutbe) { %><span class="rozet"><%= konu.rutbe %></span><% } %>
+      <% if (konu.rutbe) { %><%- include("rutbe", { rutbeAd: konu.rutbe, rutbeId: konu.rutbe_id }) %><% } %>
       <span class="zaman">· <%= zaman(konu.created_at) %></span>
     </div>
     <h2><a href="/konu/<%= konu.id %>"><%= konu.title %></a></h2>

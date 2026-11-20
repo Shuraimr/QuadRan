@@ -1,0 +1,14 @@
+<%#
+  Kilit kartı (kesikli kenarlı): bir ayrıcalık henüz açılmadıysa neden ve ne kadar kaldığı.
+  "<Ayrıcalık> <rütbe çipi> rütbesinde açılır · N puan kaldı · Nasıl puan kazanılır?"
+  Beklenen veri: kilit { ad, rutbe { name } | null, kalan } (src/rutbe.ts kilitBilgisi), isteğe bağlı ek (kısa ek açıklama metni)
+%>
+<div class="kilit-kart">
+  <%- include("ikon", { ad: "kilit", boyut: 18 }) %>
+  <span>
+    <strong><%= kilit.ad %></strong>
+    <% if (kilit.rutbe) { %><%- include("rutbe", { rutbeAd: kilit.rutbe.name, rutbeId: kilit.rutbe.id }) %> rütbesinde açılır · <%= kilit.kalan %> puan kaldı<% } else { %>şu an hiçbir rütbede açık değil<% } %>
+    · <a class="baglanti" href="/rutbeler">Nasıl puan kazanılır?</a>
+    <% if (locals.ek) { %><span class="kilit-ek"><%= ek %></span><% } %>
+  </span>
+</div>

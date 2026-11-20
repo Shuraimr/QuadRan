@@ -1,9 +1,9 @@
 <%#
   Sohbet > Odalar: /yonetim/sohbet/odalar?q=&durum=&sayfa=
   satirlar [{ id, ad, sahip_id, sahip, uye, mesaj, created_at, kapatildi_at }], sf, qs { q, durum }, yol, filtreli
-  oda { rutbeEsigi, kisiSiniri }, esikEnfazla, sinirEnfazla, duzenleyebilir (yalnızca admin kuralları değiştirir)
+  oda { kisiSiniri }, sinirEnfazla, duzenleyebilir (yalnızca admin kuralları değiştirir)
   GİZLİLİK: odaların mesajları burada gösterilmez; yalnızca sayılar. İçerik ancak şikâyet bağlamıyla görülür.
-  Formlar: POST /yonetim/sohbet/odalar/ayar (esik, sinir) · POST /yonetim/sohbet/odalar/:id/kapat (sebep zorunlu) | /ac
+  Formlar: POST /yonetim/sohbet/odalar/ayar (sinir) · POST /yonetim/sohbet/odalar/:id/kapat (sebep zorunlu) | /ac
 %>
 <%- include("duzen-ust", { baslik: "Sohbet", aktif: "sohbet" }) %>
 <div class="yn-sekmeler siralama"><a href="/yonetim/sohbet">Genel sohbet</a><a class="aktif" href="/yonetim/sohbet/odalar" aria-current="page">Odalar</a></div>
@@ -13,14 +13,13 @@
   <% if (duzenleyebilir) { %>
     <form class="yn-form" method="post" action="/yonetim/sohbet/odalar/ayar"><%- include("csrf") %>
       <div class="yn-satir yn-genis">
-        <label class="yn-etiketli">Oda açmak için en az puan<input class="yn-girdi" type="number" name="esik" min="0" max="<%= esikEnfazla %>" step="1" value="<%= oda.rutbeEsigi %>" required></label>
         <label class="yn-etiketli">Kişi başı en çok oda (sahip olunan)<input class="yn-girdi" type="number" name="sinir" min="1" max="<%= sinirEnfazla %>" step="1" value="<%= oda.kisiSiniri %>" required></label>
       </div>
-      <p class="ikincil kucuk">Varsayılan 100 puan (Müdavim) ve 3 oda. Yönetici ve moderatörler puan şartından muaftır; oda sınırı herkese uygulanır. Değişiklik yalnızca bundan sonraki oda açmaları etkiler.</p>
+      <p class="ikincil kucuk">Varsayılan 3 oda. Hangi rütbenin oda açabileceği <a class="baglanti" href="/yonetim/puan/rutbeler">Puan ve ödüller › Rütbeler</a> tablosundaki “Oda aç” sütunundan ayarlanır. Yönetici ve moderatörler rütbe şartından muaftır; oda sınırı herkese uygulanır.</p>
       <div><button class="buton buton-birincil">Kaydet</button></div>
     </form>
   <% } else { %>
-    <p class="kucuk">Oda açmak için en az <strong><%= oda.rutbeEsigi %></strong> puan, kişi başı en çok <strong><%= oda.kisiSiniri %></strong> oda. <span class="ikincil">Bu kuralları yalnızca yöneticiler değiştirir.</span></p>
+    <p class="kucuk">Kişi başı en çok <strong><%= oda.kisiSiniri %></strong> oda. <span class="ikincil">Bu kuralları yalnızca yöneticiler değiştirir.</span></p>
   <% } %>
 </section>
 

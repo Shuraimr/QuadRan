@@ -60,7 +60,24 @@ Alt ajan "sorun yok" dese bile her biri **kendin** çalıştırılır. Betikler:
 
 Bulunan her hata düzeltilir, ölçüm tekrarlanır. Sonuç kullanıcıya **önce/sonra tablosu** ile gösterilir.
 
-## 6. Yayın (yalnızca istendiğinde)
+## 6. Bağımsız eleştiri (her aşamanın sonunda, yayından önce)
+
+Kullanıcının kuralı: işi yapan model kendi işini puanlamaz; zamanla kolaya kaçtığı için **bağımsız bir eleştirmen** puanlar.
+
+1. Aşama bitince (kendi doğrulaman tamamlandıktan sonra) **`elestirmen`** alt ajanını başlat: `subagent_type: "elestirmen"` (görünmüyorsa
+   `general-purpose` + `model: opus` ve "`.claude/agents/elestirmen.md` dosyasını oku ve tam olarak o ol" talimatı). Brife yalnızca
+   **aşamanın adını, ilgili `CLAUDE.md` karar maddesini ve değişen dosyaların listesini** yaz. Kendi yorumunu, savunmanı ya da "şunlar
+   bilerek yapıldı" açıklamalarını **yazma** — eleştirmen bağımsız karar vermeli. Alt ajanın raporu verilebilir ama "raporu doğrulama,
+   kendin bul" diye.
+2. Eleştirmenin raporunu kullanıcıya **olduğu gibi** aktar (puan tablosu, bulgular, revizyon listesi). Yumuşatma, eleme, tartışma yok;
+   katılmadığın bir bulgu varsa ayrıca ve açıkça "katılmıyorum çünkü…" diye yaz ama bulguyu silme.
+3. **Toplam ≥ 8.0:** aşama tamam, yayına geçilebilir.
+   **Toplam < 8.0:** revizyon listesini kullanıcıya sun ve **onay iste** (wrap_up sorusu: "Revizyonu uygulayayım mı?").
+   Onaylanırsa revizyonu uygula (gerekirse alt ajanla), kendi doğrulamanı yap ve **eleştirmeni yeniden çalıştır**; 8'e ulaşana ya da
+   kullanıcı durdurana kadar döngü sürer.
+4. Her eleştiri sonucunu (aşama, tarih, puan, revizyon sayısı) `docs/elestiri-kaydi.md` dosyasına bir satır olarak ekle.
+
+## 7. Yayın (yalnızca istendiğinde)
 
 Commit (Türkçe mesaj) → push → gerekiyorsa `package.json` sürümü + README sürüm satırı + `git tag -a vX.Y.Z` + `gh release create` (Türkçe not, değişiklik tablosu, varsa `sql/NN` uygulama komutu). Kullanıcı istemeden commit/push yapılmaz.
 
@@ -76,3 +93,6 @@ Commit (Türkçe mesaj) → push → gerekiyorsa `package.json` sürümü + READ
 - [ ] **Tehlikeli işlemler:** onay + zorunlu sebep, işlem kaydına düşer, geri alınabilirlik yazılır.
 - [ ] **Durum renkleri:** bekliyor sarı, işlendi yeşil, reddedildi gri, uzaklaştırıldı kırmızı.
 - [ ] **Hareket:** kısa (120/200/320 ms), açılırken `--egri-cikis`, kapanırken `--egri-giris`; azaltılmış harekette kapanır.
+- [ ] **"AI slop" yok:** gradyan, parlak altın/pembe/gökkuşağı renkler, parıltı, büyük renkli "hero" kutuları, kendini öven pazarlama dili
+      ("Profilini öne çıkar!") kullanılmaz. Her şey sitenin sade token'larıyla (yüzey, kenar, yazı, vurgu, ton) çizilir. Bir özelliği tanıtmanın
+      yolu **kullanıcının kendi verisiyle gerçek bir önizleme** göstermektir (örn. /premium = kişinin kendi profilinin premium hâli).

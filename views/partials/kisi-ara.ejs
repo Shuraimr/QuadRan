@@ -21,7 +21,7 @@
     <li class="kisi-bos">Eşleşen kullanıcı yok.</li>
   <% } else { %>
     <% for (const k of sonuclar_) { %>
-      <li><a class="kisi-sonuc" href="/mesajlar/<%= encodeURIComponent(k.username) %>"><span class="avatar avatar-36"><%= k.username[0] %></span><strong><%= k.username %></strong><% if (k.rutbe) { %><span class="rozet"><%= k.rutbe %></span><% } %></a></li>
+      <li><a class="kisi-sonuc" href="/mesajlar/<%= encodeURIComponent(k.username) %>"><span class="avatar avatar-36"><%= k.username[0] %></span><strong><%= k.username %></strong><% if (k.rutbe) { %><%- include("rutbe", { rutbeAd: k.rutbe, rutbeId: k.rutbe_id }) %><% } %></a></li>
     <% } %>
   <% } %>
 </ul>

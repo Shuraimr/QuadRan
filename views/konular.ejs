@@ -84,7 +84,7 @@
             <span class="sira"><%= i + 1 %></span>
             <span class="avatar avatar-orta"><%= lider.username[0] %></span>
             <span class="kullanici"><%= lider.username %></span>
-            <% if (lider.rutbe) { %><span class="rozet"><%= lider.rutbe %></span><% } %>
+            <% if (lider.rutbe) { %><%- include("partials/rutbe", { rutbeAd: lider.rutbe, rutbeId: lider.rutbe_id }) %><% } %>
             <span class="puan"><%= lider.points %></span>
           </div>
         <% }) %>

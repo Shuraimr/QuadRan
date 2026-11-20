@@ -1,19 +1,27 @@
 <% if (mesaj.deleted_at) { %>
   <div class="silinmis">Bu mesaj silindi.</div>
 <% } else { %>
-  <article class="kart yorum" id="mesaj-<%= mesaj.id %>">
+  <article class="kart yorum<%= mesaj.cozum ? ' cozum' : '' %>" id="mesaj-<%= mesaj.id %>">
     <div class="oy"><%- include("oy", { hedef: mesaj }) %></div>
     <div class="yorum-icerik">
       <div class="gonderi-meta">
         <span class="avatar"><%= mesaj.yazar[0] %></span>
         <a class="kullanici" href="/profil/<%= mesaj.yazar %>"><%= mesaj.yazar %></a>
-        <% if (mesaj.rutbe) { %><span class="rozet"><%= mesaj.rutbe %></span><% } %>
+        <% if (mesaj.rutbe) { %><%- include("rutbe", { rutbeAd: mesaj.rutbe, rutbeId: mesaj.rutbe_id }) %><% } %>
         <% if (mesaj.konu_sahibi) { %><span class="cip-cerceveli">Konu sahibi</span><% } %>
+        <% if (mesaj.cozum) { %><span class="cozum-cip"><%- include("ikon", { ad: "onay", boyut: 13 }) %>Çözüm</span><% } %>
         <span class="zaman">· <%= zaman(mesaj.created_at) %><%= mesaj.updated_at ? " · düzenlendi" : "" %></span>
       </div>
-      <div class="metin"><%= mesaj.content %></div>
+      <div class="metin"><%- icerikHtml(mesaj.content, mesaj.rutbe_id, mesaj.yazar_rol) %></div>
+      <%- include("imza", { yazar: mesaj }) %>
       <div class="satir">
         <a class="eylem" href="#cevap"><%- include("ikon", { ad: "cevap", boyut: 18 }) %> Cevapla</a>
+        <%# Çözüm işareti: yalnızca konunun sahibi (ve yetkililer) görür; tek düğme hem işaretler hem kaldırır %>
+        <% if (locals.konu && konu.cozumIsaretleyebilir) { %>
+          <form method="post" action="/konu/<%= konu.id %>/cozum"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="post_id" value="<%= mesaj.id %>">
+            <button class="eylem"><%- include("ikon", { ad: "onay", boyut: 18 }) %> <%= mesaj.cozum ? "Çözüm işaretini kaldır" : "Çözüm olarak işaretle" %></button>
+          </form>
+        <% } %>
         <% if (locals.kullanici && kullanici.id === mesaj.user_id) { %>
           <a class="eylem" href="/mesaj/<%= mesaj.id %>/duzenle"><%- include("ikon", { ad: "kalem", boyut: 18 }) %> Düzenle</a>
           <form method="post" action="/mesaj/<%= mesaj.id %>/sil" onsubmit="return confirm('Mesajın silinsin mi? Bu geri alınamaz.')"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">

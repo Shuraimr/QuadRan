@@ -5,8 +5,8 @@
 // ve şikâyetleri kapatır. Kişi kendi mesajını silince ikisi de gereksiz.
 import express from "express";
 import { pool } from "../db.ts";
-import { puanEkle, bildir, girisGerekli, sayi, metin } from "../yardimci.ts";
-import { yasakliIfade, puanKurallari } from "../ayarlar.ts";
+import { silinenCozumuTemizle, mesajPuaniniGeriAl, rutbeKontrol, bildir, girisGerekli, sayi, metin } from "../yardimci.ts";
+import { yasakliIfade } from "../ayarlar.ts";
 
 export const mesaj = express.Router();
 
@@ -68,9 +68,20 @@ mesaj.post("/mesaj/:id/sil", girisGerekli("Mesajını silmek için giriş yapman
   if (!m) return next();
 
   // İlk mesajı silmek = konuyu silmek. İkisi birlikte olmalı (transaction).
+  // Silinen cevap konunun çözümüyse (ya da konunun kendisi silinirse çözüm cevabı için) işaret kalkar ve açık çözüm puanı da
+  // geri alınır; yazarın bu mesajdan kazandığı puan da geri alınır (hepsi aynı transaction; yarım kalmasın).
   const baglanti = await pool.getConnection();
+  let puanlar: { kisi: number; eski: number; yeni: number }[] = [];
   try {
     await baglanti.beginTransaction();
+    // Kilit sırası islemler.ts mesajiSil ile aynı (konu → mesaj → users). Silinmemiş mi denetimi kilidin içinde yeniden
+    // yapılır: çift tıklama / eşzamanlı istekte ikinci istek zaten silinmiş mesajı görür ve hiçbir şey yazmaz.
+    await baglanti.query("SELECT id FROM topics WHERE id = ? FOR UPDATE", [m.topic_id]);
+    const [[hala]]: any = await baglanti.query("SELECT id FROM posts WHERE id = ? AND deleted_at IS NULL FOR UPDATE", [m.id]);
+    if (!hala) { await baglanti.rollback(); bildir(req, "hata", "Mesaj zaten silinmiş."); return res.redirect(m.ilk_mi ? "/" : `/konu/${m.topic_id}`); }
+    puanlar = await silinenCozumuTemizle(baglanti, m); // konu kilidi önce
+    const kayip = await mesajPuaniniGeriAl(baglanti, m);
+    if (kayip) puanlar.push(kayip);
     await baglanti.query("UPDATE posts SET deleted_at = NOW() WHERE id = ?", [m.id]);
     if (m.ilk_mi) await baglanti.query("UPDATE topics SET deleted_at = NOW() WHERE id = ?", [m.topic_id]);
     await baglanti.commit();
@@ -81,10 +92,9 @@ mesaj.post("/mesaj/:id/sil", girisGerekli("Mesajını silmek için giriş yapman
     baglanti.release();
   }
 
-  // Yazarken kazanılan puan geri alınır; yoksa yaz-sil-yaz ile puan kasılabilirdi.
-  // (Mesaja gelen oyların puanı kalır: onlar başkalarının verdiği oylardı.)
-  const puan = await puanKurallari();
-  await puanEkle(k.id, -(m.ilk_mi ? puan.konu : puan.cevap));
+  // Yazarken kazanılan puan yukarıda geri alındı (miktar o günkü ayardan değil points_log kaydından gelir); yoksa
+  // yaz-sil-yaz ile puan kasılabilirdi. (Mesaja gelen oyların puanı kalır: onlar başkalarının verdiği oylardı.)
+  for (const p of puanlar) await rutbeKontrol(p.kisi, p.eski, p.yeni);
 
   bildir(req, "basari", m.ilk_mi ? "Konun silindi" : "Mesajın silindi");
   res.redirect(m.ilk_mi ? "/" : `/konu/${m.topic_id}`);

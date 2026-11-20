@@ -2,7 +2,7 @@
 import express from "express";
 import { pool } from "../db.ts";
 import { yasakliIfade } from "../ayarlar.ts";
-import { rutbeSql, bildirimGonder, bildir, kisalt, girisGerekli, sayi, metin, likeKac, geriAdres } from "../yardimci.ts";
+import { rutbeSutunlari, bildirimGonder, bildir, kisalt, girisGerekli, sayi, metin, likeKac, geriAdres } from "../yardimci.ts";
 import { mesajDurumu, cevrimiciSql } from "../gizlilik.ts";
 import { hubVerisi } from "../odalar.ts";
 
@@ -18,7 +18,7 @@ export const iletisim = express.Router();
 // ---------------------------------------------------------------------------
 async function konusmalar(benId: number, q: string) {
   const [satirlar]: any = await pool.query(
-    `SELECT users.username AS kullanici, ${rutbeSql("users")} AS rutbe,
+    `SELECT users.username AS kullanici, ${rutbeSutunlari("users")},
             IF(son.deleted_at IS NULL, son.content, 'Mesaj kaldırıldı') AS son_mesaj, son.created_at AS son_zaman, son.sender_id = ? AS son_benden,
             k.okunmamis
        FROM (
@@ -50,7 +50,7 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
 
   if (req.params.kullanici) {
     const [kisiler]: any = await pool.query(
-      `SELECT users.id, users.username, ${rutbeSql("users")} AS rutbe, ${cevrimiciSql("users")} AS cevrimici
+      `SELECT users.id, users.username, ${rutbeSutunlari("users")}, ${cevrimiciSql("users")} AS cevrimici
          FROM users WHERE username = ? AND deleted_at IS NULL`,
       [req.params.kullanici]
     );
@@ -79,7 +79,7 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
     mesajlar.reverse();
     for (const m of mesajlar) { m.benim = !!m.benim; m.silindi = !!m.silindi; }
     // durum: yazı kutusu mu, engel/izin kartı mı (mesajDurumu, src/gizlilik.ts)
-    acik = { kullanici: kisi.username, rutbe: kisi.rutbe, cevrimici: !!kisi.cevrimici, durum: await mesajDurumu(ben.id, kisi.id), mesajlar };
+    acik = { kullanici: kisi.username, rutbe: kisi.rutbe, rutbe_id: kisi.rutbe_id, yazar_rol: kisi.yazar_rol, cevrimici: !!kisi.cevrimici, durum: await mesajDurumu(ben.id, kisi.id), mesajlar };
   }
 
   res.render("mesajlar", { q, konusmalar: await konusmalar(ben.id, q), acik, aktifMenu: "mesajlar" });
@@ -89,7 +89,7 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
 async function kisiAra(benId: number, q: string) {
   if (!q) return [];
   const [satirlar]: any = await pool.query(
-    `SELECT users.username, ${rutbeSql("users")} AS rutbe FROM users
+    `SELECT users.username, ${rutbeSutunlari("users")} FROM users
       WHERE users.username LIKE ? AND users.deleted_at IS NULL AND users.id <> ?
         AND NOT EXISTS (SELECT 1 FROM user_blocks b
                          WHERE (b.blocker_id = ? AND b.blocked_id = users.id) OR (b.blocker_id = users.id AND b.blocked_id = ?))
@@ -252,7 +252,7 @@ async function sohbetVerisi() {
   const [mesajlar]: any = await pool.query(
     `SELECT * FROM (
        SELECT chat_messages.id, chat_messages.content, chat_messages.created_at,
-              users.username AS yazar, ${rutbeSql("users")} AS rutbe
+              users.username AS yazar, ${rutbeSutunlari("users")}
          FROM chat_messages JOIN users ON users.id = chat_messages.user_id
         WHERE chat_messages.deleted_at IS NULL
         ORDER BY chat_messages.id DESC LIMIT 50

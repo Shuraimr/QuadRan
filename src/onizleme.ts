@@ -3,6 +3,7 @@
 // Adresler: /onizleme/konu  /giris  /kayit  /konu-yeni  /profil  /ayarlar  /404
 // Giriş yapmış görünüm için sonuna ?uye=1, tema denemek için ?tema=acik&vurgu=zumrut ekle.
 import express from "express";
+import { rutbeler, rutbeBul, sonrakiRutbe, acilanlar, kilitBilgisi } from "./rutbe.ts";
 
 export const onizleme = express.Router();
 
@@ -45,18 +46,23 @@ onizleme.get("/konu-yeni", (req, res) => res.render("konu-yeni", {
   degerler: { category_id: 2, title: kartlar[0].title },
 }));
 
-onizleme.get("/profil", (req, res) => res.render("profil", {
+onizleme.get("/profil", async (req, res) => {
+  const tum = await rutbeler();
+  const simdiki = rutbeBul(640, tum)!, sonraki = sonrakiRutbe(640, tum);
+  res.render("profil", {
+  simdiki, sonraki, acilacaklar: sonraki ? acilanlar(simdiki, sonraki) : [], puanGecmisi: [],
   profil: { username: "shurai", bio: "Bilgisayar programcılığı öğrencisi. Linux, tasarım ve iyi düzenlenmiş tartışmalar sever.", avatar_url: null, banner_url: null, rol: "Admin", created_at: new Date("2026-11-13"), points: 640, rutbe: "Usta", konu_sayisi: 24, mesaj_sayisi: 186, alinan_oy: 1204 },
-  rutbeler: [{ name: "Çaylak", min_points: 0 }, { name: "Müdavim", min_points: 100 }, { name: "Usta", min_points: 500 }, { name: "Efsane", min_points: 2000 }],
+  rutbeler: tum,
   konular: kartlar,
   rozetler: [{ name: "Kurucu" }, { name: "İlk konu" }, { name: "100 oy" }],
   haftalik: [["Pzt", 2], ["Sal", 0], ["Çar", 5], ["Per", 2], ["Cum", 9], ["Cmt", 9], ["Paz", 0]].map(([gun, sayi]) => ({ gun, sayi, bugun: gun === "Cmt" })),
   kendisi: !!req.query.uye,
-}));
+  });
+});
 
 onizleme.get("/ayarlar", (req, res) => {
   res.locals.kullanici = { username: "shurai", rutbe: "Usta", points: 640, rol: "admin" };
-  res.render("ayarlar", { ayar: { username: "shurai", bio: "Bilgisayar programcılığı öğrencisi.", email: "shurai@ornek.com", avatar_url: null, tema: res.locals.tema, vurgu: res.locals.vurgu, menu_sagda: false, kompakt: false, az_animasyon: true } });
+  res.render("ayarlar", { ayar: { username: "shurai", bio: "Bilgisayar programcılığı öğrencisi.", email: "shurai@ornek.com", avatar_url: null, tema: res.locals.tema, vurgu: res.locals.vurgu, menu_sagda: false, kompakt: false, az_animasyon: true }, imzaKilit: kilitBilgisi(res.locals.kullanici, "imza") });
 });
 
 onizleme.get("/404", (req, res) => res.status(404).render("404"));

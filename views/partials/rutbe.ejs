@@ -1,0 +1,7 @@
+<%#
+  Rütbe çipi: simge + rütbe adı, rütbenin renginde (sql/13 ranks.renk / ranks.simge).
+  Beklenen veri: rutbeAd (rütbe adı) ve rutbeId (rütbe numarası; sorgudan rutbe_id). Renk ve simge rütbe önbelleğinden
+  NUMARAYLA bulunur (src/rutbe.ts rutbeBulId): ad değişse de çip doğru kalır. Numara önbellekte yoksa uyarı yazılır ve sayfa
+  tazelenmiş önbellekle yeniden çizilir (server.ts). Numara hiç verilmediyse (yalnızca /onizleme örnek verisi) adla aranır; yoksa gri çip.
+  Boş ad hiçbir şey çizmez.
+%><% if (locals.rutbeAd) { const rtb_ = rutbeBulId(locals.rutbeId, locals.rutbeAd); %><span class="rutbe-cip rutbe-<%= rtb_ ? rtb_.renk : 'gri' %>"><%- include("ikon", { ad: rtb_ ? rtb_.simge : "filiz", boyut: 13 }) %><%= locals.rutbeAd %></span><% } %>

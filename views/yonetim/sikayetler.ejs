@@ -73,7 +73,7 @@
           <p class="ikincil kucuk">Gizlilik için <%= s.tur === "oda_mesaji" ? "odanın" : "konuşmanın" %> yalnızca bu bölümü gösterilir.</p>
         <% } else if (s.tur === "kullanici") { %>
           <div class="yn-hedef-vurgu">
-            <div class="gonderi-meta"><span class="avatar"><%= h.yazar[0] %></span><strong><%= h.yazar %></strong><% if (h.rutbe) { %><span class="rozet"><%= h.rutbe %></span><% } %></div>
+            <div class="gonderi-meta"><span class="avatar"><%= h.yazar[0] %></span><strong><%= h.yazar %></strong><% if (h.rutbe) { %><%- include("../partials/rutbe", { rutbeAd: h.rutbe, rutbeId: h.rutbe_id }) %><% } %></div>
             <p class="ikincil kucuk">Kullanıcının kendisi şikâyet edildi.</p>
           </div>
         <% } else { %>

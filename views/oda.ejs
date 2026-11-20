@@ -72,7 +72,7 @@
               <span class="sohbet-yer"></span>
               <details class="oda-engelli">
                 <summary>Engellediğin kişinin mesajı · Göster</summary>
-                <div class="oda-engelli-ic"><strong><%= m.yazar %></strong> <span><%= m.content %></span></div>
+                <div class="oda-engelli-ic"><strong><%= m.yazar %></strong> <span><%- icerikHtml(m.content, m.rutbe_id, m.yazar_rol) %></span></div>
               </details>
             </div>
           <% } else { %>
@@ -86,11 +86,11 @@
                 <% if (!o.devam) { %>
                   <div class="sohbet-meta">
                     <a class="kullanici" href="/profil/<%= m.yazar %>"><%= m.yazar %></a>
-                    <% if (odRol[m.oda_rol]) { %><span class="oda-rol rol-<%= m.oda_rol %>"><%= odRol[m.oda_rol] %></span><% } else if (m.rutbe) { %><span class="rozet"><%= m.rutbe %></span><% } %>
+                    <% if (odRol[m.oda_rol]) { %><span class="oda-rol rol-<%= m.oda_rol %>"><%= odRol[m.oda_rol] %></span><% } else if (m.rutbe) { %><%- include("partials/rutbe", { rutbeAd: m.rutbe, rutbeId: m.rutbe_id }) %><% } %>
                     <span class="zaman"><%= zaman(m.created_at) %></span>
                   </div>
                 <% } %>
-                <div class="sohbet-metin" id="ot-<%= m.id %>"><%= m.content %></div>
+                <div class="sohbet-metin" id="ot-<%= m.id %>"><%- icerikHtml(m.content, m.rutbe_id, m.yazar_rol) %></div>
               </div>
               <%
                 const benim = m.user_id === kullanici.id;

@@ -121,7 +121,7 @@
             <% if (mjAcik.cevrimici) { %>
               <span class="mesaj-durum cevrimici"><span class="sohbet-nokta" aria-hidden="true"></span>Çevrimiçi</span>
             <% } else if (mjAcik.rutbe) { %>
-              <span><span class="rozet"><%= mjAcik.rutbe %></span></span>
+              <span><%- include("partials/rutbe", { rutbeAd: mjAcik.rutbe, rutbeId: mjAcik.rutbe_id }) %></span>
             <% } %>
           </span>
         </a>
@@ -152,7 +152,7 @@
                     <% if (m.silindi) { %>
                       <div class="mesaj-balon silindi"><%= o.benim ? "Bu mesajı sildin" : "Bu mesaj silindi" %></div>
                     <% } else { %>
-                      <div class="mesaj-balon" id="mt-<%= m.id %>"><%= m.content %></div>
+                      <div class="mesaj-balon" id="mt-<%= m.id %>"><%- icerikHtml(m.content, o.benim ? locals.kullanici.rutbe_id : mjAcik.rutbe_id, o.benim ? locals.kullanici.rol : mjAcik.yazar_rol) %></div>
                       <button class="mesaj-menu-dugme" type="button" popovertarget="mesaj-menusu-<%= m.id %>" data-menu-ac aria-label="Mesaj işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 18 }) %></button>
                       <div class="acilir-menu acilir-menu-konumlu mesaj-menusu" id="mesaj-menusu-<%= m.id %>" popover aria-label="Mesaj işlemleri">
                         <%# Kopyala yalnızca JS'le çalışır; JS yokken CSS gizler (.js sınıfı yoksa görünmez) %>

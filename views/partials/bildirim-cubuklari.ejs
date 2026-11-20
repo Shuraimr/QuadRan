@@ -1,13 +1,14 @@
 <%#
   Bildirim çubuğu (toast). Alt kısımda görünür, JS ile yaklaşık 5 saniye sonra gizlenir; JS yoksa kalır.
   Beklenen veriler:
-  bildirim  { tur: "basari" | "hata", metin, eylem?: { metin, link } }  (yoksa hiçbir şey çizilmez)
+  bildirim  { tur: "basari" | "hata", metin, eylem?: { metin, link }, rutbe?: { renk, simge } }  (yoksa hiçbir şey çizilmez)
   statik    true ise sabit konumsuz ve kendiliğinden gizlenmeyen kopya (yalnızca önizleme sayfası için)
 %>
 <% if (locals.bildirim) { const b_ = locals.bildirim; const hata_ = b_.tur === "hata"; %>
   <div class="cubuk-alani<%= locals.statik ? ' katman-statik' : '' %>">
-    <div class="cubuk-bildirim cubuk-bildirim-<%= hata_ ? 'hata' : 'basari' %>" role="status" aria-live="polite"<%- locals.statik ? "" : " data-otomatik-gizle" %>>
-      <%- include("ikon", { ad: hata_ ? "uyari" : "onay", boyut: 20 }) %>
+    <%# Rütbe kutlaması (b_.rutbe { renk, simge }): rütbenin simgesi ve renginde, simge kısa bir "pop" yapar %>
+    <div class="cubuk-bildirim cubuk-bildirim-<%= hata_ ? 'hata' : 'basari' %><%= b_.rutbe ? ' cubuk-bildirim-rutbe rutbe-' + b_.rutbe.renk : '' %>" role="status" aria-live="polite"<%- locals.statik ? "" : " data-otomatik-gizle" %>>
+      <%- include("ikon", { ad: b_.rutbe ? b_.rutbe.simge : (hata_ ? "uyari" : "onay"), boyut: 20 }) %>
       <span class="cubuk-metin"><%= b_.metin %></span>
       <% if (b_.eylem) { %><a class="cubuk-eylem" href="<%= b_.eylem.link %>"><%= b_.eylem.metin %></a><% } %>
     </div>

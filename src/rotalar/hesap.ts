@@ -4,7 +4,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { pool } from "../db.ts";
 import { sifreHashle, sifreDogru } from "../sifre.ts";
 import { bildir, girisGerekli, metin, yerelAdres, banliSql } from "../yardimci.ts";
-import { ayarlar } from "../ayarlar.ts";
+import { ayarlar, yasakliIfade } from "../ayarlar.ts";
+import { izinli, kilitBilgisi } from "../rutbe.ts";
 import { girisIp, girisHesap, sifirlamaIp, kayitIp } from "../hiz-siniri.ts";
 
 export const hesap = express.Router();
@@ -244,7 +245,7 @@ hesap.post("/sifre-sifirla/:token", async (req, res) => {
 // ---------------------------------------------------------------------------
 async function ayarlariOku(userId: number) {
   const [satirlar]: any = await pool.query(
-    "SELECT username, bio, konum, web_sitesi, dm_izni, cevrimici_goster, email, avatar_url, tema, vurgu, menu_sagda, kompakt, az_animasyon FROM users WHERE id = ?",
+    "SELECT username, bio, konum, web_sitesi, imza, dm_izni, cevrimici_goster, email, avatar_url, tema, vurgu, menu_sagda, kompakt, az_animasyon FROM users WHERE id = ?",
     [userId]
   );
   const ayar = satirlar[0];
@@ -260,7 +261,7 @@ async function ayarlariOku(userId: number) {
 }
 
 hesap.get("/ayarlar", girisGerekli("Ayarlar için giriş yapman gerekiyor."), async (req, res) => {
-  res.render("ayarlar", { ayar: await ayarlariOku(res.locals.kullanici.id), aktifMenu: "ayarlar" });
+  res.render("ayarlar", { ayar: await ayarlariOku(res.locals.kullanici.id), imzaKilit: kilitBilgisi(res.locals.kullanici, "imza"), aktifMenu: "ayarlar" });
 });
 
 hesap.post("/ayarlar/profil", girisGerekli(), async (req, res) => {
@@ -269,12 +270,21 @@ hesap.post("/ayarlar/profil", girisGerekli(), async (req, res) => {
   const bio = metin(req.body.bio);
   const konum = metin(req.body.konum);
   const webSitesi = metin(req.body.web_sitesi);
+  // İmza (rütbe ayrıcalığı, en çok 120 karakter, tek satır). Ayrıcalığı olmayanın imza alanı formda hiç yoktur;
+  // elle gönderilse bile (sunucu tarafı doğrulama) yok sayılır ve var olan imza korunur.
+  const imzaIzni = izinli(k, "imza");
+  const imza = metin(req.body.imza).replace(/\s+/g, " ");
   const hatalar: Record<string, string> = {};
 
   if (!KULLANICI_ADI.test(username)) hatalar.username = "3-30 karakter; harf, rakam ve alt çizgi kullanılabilir";
   else if (AYRILMIS_AD.includes(username.toLowerCase())) hatalar.username = "Bu ad ayrılmış, başka bir ad seç";
   if (bio.length > 280) hatalar.bio = "En fazla 280 karakter";
   if (konum.length > 60) hatalar.konum = "En fazla 60 karakter";
+  if (imzaIzni && imza.length > 120) hatalar.imza = "En fazla 120 karakter";
+  if (imzaIzni && imza && !hatalar.imza) {
+    const yasak = await yasakliIfade(imza);
+    if (yasak) hatalar.imza = `İmzada yasaklı bir ifade var: “${yasak}”`;
+  }
   // Web sitesi: yalnızca http(s). "javascript:" gibi şemalar profilde bağlantı olarak çizilirdi (XSS), o yüzden şema denetimi şart.
   if (webSitesi) {
     let gecerli = false;
@@ -288,11 +298,12 @@ hesap.post("/ayarlar/profil", girisGerekli(), async (req, res) => {
   }
 
   if (Object.keys(hatalar).length) {
-    const ayar = { ...(await ayarlariOku(k.id)), username, bio, konum, web_sitesi: webSitesi };
-    return res.status(400).render("ayarlar", { ayar, hatalar, aktifMenu: "ayarlar" });
+    const ayar = { ...(await ayarlariOku(k.id)), username, bio, konum, web_sitesi: webSitesi, ...(imzaIzni ? { imza } : {}) };
+    return res.status(400).render("ayarlar", { ayar, hatalar, imzaKilit: kilitBilgisi(k, "imza"), aktifMenu: "ayarlar" });
   }
 
   await pool.query("UPDATE users SET username = ?, bio = ?, konum = ?, web_sitesi = ? WHERE id = ?", [username, bio || null, konum || null, webSitesi || null, k.id]);
+  if (imzaIzni) await pool.query("UPDATE users SET imza = ? WHERE id = ?", [imza || null, k.id]);
   bildir(req, "basari", "Profilin kaydedildi");
   res.redirect("/ayarlar#profil");
 });

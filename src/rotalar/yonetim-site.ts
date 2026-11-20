@@ -50,7 +50,11 @@ yonetimSite.get("/yonetim/puan", async (req, res) => {
 yonetimSite.post("/yonetim/puan", async (req, res) => {
   const k = res.locals.kullanici;
   const yeni: Record<string, number> = {};
-  for (const [alan, ad] of [["konu", "Konu açma"], ["cevap", "Cevap yazma"], ["oy", "Alınan artı oy"]] as const) {
+  const ALANLAR = [
+    ["konu", "Konu açma"], ["cevap", "Cevap yazma"], ["oy", "Alınan artı oy"],
+    ["gunluk", "Günlük ilk ziyaret"], ["seri", "7 günlük seri"], ["cozum", "Çözüm seçilen cevap"], ["rozet", "Yeni rozet"],
+  ] as const;
+  for (const [alan, ad] of ALANLAR) {
     const ham = metin(req.body[alan]);
     const n = Number(ham);
     if (ham === "" || !Number.isInteger(n) || n < 0 || n > PUAN_ENFAZLA) {
@@ -63,6 +67,7 @@ yonetimSite.post("/yonetim/puan", async (req, res) => {
   await ayarYaz("puan_konu", String(yeni.konu), k.id);
   await ayarYaz("puan_cevap", String(yeni.cevap), k.id);
   await ayarYaz("puan_oy", String(yeni.oy), k.id);
+  for (const [alan] of ALANLAR.slice(3)) await ayarYaz("puan_" + alan, String(yeni[alan]), k.id);
   ayarOnbellekTemizle();
   await denetim(req, res, "ayar.puan", "ayar", null, { eski, yeni });
   bildir(req, "basari", "Puan kuralları kaydedildi. Yalnızca bundan sonraki işlemler yeni değerle puan getirir; var olan puanlar değişmez.");

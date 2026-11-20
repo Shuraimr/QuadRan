@@ -379,3 +379,7 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
 /* Akıştaki kategori sütunu yalnızca telefonda (yatay çipler) görünür: masaüstü ve tablette kenar menü taşır */
 @media (min-width: 801px) { .govde > .akis-kategoriler { display: none; } }
 @media (min-width: 1181px) { .govde.govde-akis { grid-template-columns: minmax(0, 720px) 312px; } }
+
+/* Rütbe kutlaması: simge rütbe renginde; hareket çarpanı 0 olunca (azaltılmış hareket) animasyon hiç görünmez */
+.cubuk-bildirim-rutbe svg { color: var(--rc); animation: rutbe-pop var(--sure-yavas) var(--egri-yay) backwards; }
+@keyframes rutbe-pop { from { transform: scale(calc(1 - .6 * var(--hareket))) rotate(calc(-25deg * var(--hareket))); } }

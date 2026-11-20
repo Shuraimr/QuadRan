@@ -2,8 +2,9 @@
 // Konular/Mesajlar/Sohbet: moderatör + admin. Kategoriler ve Puan ve ödüller: yalnızca admin (sadeceAdmin ile kapılı).
 import express from "express";
 import { pool } from "../db.ts";
-import { bildir, sayi, metin, geriAdres, likeKac, rutbeSql, rozetVer } from "../yardimci.ts";
+import { bildir, sayi, metin, geriAdres, likeKac, rutbeIdSql, rozetVer } from "../yardimci.ts";
 import { denetim } from "../denetim.ts";
+import { rutbeOnbellekTemizle, RENKLER, SIMGELER, RENK_ADLARI, SIMGE_ADLARI, AYRICALIKLAR } from "../rutbe.ts";
 import {
   mesajiSil, mesajiGeriAl, konuyuSil, konuyuGeriAl, sohbetMesajiSil, sohbetMesajiGeriAl,
 } from "../islemler.ts";
@@ -250,60 +251,122 @@ yonetimIcerik.post(KATEGORILER + "/:id/tasi", async (req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
-// Rütbeler: ad + en az puan. min_points = 0 olan "taban" rütbe her zaman kalmalı:
-// puanı en düşük kullanıcı bile bir rütbe alsın (rutbeSql en yüksek eşiği seçer, eşik yoksa NULL gelirdi).
+// Rütbeler (sql/13): ad, en az puan, renk, simge ve ayrıcalıklar (oda aç, bağlantı, görsel, video, imza, günlük oy).
+// min_points = 0 olan "taban" rütbe her zaman kalmalı: puanı en düşük kullanıcı bile bir rütbe alsın
+// (rutbeBul en yüksek eşiği seçer, eşik yoksa rütbesiz kalırdı).
+// Tablo tek formdur (hepsi birlikte kaydedilir); alan adları <alan>_<rütbe no> (örn. min_points_3, oda_ac_3).
 // ---------------------------------------------------------------------------
 const RUTBELER = "/yonetim/puan/rutbeler";
 
 yonetimIcerik.use("/yonetim/puan/rutbeler", sadeceAdmin);
 yonetimIcerik.use("/yonetim/puan/rozetler", sadeceAdmin);
 
-function rutbeAlanlari(body: any) {
-  const ad = metin(body.name);
-  const ham = metin(body.min_points);
-  const puan = Number(ham);
-  let hata: string | undefined;
-  if (ad.length < 2 || ad.length > 32) hata = "Rütbe adı 2 ile 32 karakter arasında olmalı.";
-  else if (ham === "" || !Number.isInteger(puan) || puan < 0 || puan > 10_000_000) hata = "En az puan, 0 ile 10.000.000 arasında tam bir sayı olmalı.";
-  return { hata, ad, puan };
+const BAYRAKLAR = ["oda_ac", "baglanti", "gorsel", "video", "imza"] as const;
+const GUNLUK_OY_ENFAZLA = 1_000_000;
+
+function adHatasi(ad: string) {
+  return ad.length < 2 || ad.length > 32 ? "Rütbe adı 2 ile 32 karakter arasında olmalı." : undefined;
+}
+function esikHatasi(ham: string, puan: number) {
+  return ham === "" || !Number.isInteger(puan) || puan < 0 || puan > 10_000_000 ? "En az puan, 0 ile 10.000.000 arasında tam bir sayı olmalı." : undefined;
 }
 
 yonetimIcerik.get(RUTBELER, async (req, res) => {
-  const [rutbeler] = await pool.query(
-    `SELECT ranks.id, ranks.name, ranks.min_points,
-            (SELECT COUNT(*) FROM users WHERE users.deleted_at IS NULL AND ${rutbeSql("users")} = ranks.name) AS kullanici_sayisi
+  const [rutbeSatirlari]: any = await pool.query(
+    `SELECT ranks.id, ranks.name, ranks.min_points, ranks.renk, ranks.simge, ranks.oda_ac, ranks.baglanti, ranks.gorsel,
+            ranks.video, ranks.imza, ranks.gunluk_oy,
+            (SELECT COUNT(*) FROM users WHERE users.deleted_at IS NULL AND ${rutbeIdSql("users")} = ranks.id) AS kullanici_sayisi
        FROM ranks ORDER BY ranks.min_points`
   );
-  res.render("yonetim/rutbeler", { baslik: "Puan ve ödüller", aktif: "puan", rutbeler });
+  res.render("yonetim/rutbeler", {
+    baslik: "Puan ve ödüller", aktif: "puan", rutbeler: rutbeSatirlari, renkler: RENKLER, renkAdlari: RENK_ADLARI,
+    simgeler: SIMGELER, simgeAdlari: SIMGE_ADLARI, ayricaliklar: AYRICALIKLAR,
+  });
 });
 
+// Yeni rütbe: ayrıcalıkları, eşiğin hemen altındaki rütbeden kopyalanır (üst rütbe alttakinin hepsini korur, sonra panelde ayarlanır)
 yonetimIcerik.post(RUTBELER, async (req, res) => {
-  const a = rutbeAlanlari(req.body);
-  if (a.hata) { bildir(req, "hata", a.hata); return res.redirect(RUTBELER); }
-  const [var_]: any = await pool.query("SELECT name, min_points FROM ranks WHERE name = ? OR min_points = ?", [a.ad, a.puan]);
-  if (var_[0]) { bildir(req, "hata", var_[0].name === a.ad ? "Bu adda bir rütbe zaten var." : `${a.puan} puanlık bir rütbe zaten var (${var_[0].name}).`); return res.redirect(RUTBELER); }
-  const [s]: any = await pool.query("INSERT INTO ranks (name, min_points) VALUES (?, ?)", [a.ad, a.puan]);
-  await denetim(req, res, "rutbe.ekle", "rutbe", s.insertId, { ad: a.ad, min_points: a.puan });
-  bildir(req, "basari", `“${a.ad}” rütbesi eklendi.`);
+  const ad = metin(req.body.name), ham = metin(req.body.min_points), puan = Number(ham);
+  // Renk/simge geçersizse sessizce varsayılana düşmeyiz (Kaydet ile aynı davranış): kullanıcı ne seçtiğinin kabul edilmediğini bilmeli
+  const renk = req.body.renk, simge = req.body.simge;
+  const hata = adHatasi(ad) ?? esikHatasi(ham, puan)
+    ?? (!RENKLER.includes(renk) || !SIMGELER.includes(simge) ? "Geçersiz renk ya da simge." : undefined);
+  if (hata) { bildir(req, "hata", hata); return res.redirect(RUTBELER); }
+  const [var_]: any = await pool.query("SELECT name, min_points FROM ranks WHERE name = ? OR min_points = ?", [ad, puan]);
+  if (var_[0]) { bildir(req, "hata", var_[0].name === ad ? "Bu adda bir rütbe zaten var." : `${puan} puanlık bir rütbe zaten var (${var_[0].name}).`); return res.redirect(RUTBELER); }
+  const [alt]: any = await pool.query("SELECT oda_ac, baglanti, gorsel, video, imza, gunluk_oy FROM ranks WHERE min_points < ? ORDER BY min_points DESC LIMIT 1", [puan]);
+  const a = alt[0] ?? { oda_ac: 0, baglanti: 0, gorsel: 0, video: 0, imza: 0, gunluk_oy: 20 };
+  const [s]: any = await pool.query(
+    "INSERT INTO ranks (name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [ad, puan, renk, simge, a.oda_ac, a.baglanti, a.gorsel, a.video, a.imza, a.gunluk_oy]
+  );
+  rutbeOnbellekTemizle();
+  await denetim(req, res, "rutbe.ekle", "rutbe", s.insertId, { ad, min_points: puan, renk, simge });
+  bildir(req, "basari", `“${ad}” rütbesi eklendi; ayrıcalıkları bir alttaki rütbeden kopyalandı, tablodan düzenleyebilirsin.`);
   res.redirect(RUTBELER);
 });
 
-yonetimIcerik.post(RUTBELER + "/:id/duzenle", async (req, res, next) => {
-  const id = sayi(req.params.id);
-  if (!id) return next();
-  const [eski]: any = await pool.query("SELECT name, min_points FROM ranks WHERE id = ?", [id]);
-  if (!eski[0]) return next();
-  const a = rutbeAlanlari(req.body);
-  let hata = a.hata;
-  if (!hata && eski[0].min_points === 0 && a.puan !== 0) hata = "Taban rütbenin (0 puan) eşiği değiştirilemez; adını değiştirebilirsin.";
+// Tabloyu kaydet: bütün rütbeler birlikte doğrulanır; tek hata varsa hiçbiri yazılmaz
+yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
+  const [eskiler]: any = await pool.query("SELECT id, name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy FROM ranks ORDER BY min_points");
+  const yeniler: any[] = [];
+  let hata: string | undefined;
+  for (const e of eskiler) {
+    const ad = metin(req.body["name_" + e.id]);
+    const ham = metin(req.body["min_points_" + e.id]);
+    const puan = Number(ham);
+    const renk = req.body["renk_" + e.id], simge = req.body["simge_" + e.id];
+    const oyHam = metin(req.body["gunluk_oy_" + e.id]);
+    const oy = oyHam === "" ? null : Number(oyHam); // boş = sınırsız
+    hata = hata ?? adHatasi(ad) ?? esikHatasi(ham, puan);
+    if (!hata && e.min_points === 0 && puan !== 0) hata = "Taban rütbenin (0 puan) eşiği değiştirilemez; adını değiştirebilirsin.";
+    if (!hata && e.min_points !== 0 && puan === 0) hata = "0 puanlık eşik yalnızca taban rütbeye ait.";
+    if (!hata && (!RENKLER.includes(renk) || !SIMGELER.includes(simge))) hata = "Geçersiz renk ya da simge.";
+    if (!hata && oy !== null && (!Number.isInteger(oy) || oy < 0 || oy > GUNLUK_OY_ENFAZLA)) hata = `Günlük oy 0 ile ${GUNLUK_OY_ENFAZLA} arasında tam sayı olmalı (boş bırakırsan sınırsız).`;
+    const yeni: any = { id: e.id, name: ad, min_points: puan, renk, simge, gunluk_oy: oy };
+    for (const b of BAYRAKLAR) yeni[b] = req.body[b + "_" + e.id] ? 1 : 0; // işaretli onay kutusu gönderilir, işaretsiz gönderilmez
+    yeniler.push(yeni);
+  }
   if (!hata) {
-    const [var_]: any = await pool.query("SELECT name FROM ranks WHERE (name = ? OR min_points = ?) AND id <> ?", [a.ad, a.puan, id]);
-    if (var_[0]) hata = "Bu ad ya da puan eşiği başka bir rütbede kullanılıyor.";
+    const adlar = new Set(yeniler.map((y) => y.name.toLocaleLowerCase("tr"))), esikler = new Set(yeniler.map((y) => y.min_points));
+    if (adlar.size !== yeniler.length) hata = "İki rütbe aynı adı taşıyamaz.";
+    else if (esikler.size !== yeniler.length) hata = "İki rütbe aynı puan eşiğini taşıyamaz.";
   }
   if (hata) { bildir(req, "hata", hata); return res.redirect(RUTBELER); }
-  await pool.query("UPDATE ranks SET name = ?, min_points = ? WHERE id = ?", [a.ad, a.puan, id]);
-  await denetim(req, res, "rutbe.duzenle", "rutbe", id, { eski: eski[0], yeni: { name: a.ad, min_points: a.puan } });
-  bildir(req, "basari", "Rütbe güncellendi.");
+
+  const bag = await pool.getConnection();
+  try {
+    await bag.beginTransaction();
+    // İki rütbe adlarını/eşiklerini takas ederse UNIQUE kuralı ara adımda çakışır: önce geçici adlara alınırlar
+    for (const y of yeniler) await bag.query("UPDATE ranks SET name = CONCAT('~', id), min_points = 4000000000 + id WHERE id = ?", [y.id]);
+    for (const y of yeniler) {
+      await bag.query(
+        `UPDATE ranks SET name = ?, min_points = ?, renk = ?, simge = ?, oda_ac = ?, baglanti = ?, gorsel = ?, video = ?, imza = ?, gunluk_oy = ? WHERE id = ?`,
+        [y.name, y.min_points, y.renk, y.simge, y.oda_ac, y.baglanti, y.gorsel, y.video, y.imza, y.gunluk_oy, y.id]
+      );
+    }
+    await bag.commit();
+  } catch (e) {
+    await bag.rollback();
+    throw e;
+  } finally {
+    bag.release();
+  }
+  rutbeOnbellekTemizle();
+  // İşlem kaydı: yalnızca değişen rütbeler ve alanlar
+  const degisenler: Record<string, unknown> = {};
+  for (const y of yeniler) {
+    const e = eskiler.find((x: any) => x.id === y.id);
+    const fark: Record<string, unknown> = {};
+    for (const alan of ["name", "min_points", "renk", "simge", ...BAYRAKLAR, "gunluk_oy"]) {
+      const onceki = typeof e[alan] === "boolean" ? Number(e[alan]) : e[alan];
+      if (onceki !== y[alan]) fark[alan] = [onceki, y[alan]];
+    }
+    if (Object.keys(fark).length) degisenler[e.name] = fark;
+  }
+  // Hiçbir şey değişmediyse işlem kaydına satır yazılmaz (kayıt gürültüsü olmasın)
+  if (Object.keys(degisenler).length) await denetim(req, res, "rutbe.duzenle", "rutbe", null, { degisenler });
+  bildir(req, "basari", Object.keys(degisenler).length ? "Rütbeler kaydedildi." : "Değişiklik yok.");
   res.redirect(RUTBELER);
 });
 
@@ -314,6 +377,7 @@ yonetimIcerik.post(RUTBELER + "/:id/sil", async (req, res, next) => {
   if (!eski[0]) return next();
   if (eski[0].min_points === 0) { bildir(req, "hata", "Taban rütbe (0 puan) silinemez."); return res.redirect(RUTBELER); }
   await pool.query("DELETE FROM ranks WHERE id = ?", [id]);
+  rutbeOnbellekTemizle();
   await denetim(req, res, "rutbe.sil", "rutbe", id, eski[0]);
   bildir(req, "basari", `“${eski[0].name}” rütbesi silindi; o puandakiler bir alt rütbeye düştü.`);
   res.redirect(RUTBELER);

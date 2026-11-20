@@ -2,31 +2,26 @@
   Beklenen veriler:
   profil   { username, bio, avatar_url, banner_url, rol, created_at, points, rutbe,
              konu_sayisi, mesaj_sayisi, alinan_oy }
-  rutbeler [ { name, min_points } ]   min_points'e göre küçükten büyüğe (ranks tablosu)
+  rutbeler [ { id, name, min_points, renk, simge, ... } ]   min_points'e göre küçükten büyüğe (ranks tablosu)
+  simdiki  profilin rütbesi (rutbeler'den biri), sonraki  bir sonraki rütbe ya da undefined (en üst rütbe)
+  acilacaklar [ { etiket } ]   sonraki rütbede YENİ açılan ayrıcalıklar (kilitli kutuda gösterilir)
+  puanGecmisi [ { id, miktar, sebep, created_at, konu_id, mesaj_konu_id, mesaj_id, rozet } ]   yalnızca sekme "puan" (kendi profili)
   konular  [ gönderi kartı verisi ]    partials/gonderi-karti ile aynı alanlar
   rozetler [ { name } ]
   haftalik [ { gun: "Pzt", sayi: 2, bugun: false } ]   7 eleman, Pazartesi'den Pazar'a
   konum, web_sitesi  (profil içinde, isteğe bağlı) meta satırında gösterilir
   mesajAtabilir (bool), engelledim (bool)  ziyaretçi için: "Mesaj gönder" görünsün mü, menüde Engelle mi Engeli kaldır mı
   kendisi  bool   giriş yapan kişi kendi profiline mi bakıyor
-  sekme    "konular" | "yorumlar"   hangi sekme açık (?sekme=yorumlar)
+  sekme    "konular" | "yorumlar" | "puan"   hangi sekme açık (?sekme=yorumlar | puan; puan yalnızca kendi profilinde)
   yorumlar [ { id, content, created_at, konu_id, konu_baslik } ]   yalnızca sekme "yorumlar" iken (ilk mesajlar değil, cevaplar)
 %>
 <%- include("partials/bas", { baslik: profil.username }) %>
 <%- include("partials/ust-cubuk") %>
 <%
   // Sekme verilmediyse (örn. /onizleme/profil) Konular açık sayılır; tanımsız değişken sayfayı çökertmesin
-  const sekme = locals.sekme === "yorumlar" ? "yorumlar" : "konular";
-  // Rütbe çubuğu: etiketler eşit aralıklı olduğu için dolgu da basamak basamak hesaplanır
-  let oran = 1;
-  for (let i = 0; i < rutbeler.length - 1; i++) {
-    if (profil.points < rutbeler[i + 1].min_points) {
-      const aralik = rutbeler[i + 1].min_points - rutbeler[i].min_points;
-      oran = (i + (profil.points - rutbeler[i].min_points) / aralik) / (rutbeler.length - 1);
-      break;
-    }
-  }
-  const sonraki = rutbeler.find(r => r.min_points > profil.points);
+  const sekme = ["yorumlar", "puan"].includes(locals.sekme) ? locals.sekme : "konular";
+  // Rütbe ilerlemesi: şimdiki rütbenin eşiğinden sonrakinin eşiğine doğru dolgu oranı (en üst rütbede tam dolu)
+  const oran = sonraki ? Math.min(1, Math.max(0, (profil.points - simdiki.min_points) / (sonraki.min_points - simdiki.min_points))) : 1;
   const enCok = Math.max(1, ...haftalik.map(g => g.sayi));
   const toplam = haftalik.reduce((t, g) => t + g.sayi, 0);
 %>
@@ -38,7 +33,7 @@
     <div class="kimlik">
       <span class="avatar avatar-buyuk" <% if (profil.avatar_url) { %>style="background-image: url('<%= profil.avatar_url %>')"<% } %>><%= profil.avatar_url ? "" : profil.username[0] %></span>
       <div class="kimlik-bilgi">
-        <div class="satir"><h1><%= profil.username %></h1><% if (profil.rutbe) { %><span class="rozet"><%= profil.rutbe %></span><% } %></div>
+        <div class="satir"><h1><%= profil.username %></h1><% if (profil.rutbe) { %><%- include("partials/rutbe", { rutbeAd: profil.rutbe, rutbeId: profil.rutbe_id }) %><% } %></div>
         <div class="satir ikincil kucuk kimlik-meta">
           <span class="meta-oge"><%- include("partials/ikon", { ad: "takvim", boyut: 16 }) %> <%= profil.rol %> · <%= new Date(profil.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %> tarihinden beri üye</span>
           <% if (profil.konum) { %><span class="meta-oge"><%- include("partials/ikon", { ad: "konum", boyut: 16 }) %> <%= profil.konum %></span><% } %>
@@ -82,10 +77,43 @@
 
   <section class="sutun">
     <div class="siralama">
-      <a class="<%= sekme === 'yorumlar' ? '' : 'aktif' %>" href="/profil/<%= profil.username %>"<%- sekme === 'yorumlar' ? '' : ' aria-current="page"' %>>Konular</a>
+      <a class="<%= sekme === 'konular' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>"<%- sekme === 'konular' ? ' aria-current="page"' : '' %>>Konular</a>
       <a class="<%= sekme === 'yorumlar' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>?sekme=yorumlar"<%- sekme === 'yorumlar' ? ' aria-current="page"' : '' %>>Yorumlar</a>
+      <%# Puan geçmişi yalnızca kendi profilinde (kendisi); sekme "puan" zaten yalnızca kendisi için açılabilir %>
+      <% if (kendisi) { %><a class="<%= sekme === 'puan' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>?sekme=puan"<%- sekme === 'puan' ? ' aria-current="page"' : '' %>>Puan geçmişi</a><% } %>
     </div>
-    <% if (sekme === "yorumlar") { %>
+    <% if (sekme === "puan") { %>
+      <%
+        const sebepMetni = { konu: "Konu açtın", cevap: "Cevap yazdın", oy: "Mesajına oy verildi", gunluk: "Günlük ziyaret", seri: "7 günlük seri",
+          cozum: "Cevabın çözüm seçildi", cozum_geri: "Çözüm işareti kalktı", rozet: "Rozet kazandın", rozet_geri: "Rozet geri alındı", duzeltme: "Puan düzeltmesi", silme: "Geri alınan puan", geri_yukleme: "Mesaj geri yüklendi",
+          baslangic: "Önceki puanların", davet: "Davet" };
+        // 'oy' satırı işarete göre ayrılır: artı = yazarın mesajına artı oy verildi (ya da eksi oyu geri alındı), eksi = eksi oy ya da geri alınan oy
+        const sebepAd = (p) => p.sebep === "oy" ? (p.miktar > 0 ? "Mesajına artı oy verildi" : "Eksi oy ya da geri alınan oy") : (sebepMetni[p.sebep] || p.sebep);
+      %>
+      <% if (puanGecmisi.length === 0) { %><div class="kart bos">Henüz puan hareketi yok.</div><% } else { %>
+        <div class="kart puan-gecmisi">
+          <% for (const p of puanGecmisi) { %>
+            <% const eski = p.sebep === "baslangic"; /* puan geçmişi tutulmadan önceki toplam: tarihi bilinmiyor, bağlantısı yok */ %>
+            <% const baglanti = p.konu_id ? "/konu/" + p.konu_id : p.mesaj_id ? "/konu/" + p.mesaj_konu_id + "#mesaj-" + p.mesaj_id : null; %>
+            <div class="puan-satir">
+              <div class="puan-metin">
+                <strong><%= sebepAd(p) %></strong>
+                <% if (p.rozet) { %><span class="ikincil kucuk">“<%= p.rozet %>”</span><% } %>
+                <% if (baglanti && !eski) { %><a class="baglanti kucuk" href="<%= baglanti %>">Görüntüle</a><% } %>
+                <span class="ikincil kucuk"><%= eski ? "Sistem öncesi toplam" : zaman(p.created_at) %></span>
+              </div>
+              <span class="puan-miktar <%= p.miktar > 0 ? 'artti' : 'azaldi' %>"><%= p.miktar > 0 ? "+" : "−" %><%= Math.abs(p.miktar) %></span>
+            </div>
+          <% } %>
+        </div>
+        <%# Sayfalama: ?once=<son görünen log id> ile daha eski 100 hareket; JS gerekmez %>
+        <div class="puan-sayfa">
+          <% if (locals.once) { %><a class="baglanti" href="/profil/<%= profil.username %>?sekme=puan">← En yeni hareketler</a><% } else { %><span></span><% } %>
+          <% if (locals.dahaEskiVar) { %><a class="baglanti" href="/profil/<%= profil.username %>?sekme=puan&once=<%= puanGecmisi[puanGecmisi.length - 1].id %>" rel="next">Daha eski →</a><% } %>
+        </div>
+        <% if (locals.dahaEskiVar) { %><p class="ikincil kucuk"><%= locals.once ? "Bu sayfada 100 hareket gösteriliyor." : "Son 100 hareket gösteriliyor." %></p><% } %>
+      <% } %>
+    <% } else if (sekme === "yorumlar") { %>
       <% if (yorumlar.length === 0) { %><div class="kart bos">Henüz yorum yazmamış.</div><% } %>
       <% for (const y of yorumlar) { %>
         <article class="kart profil-yorum">
@@ -117,13 +145,36 @@
         <div class="gunler"><% for (const g of haftalik) { %><span class="<%= g.bugun ? 'bugun' : '' %>"><%= g.gun %></span><% } %></div>
       </div>
       <div class="kart kutu">
-        <div class="satir">
-          <div class="bosluk"><div class="ust-etiket">RÜTBE</div><div class="baslik-tipi" style="font-size: 24px"><%= profil.rutbe %></div></div>
+        <div class="rutbe-ust rutbe-<%= simdiki.renk %>">
+          <span class="rutbe-kutu"><%- include("partials/ikon", { ad: simdiki.simge, boyut: 26 }) %></span>
+          <div class="bosluk"><div class="ust-etiket">RÜTBE</div><div class="baslik-tipi rutbe-renk" style="font-size: 24px"><%= simdiki.name %></div></div>
           <div style="text-align: right"><div class="buyuk-sayi" style="font-size: 24px"><%= profil.points %></div><div class="ikincil" style="font-size: 12px">puan</div></div>
         </div>
-        <div class="ilerleme"><span style="width: <%= (oran * 100).toFixed(1) %>%"></span></div>
-        <div class="rutbe-etiketleri"><% for (const r of rutbeler) { %><span class="<%= r.name === profil.rutbe ? 'aktif' : '' %>"><%= r.name %></span><% } %></div>
-        <% if (sonraki) { %><div class="ikincil kucuk"><%= sonraki.name %> rütbesine <%= sonraki.min_points - profil.points %> puan kaldı</div><% } %>
+        <div class="rutbe-ilerleme rutbe-<%= simdiki.renk %>">
+          <div class="ilerleme" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<%= Math.round(oran * 100) %>" aria-label="Sonraki rütbeye ilerleme"><span style="width: <%= (oran * 100).toFixed(1) %>%"></span></div>
+          <div class="rutbe-etiketleri">
+            <span class="rutbe-renk"><%= simdiki.name %> · <%= simdiki.min_points %></span>
+            <% if (sonraki) { %><span class="rutbe-<%= sonraki.renk %> rutbe-renk"><%= sonraki.name %> · <%= sonraki.min_points %></span><% } %>
+          </div>
+        </div>
+        <% if (locals.yetkiliProfil) { %>
+          <%# Admin/moderatör bütün ayrıcalıklardan muaf (src/rutbe.ts yetkiliMi): kilitli "açılacaklar" listesi yanıltıcı olur %>
+          <div class="rutbe-sonraki"><div class="kucuk"><strong>Yetkili:</strong> bütün ayrıcalıklar açık</div></div>
+        <% } %>
+        <% if (sonraki) { %>
+          <div class="rutbe-sonraki">
+            <div class="kucuk"><strong><%= sonraki.name %></strong> rütbesine <strong><%= sonraki.min_points - profil.points %></strong> puan kaldı<%= acilacaklar.length && !locals.yetkiliProfil ? " · açılacaklar:" : "" %></div>
+            <% if (acilacaklar.length && !locals.yetkiliProfil) { %>
+              <ul class="rutbe-acilacak">
+                <% for (const a of acilacaklar) { %><li><%- include("partials/ikon", { ad: "kilit", boyut: 14 }) %><%= a.etiket %></li><% } %>
+              </ul>
+            <% } %>
+          </div>
+        <% } %>
+        <div class="rutbe-alt">
+          <% if (kendisi) { %><a class="baglanti" href="/profil/<%= profil.username %>?sekme=puan">Puan geçmişi</a><% } else { %><span></span><% } %>
+          <a class="baglanti" href="/rutbeler">Bütün rütbeler →</a>
+        </div>
         <div class="sayilar">
           <div><strong><%= profil.konu_sayisi %></strong><span>konu</span></div>
           <div><strong><%= profil.mesaj_sayisi %></strong><span>mesaj</span></div>

@@ -1,13 +1,17 @@
 // Forum: akış (/), konu sayfası, konu açma, cevap, oy, profil, arama, sıralama, şikâyet.
 import express from "express";
 import { pool } from "../db.ts";
+import { cevapYazma } from "../hiz-siniri.ts";
 import { yasakliIfade, puanKurallari } from "../ayarlar.ts";
 import { SEBEPLER, sebepHatasi } from "../sikayet.ts";
 import { engelle, mesajDurumu } from "../gizlilik.ts";
 import {
-  rutbeSql, skorSql, puanEkle, bildirimGonder, rozetVer, bildir, kisalt,
+  rutbeSutunlari, skorSql, puanEkle, cozumPuaniGeriAl, rutbeKontrol, bildirimGonder, rozetVer, bildir, kisalt,
   girisGerekli, geriAdres, sayi, metin,
 } from "../yardimci.ts";
+import {
+  rutbeler, rutbeBul, sonrakiRutbe, acilanlar, gunlukOyHakki, sinirsizOyRutbesi, yetkiliMi,
+} from "../rutbe.ts";
 
 export const forum = express.Router();
 
@@ -34,8 +38,9 @@ export async function konuKartlari({ kosul = "1 = 1", parametreler = [], siralam
          SELECT topics.id, topics.title, topics.created_at, topics.pinned_at, topics.category_id,
                 categories.name AS kategori,
                 users.username AS yazar,
-                ${rutbeSql("users")} AS rutbe,
-                (SELECT MIN(posts.id) FROM posts WHERE posts.topic_id = topics.id) AS ilk_post_id
+                ${rutbeSutunlari("users")},
+                (SELECT MIN(posts.id) FROM posts WHERE posts.topic_id = topics.id) AS ilk_post_id,
+                EXISTS (SELECT 1 FROM posts WHERE posts.id = topics.cozum_post_id AND posts.deleted_at IS NULL) AS cozuldu
            FROM topics
            JOIN categories ON categories.id = topics.category_id
            JOIN users ON users.id = topics.user_id
@@ -49,6 +54,7 @@ export async function konuKartlari({ kosul = "1 = 1", parametreler = [], siralam
   for (const k of satirlar) {
     k.skor = Number(k.skor);
     k.yorum_sayisi = Number(k.yorum_sayisi);
+    k.cozuldu = !!k.cozuldu;
     k.ozet = kisalt(k.ozet, 220);
   }
   return satirlar;
@@ -86,7 +92,7 @@ forum.get("/", async (req, res) => {
     ) AS son ORDER BY id`);
 
   const [liderler] = await pool.query(`
-    SELECT users.username, users.points, ${rutbeSql("users")} AS rutbe
+    SELECT users.username, users.points, ${rutbeSutunlari("users")}
       FROM users WHERE users.deleted_at IS NULL
      ORDER BY users.points DESC, users.username LIMIT 3`);
 
@@ -162,6 +168,12 @@ forum.post("/konu/yeni", girisGerekli("Konu açmak için giriş yapman gerekiyor
   // TRANSACTION: konu ve ilk mesaj birlikte yazılır. Biri başarısız olursa ikisi de geri alınır,
   // böylece "mesajı olmayan konu" gibi yarım veri kalmaz.
   // Transaction tek bir bağlantı üzerinde çalışmalı; bu yüzden havuzdan bir bağlantı ödünç alıyoruz.
+  if (!["admin", "moderator"].includes(k.rol) && cevapYazma.kalanDakika("u" + k.id) > 0) {
+    hatalar.title = "Çok hızlı yazıyorsun. Biraz bekleyip tekrar dene.";
+    return res.status(429).render("konu-yeni", { kategoriler, hatalar, degerler, aktifMenu: "konu-ac" });
+  }
+  if (!["admin", "moderator"].includes(k.rol)) cevapYazma.say("u" + k.id);
+
   const baglanti = await pool.getConnection();
   let konuId: number;
   try {
@@ -180,7 +192,7 @@ forum.post("/konu/yeni", girisGerekli("Konu açmak için giriş yapman gerekiyor
     baglanti.release(); // bağlantıyı havuza geri ver (unutulursa havuz zamanla tükenir)
   }
 
-  await puanEkle(k.id, (await puanKurallari()).konu);
+  await puanEkle(k.id, (await puanKurallari()).konu, "konu", konuId);
   await rozetVer(k.id, "İlk Konu");
   bildir(req, "basari", "Konun yayınlandı");
   res.redirect("/konu/" + konuId);
@@ -195,10 +207,10 @@ forum.get("/konu/:id", async (req, res, next) => {
 
   const [konular]: any = await pool.query(
     `SELECT topics.id, topics.title, topics.created_at, topics.category_id, topics.user_id,
-            topics.locked_at, topics.pinned_at,
+            topics.locked_at, topics.pinned_at, topics.cozum_post_id,
             categories.name AS kategori,
-            users.username AS yazar, users.points AS puan,
-            ${rutbeSql("users")} AS rutbe,
+            users.username AS yazar, users.points AS puan, users.imza,
+            ${rutbeSutunlari("users")},
             (SELECT COUNT(*) FROM topics t2 WHERE t2.user_id = users.id AND t2.deleted_at IS NULL) AS konu_sayisi
        FROM topics
        JOIN categories ON categories.id = topics.category_id
@@ -212,8 +224,8 @@ forum.get("/konu/:id", async (req, res, next) => {
   const sirala = req.query.sirala === "yeni" ? "yeni" : "eniyi";
   const [mesajlar]: any = await pool.query(
     `SELECT posts.id, posts.content, posts.created_at, posts.updated_at, posts.deleted_at, posts.user_id,
-            users.username AS yazar,
-            ${rutbeSql("users")} AS rutbe,
+            users.username AS yazar, users.imza,
+            ${rutbeSutunlari("users")},
             ${skorSql("posts")} AS skor,
             (SELECT value FROM post_votes WHERE post_votes.post_id = posts.id AND post_votes.user_id = ?) AS benim_oyum
        FROM posts
@@ -231,6 +243,15 @@ forum.get("/konu/:id", async (req, res, next) => {
   const [ilk, ...cevaplar] = mesajlar;
   if (sirala === "eniyi") cevaplar.sort((a: any, b: any) => b.skor - a.skor || a.id - b.id);
   else cevaplar.sort((a: any, b: any) => b.id - a.id);
+
+  // Çözüm: konu sahibinin işaretlediği cevap (silinmediyse) ilk mesajın hemen altına sabitlenir, sıralamadan bağımsız
+  const cozumIndeks = cevaplar.findIndex((m: any) => m.id === konu.cozum_post_id && !m.deleted_at);
+  if (cozumIndeks > 0) cevaplar.unshift(...cevaplar.splice(cozumIndeks, 1));
+  if (cozumIndeks >= 0) cevaplar[0].cozum = true;
+  konu.cozuldu = cozumIndeks >= 0;
+  // Çözümü konu sahibi (ya da yetkili) işaretler; kilitli konuda da işaretlenebilir (yeni cevap değil, düzenleme)
+  const ben = res.locals.kullanici;
+  konu.cozumIsaretleyebilir = !!ben && (ben.id === konu.user_id || yetkiliMi(ben.rol));
 
   konu.duzenlendi = !!ilk?.updated_at;
   konu.kilitli = !!konu.locked_at;
@@ -272,16 +293,26 @@ forum.post("/konu/:id/cevap", girisGerekli("Cevap yazmak için giriş yapman ger
     return res.redirect("/konu/" + id + "#cevap");
   }
 
+  // Hız sınırı: yetkililer muaf. Sayaç, içerik doğrulaması geçtikten sonra artar (hatalı denemeler hakkı yemesin).
+  const yetkili = ["admin", "moderator"].includes(k.rol);
+  if (!yetkili && cevapYazma.kalanDakika("u" + k.id) > 0) {
+    bildir(req, "hata", "Çok hızlı yazıyorsun. Biraz bekleyip tekrar dene.");
+    return res.redirect("/konu/" + id + "#cevap");
+  }
+
   const yasak = await yasakliIfade(content);
   if (yasak) {
     bildir(req, "hata", `Cevabında yasaklı bir ifade var: “${yasak}”. Düzenleyip tekrar dene.`);
     return res.redirect("/konu/" + id + "#cevap");
   }
 
+  if (!yetkili) cevapYazma.say("u" + k.id);
   const [sonuc]: any = await pool.query("INSERT INTO posts (topic_id, user_id, content) VALUES (?, ?, ?)", [id, k.id, content]);
   const mesajId = sonuc.insertId;
 
-  await puanEkle(k.id, (await puanKurallari()).cevap);
+  // Kendi konusuna yazılan cevap puan getirmez: yoksa kişi kendi konusuna cevap yığıp puan kasabilirdi; üstelik konuyu silince
+  // kendi cevaplarının puanı (kayıt konu mesajına bağlı olmadığı için) kalırdı. Rozet/bildirim davranışı değişmedi.
+  if (konu.user_id !== k.id) await puanEkle(k.id, (await puanKurallari()).cevap, "cevap", mesajId);
   await bildirimGonder({
     alan: konu.user_id, yapan: k.id, tur: "cevap",
     metin: `${k.username} konuna cevap yazdı: “${kisalt(content, 50)}”`,
@@ -291,6 +322,87 @@ forum.post("/konu/:id/cevap", girisGerekli("Cevap yazmak için giriş yapman ger
 
   bildir(req, "basari", "Cevabın yayınlandı", { metin: "Görüntüle", link: `/konu/${id}#mesaj-${mesajId}` });
   res.redirect(`/konu/${id}?sirala=yeni#mesaj-${mesajId}`);
+});
+
+// ---------------------------------------------------------------------------
+// Çözüm: POST /konu/:id/cozum  alan: post_id
+//   Konunun sahibi (ya da moderatör/admin) bir CEVABI "çözüm" olarak işaretler; aynı cevaba tekrar basınca işaret kalkar,
+//   başka bir cevaba basınca çözüm o cevaba geçer (konuda tek çözüm olur). Cevabın yazarı çözüm puanı (puan_cozum) alır;
+//   konu sahibi kendi cevabını seçerse puan yok (kendi kendine puan kasılmasın). İşaret kalkınca puan 'cozum_geri' olarak geri alınır.
+// ---------------------------------------------------------------------------
+forum.post("/konu/:id/cozum", girisGerekli("Çözüm seçmek için giriş yapman gerekiyor."), async (req, res, next) => {
+  const id = sayi(req.params.id);
+  const k = res.locals.kullanici;
+  const postId = sayi(req.body.post_id);
+  const [konular]: any = id ? await pool.query("SELECT id, user_id FROM topics WHERE id = ? AND deleted_at IS NULL", [id]) : [[]];
+  const konu = konular[0];
+  if (!konu) return next();
+  if (konu.user_id !== k.id && !yetkiliMi(k.rol)) {
+    bildir(req, "hata", "Çözümü yalnızca konunun sahibi seçebilir.");
+    return res.redirect("/konu/" + id);
+  }
+  // Yalnızca bu konunun silinmemiş CEVAPLARI (ilk mesaj, yani konunun kendisi çözüm olamaz)
+  const [cevaplar]: any = postId ? await pool.query(
+    `SELECT id, user_id FROM posts WHERE id = ? AND topic_id = ? AND deleted_at IS NULL
+        AND id <> (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = posts.topic_id)`, [postId, id]) : [[]];
+  const cevap = cevaplar[0];
+  if (!cevap) {
+    bildir(req, "hata", "Çözüm olarak yalnızca bu konunun bir cevabı seçilebilir.");
+    return res.redirect("/konu/" + id);
+  }
+
+  const kural = await puanKurallari();
+  // Karar + puan geri alma + yeni puan + işaret TEK transaction'da. Konu satırı FOR UPDATE ile kilitlenir: aynı anda
+  // gelen iki istek sırayla işlenir, ikincisi birincinin sonucunu görür (eskiden ikisi de "çözüm yok" görüp iki kez +15 verebilirdi).
+  // Geri alma "hâlâ açık puan"a göre yapıldığı için (cozumPuaniGeriAl) aynı çözüm iki kez de geri alınamaz.
+  const baglanti = await pool.getConnection();
+  const puanlar: { kisi: number; eski: number; yeni: number }[] = [];
+  let kaldirildi = false;
+  try {
+    await baglanti.beginTransaction();
+    const [[guncel]]: any = await baglanti.query("SELECT cozum_post_id FROM topics WHERE id = ? FOR UPDATE", [id]);
+    if (guncel.cozum_post_id) {
+      const [[eski]]: any = await baglanti.query("SELECT id, user_id FROM posts WHERE id = ?", [guncel.cozum_post_id]);
+      const geri = eski ? await cozumPuaniGeriAl(eski, konu.user_id, baglanti) : null;
+      if (geri) puanlar.push({ kisi: eski.user_id, ...geri });
+    }
+    if (guncel.cozum_post_id === cevap.id) {
+      await baglanti.query("UPDATE topics SET cozum_post_id = NULL WHERE id = ?", [id]);
+      kaldirildi = true;
+    } else {
+      await baglanti.query("UPDATE topics SET cozum_post_id = ? WHERE id = ?", [cevap.id, id]);
+      if (cevap.user_id !== konu.user_id) {
+        const p = await puanEkle(cevap.user_id, kural.cozum, "cozum", cevap.id, baglanti);
+        puanlar.push({ kisi: cevap.user_id, ...p });
+      }
+    }
+    await baglanti.commit();
+  } catch (hata) {
+    await baglanti.rollback();
+    throw hata;
+  } finally {
+    baglanti.release();
+  }
+  // Rütbe atlama bildirimi ve çözüm bildirimi transaction'dan SONRA (bildirim satırı users kilidini beklemesin)
+  for (const p of puanlar) await rutbeKontrol(p.kisi, p.eski, p.yeni);
+  if (kaldirildi) {
+    bildir(req, "basari", "Çözüm işareti kaldırıldı.");
+  } else {
+    if (cevap.user_id !== konu.user_id) {
+      // Aynı cevap için okunmamış bir "çözüm" bildirimi zaten varsa yenisini yazma: konu sahibi işaretle-kaldır-işaretle
+      // yaparak cevap yazarının bildirim kutusunu dolduramasın (okuyunca yeniden bildirim gelir).
+      const [[var_]]: any = await pool.query(
+        "SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND tur = 'cevap' AND link = ? AND read_at IS NULL",
+        [cevap.user_id, `/konu/${id}#mesaj-${cevap.id}`]);
+      if (!Number(var_.n)) await bildirimGonder({
+        alan: cevap.user_id, yapan: k.id, tur: "cevap",
+        metin: `${k.username} cevabını çözüm olarak işaretledi`,
+        link: `/konu/${id}#mesaj-${cevap.id}`,
+      });
+    }
+    bildir(req, "basari", "Cevap çözüm olarak işaretlendi.");
+  }
+  res.redirect(`/konu/${id}#mesaj-${cevap.id}`);
 });
 
 // ---------------------------------------------------------------------------
@@ -307,7 +419,7 @@ forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), asyn
   if (!postId || (deger !== 1 && deger !== -1)) return res.redirect(geri);
 
   const [mesajlar]: any = await pool.query(
-    "SELECT posts.id, posts.user_id, posts.topic_id FROM posts WHERE posts.id = ? AND posts.deleted_at IS NULL",
+    "SELECT posts.id, posts.user_id, posts.topic_id FROM posts JOIN topics ON topics.id = posts.topic_id WHERE posts.id = ? AND posts.deleted_at IS NULL AND topics.deleted_at IS NULL", // silinmiş konudaki mesaja oy verilmez
     [postId]
   );
   const mesaj = mesajlar[0];
@@ -326,35 +438,61 @@ forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), asyn
   const baglanti = await pool.getConnection();
   let fark = 0;
   let yeniArtiOy = false;
+  let puanDegisimi: { eski: number; yeni: number } | null = null;
+  let dolduHak: number | null = null; // günlük oy hakkı dolduysa hak sayısı
   try {
     await baglanti.beginTransaction();
+    // Oy veren kişinin satırı kilitlenir: aynı kişinin eşzamanlı oyları SIRAYLA işlenir. Günlük hak sayımı da bu kilidin
+    // İÇİNDE yapılır (eskiden transaction'dan önceydi; hak 1 iken 4 eşzamanlı istek hepsi "0 oy var" görüp 4 oy verebilirdi).
+    // Mesajın yazarı da (puanı değişecek) AYNI sorguda, numara sırasıyla kilitlenir: iki kişi birbirinin mesajına aynı anda
+    // oy verirse ters sırada kilit alıp birbirini bekleyerek kilitlenmezler (deadlock).
+    await baglanti.query("SELECT id FROM users WHERE id IN (?, ?) ORDER BY id FOR UPDATE", [k.id, mesaj.user_id]);
     const [eski]: any = await baglanti.query(
-      "SELECT value FROM post_votes WHERE user_id = ? AND post_id = ? FOR UPDATE",
+      "SELECT value, created_at >= CURDATE() AS bugun FROM post_votes WHERE user_id = ? AND post_id = ? FOR UPDATE",
       [k.id, postId]
     );
     const eskiDeger = eski[0]?.value ?? 0;
-    if (eskiDeger === deger) {
-      await baglanti.query("DELETE FROM post_votes WHERE user_id = ? AND post_id = ?", [k.id, postId]);
-      fark = -deger;
-    } else {
-      await baglanti.query(
-        "INSERT INTO post_votes (user_id, post_id, value) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value), created_at = NOW()",
-        [k.id, postId, deger]
-      );
-      fark = deger - eskiDeger;
-      yeniArtiOy = eskiDeger === 0 && deger === 1;
+    // Günlük oy hakkı (rütbe ayrıcalığı; yönetici/moderatör ve sınırsız rütbeler muaf). Oy GERİ ALMA her zaman serbest;
+    // bugün zaten verilmiş bir oyu tekrar değiştirmek de yeni hak harcamaz. Sayım post_votes.created_at'ten gelir:
+    // oy verilince/değişince o satırın tarihi bugüne çekilir, geri alınınca satır silinir ve hak geri döner.
+    const hak = gunlukOyHakki(k);
+    if (hak !== null && eskiDeger !== deger && !eski[0]?.bugun) {
+      const [[say]]: any = await baglanti.query(
+        "SELECT COUNT(*) AS n FROM post_votes WHERE user_id = ? AND created_at >= CURDATE()", [k.id]);
+      if (Number(say.n) >= hak) dolduHak = hak;
     }
-    await baglanti.query(
-      "UPDATE users SET points = GREATEST(0, CAST(points AS SIGNED) + ?) WHERE id = ?",
-      [fark * oyPuani, mesaj.user_id]
-    );
-    await baglanti.commit();
+    if (dolduHak !== null) {
+      await baglanti.rollback(); // hiçbir şey yazılmadı; kilit bırakılır
+    } else {
+      if (eskiDeger === deger) {
+        await baglanti.query("DELETE FROM post_votes WHERE user_id = ? AND post_id = ?", [k.id, postId]);
+        fark = -deger;
+      } else {
+        await baglanti.query(
+          "INSERT INTO post_votes (user_id, post_id, value) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value), created_at = NOW()",
+          [k.id, postId, deger]
+        );
+        fark = deger - eskiDeger;
+        yeniArtiOy = eskiDeger === 0 && deger === 1;
+      }
+      // Yazarın puanı oy farkı kadar değişir (geri alma ve eksi oy dahil); puan geçmişine 'oy' olarak yazılır
+      if (fark * oyPuani !== 0) puanDegisimi = await puanEkle(mesaj.user_id, fark * oyPuani, "oy", postId, baglanti);
+      await baglanti.commit();
+    }
   } catch (hata) {
     await baglanti.rollback();
     throw hata;
   } finally {
     baglanti.release();
   }
+  if (dolduHak !== null) {
+    const sr = sinirsizOyRutbesi();
+    bildir(req, "hata", `Bugünkü oy hakkın doldu (${dolduHak}). ${sr ? sr.name + " rütbesinde sınırsız." : "Yarın yeniden oy verebilirsin."}`,
+      { metin: "Rütbeler", link: "/rutbeler" });
+    return res.redirect(geri);
+  }
+  // Rütbe atlama bildirimi transaction'dan SONRA (bildirim satırı users satırının kilidini beklemesin)
+  if (puanDegisimi) await rutbeKontrol(mesaj.user_id, puanDegisimi.eski, puanDegisimi.yeni);
 
   if (yeniArtiOy) {
     await bildirimGonder({
@@ -376,7 +514,7 @@ forum.get("/profil/:username", async (req, res, next) => {
   const [satirlar]: any = await pool.query(
     `SELECT users.id, users.username, users.bio, users.konum, users.web_sitesi, users.avatar_url, users.banner_url, users.created_at, users.points,
             roles.name AS rol,
-            ${rutbeSql("users")} AS rutbe,
+            ${rutbeSutunlari("users")},
             (SELECT COUNT(*) FROM topics WHERE topics.user_id = users.id AND topics.deleted_at IS NULL) AS konu_sayisi,
             (SELECT COUNT(*) FROM posts WHERE posts.user_id = users.id AND posts.deleted_at IS NULL) AS mesaj_sayisi,
             (SELECT COALESCE(SUM(post_votes.value), 0) FROM post_votes
@@ -388,15 +526,22 @@ forum.get("/profil/:username", async (req, res, next) => {
   );
   const profil = satirlar[0];
   if (!profil) return next();
+  const hamRol = profil.rol; // yetki denetimi için ham rol adı (aşağıda ekranda gösterilecek Türkçe etikete çevrilir)
   profil.rol = ROL_ADLARI[profil.rol] ?? profil.rol;
   profil.alinan_oy = Number(profil.alinan_oy);
 
-  const [rutbeler] = await pool.query("SELECT name, min_points FROM ranks ORDER BY min_points");
+  // Rütbe kartı: bütün rütbeler (renk/simge/ayrıcalık), şimdiki, sonraki ve sonrakinde YENİ açılanlar
+  const tumRutbeler = await rutbeler();
+  const simdiki = rutbeBul(profil.points, tumRutbeler)!;
+  const sonraki = sonrakiRutbe(profil.points, tumRutbeler);
+  const acilacaklar = sonraki ? acilanlar(simdiki, sonraki) : [];
   const [rozetler] = await pool.query(
     "SELECT badges.name FROM user_badges JOIN badges ON badges.id = user_badges.badge_id WHERE user_badges.user_id = ? ORDER BY user_badges.earned_at",
     [profil.id]
   );
-  const sekme = req.query.sekme === "yorumlar" ? "yorumlar" : "konular";
+  // "puan" (puan geçmişi) yalnızca kişinin kendi profilinde görünür; başkası istese de Konular açılır
+  const kendisi = res.locals.kullanici?.id === profil.id;
+  const sekme = req.query.sekme === "yorumlar" ? "yorumlar" : req.query.sekme === "puan" && kendisi ? "puan" : "konular";
   const konular = sekme === "konular"
     ? await konuKartlari({ kosul: "topics.user_id = ?", parametreler: [profil.id], benimId: res.locals.kullanici?.id })
     : [];
@@ -416,6 +561,26 @@ forum.get("/profil/:username", async (req, res, next) => {
       [profil.id]
     )) as any;
     for (const y of yorumlar) y.content = kisalt(y.content, 300);
+  }
+
+  // Puan geçmişi (yeniden eskiye, sayfa başı 100): her satırın nedeni ve varsa ilgili konu/mesaj bağlantısı.
+  // Sayfalama: ?once=<log id> = bu numaradan ESKİ satırlar (id < once; OFFSET yerine kullanılır, çünkü yeni satır eklenince
+  // OFFSET kayar ve aynı hareket iki kez görünürdü). once sayi() ile doğrulanır; 101 satır istenir: fazlalık "daha eski var" demektir.
+  let puanGecmisi: any[] = [];
+  let dahaEskiVar = false;
+  const once = sayi(req.query.once);
+  if (sekme === "puan") {
+    [puanGecmisi] = (await pool.query(
+      `SELECT l.id, l.miktar, l.sebep, l.created_at, l.ilgili_id,
+              tk.id AS konu_id, tp.id AS mesaj_konu_id, pp.id AS mesaj_id, rz.name AS rozet
+         FROM points_log l
+         LEFT JOIN topics tk ON l.sebep = 'konu' AND tk.id = l.ilgili_id AND tk.deleted_at IS NULL
+         LEFT JOIN posts pp ON l.sebep IN ('cevap','oy','cozum','cozum_geri','silme','geri_yukleme') AND pp.id = l.ilgili_id AND pp.deleted_at IS NULL
+         LEFT JOIN topics tp ON tp.id = pp.topic_id AND tp.deleted_at IS NULL
+         LEFT JOIN badges rz ON l.sebep IN ('rozet','rozet_geri') AND rz.id = l.ilgili_id
+        WHERE l.user_id = ? AND (? IS NULL OR l.id < ?)
+        ORDER BY l.id DESC LIMIT 101`, [profil.id, once, once])) as any;
+    if (puanGecmisi.length > 100) { dahaEskiVar = true; puanGecmisi = puanGecmisi.slice(0, 100); }
   }
 
   // Bu haftanın (Pazartesi-Pazar) günlük katkı sayısı = o gün yazdığı mesajlar (konu açılışı da bir mesaj).
@@ -441,8 +606,8 @@ forum.get("/profil/:username", async (req, res, next) => {
 
   res.render("profil", {
     mesajAtabilir: durum === "izinli", engelledim: durum === "ben_engelledim",
-    profil, rutbeler, rozetler, konular, haftalik, sekme, yorumlar,
-    kendisi: res.locals.kullanici?.id === profil.id,
+    profil, rutbeler: tumRutbeler, simdiki, sonraki, acilacaklar, rozetler, konular, haftalik, sekme, yorumlar, puanGecmisi, dahaEskiVar, once, yetkiliProfil: yetkiliMi(hamRol),
+    kendisi,
     aktifMenu: res.locals.kullanici?.id === profil.id ? "profil" : undefined,
   });
 });
@@ -476,7 +641,7 @@ forum.get("/ara", async (req, res) => {
     konular = await konuKartlari({ kosul: konuKosulu, parametreler: [desen, desen], benimId: res.locals.kullanici?.id });
   } else if (sekme === "kullanicilar") {
     [kullanicilar] = (await pool.query(
-      `SELECT users.username, users.points, users.bio, ${rutbeSql("users")} AS rutbe,
+      `SELECT users.username, users.points, users.bio, ${rutbeSutunlari("users")},
               (SELECT COUNT(*) FROM topics WHERE topics.user_id = users.id AND topics.deleted_at IS NULL) AS konu_sayisi
          FROM users WHERE users.deleted_at IS NULL AND users.username LIKE ?
         ORDER BY users.points DESC LIMIT 50`,
@@ -497,7 +662,7 @@ forum.get("/ara", async (req, res) => {
 // ---------------------------------------------------------------------------
 // Sıralama: /siralama?donem=hafta|ay|tum
 //   tum  : users.points
-//   hafta/ay: aynı puan kuralı yalnızca o dönemdeki olaylara uygulanır (konu +5, cevap +2, alınan oy ±1)
+//   hafta/ay: points_log'da o dönemde yazılan puanların toplamı
 // ---------------------------------------------------------------------------
 forum.get("/siralama", async (req, res) => {
   const donem = ["hafta", "ay", "tum"].includes(req.query.donem as string) ? (req.query.donem as string) : "tum";
@@ -509,49 +674,35 @@ forum.get("/siralama", async (req, res) => {
   let satirlar: any[];
   if (donem === "tum") {
     [satirlar] = (await pool.query(
-      `SELECT users.username, users.points AS puan, ${rutbeSql("users")} AS rutbe,
+      `SELECT users.username, users.points AS puan, ${rutbeSutunlari("users")},
               (SELECT COUNT(*) FROM topics WHERE topics.user_id = users.id AND topics.deleted_at IS NULL) AS konu_sayisi
          FROM users WHERE users.deleted_at IS NULL AND users.points > 0
         ORDER BY users.points DESC, users.username`
     )) as any;
   } else {
-    const puan = await puanKurallari();
-    // UNION ALL: üç farklı olay türünü tek bir "kim, kaç puan" listesinde alt alta birleştirir,
-    // sonra GROUP BY ile kişi başına toplanır.
+    // Hafta/ay: puan geçmişinde (points_log) dönem başından beri yazılan miktarların kişi başı toplamı.
+    // Her puan değişikliği (konu, cevap, oy, günlük, rozet, geri alma...) orada tek tek kayıtlı olduğu için
+    // burada kuralları yeniden hesaplamaya gerek yok.
     [satirlar] = (await pool.query(
-      `SELECT users.username, d.puan, ${rutbeSql("users")} AS rutbe,
+      `SELECT users.username, d.puan, ${rutbeSutunlari("users")},
               (SELECT COUNT(*) FROM topics WHERE topics.user_id = users.id AND topics.deleted_at IS NULL
                   AND topics.created_at >= ${baslangic}) AS konu_sayisi
          FROM (
-           SELECT user_id, SUM(p) AS puan FROM (
-             SELECT user_id, ? AS p FROM topics
-              WHERE deleted_at IS NULL AND created_at >= ${baslangic}
-             UNION ALL
-             SELECT posts.user_id, ? FROM posts
-              WHERE posts.deleted_at IS NULL AND posts.created_at >= ${baslangic}
-                AND posts.id <> (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = posts.topic_id)
-             UNION ALL
-             SELECT posts.user_id, post_votes.value * ? FROM post_votes
-               JOIN posts ON posts.id = post_votes.post_id
-              WHERE post_votes.created_at >= ${baslangic}
-           ) AS olaylar
-           GROUP BY user_id
+           SELECT user_id, SUM(miktar) AS puan FROM points_log WHERE created_at >= ${baslangic} GROUP BY user_id
          ) AS d
          JOIN users ON users.id = d.user_id
         WHERE users.deleted_at IS NULL AND d.puan > 0
-        ORDER BY d.puan DESC, users.username`,
-      [puan.konu, puan.cevap, puan.oy] // sorgudaki üç ? sırasıyla: konu, cevap, oy puanı
+        ORDER BY d.puan DESC, users.username`
     )) as any;
   }
 
   const hepsi = satirlar.map((s: any, i: number) => ({ ...s, sira: i + 1, puan: Number(s.puan), konu_sayisi: Number(s.konu_sayisi) }));
   const k = res.locals.kullanici;
   const benim = k
-    ? hepsi.find((s) => s.username === k.username) ?? { sira: hepsi.length + 1, username: k.username, rutbe: k.rutbe, puan: 0, konu_sayisi: 0 }
+    ? hepsi.find((s) => s.username === k.username) ?? { sira: hepsi.length + 1, username: k.username, rutbe: k.rutbe, rutbe_id: k.rutbe_id, puan: 0, konu_sayisi: 0 }
     : null;
-  const [rutbeler] = await pool.query("SELECT name, min_points FROM ranks ORDER BY min_points");
 
-  res.render("siralama", { donem, liste: hepsi.slice(0, 50), benim, rutbeler, aktifMenu: "siralama" });
+  res.render("siralama", { donem, liste: hepsi.slice(0, 50), benim, rutbeler: await rutbeler(), aktifMenu: "siralama" });
 });
 
 // ---------------------------------------------------------------------------

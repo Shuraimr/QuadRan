@@ -71,7 +71,7 @@ odalar.get("/oda/yeni", giris, async (req, res) => {
   const durum = await olusturmaDurumu(res.locals.kullanici);
   if (!durum.izinli) {
     // Kural /sohbet'teki kilit kartında da yazıyor; doğrudan adresle gelene kısa açıklama
-    bildir(req, "hata", !durum.rutbeYeter ? `Oda açmak için ${durum.rutbeAd} olmalısın · ${durum.kalanPuan} puan kaldı.` : `En çok ${durum.sinir} oda açabilirsin.`);
+    bildir(req, "hata", !durum.rutbeYeter ? `Oda açmak için ${durum.kilit.rutbe?.name ?? "yeterli rütbe"} olmalısın · ${durum.kilit.kalan} puan kaldı.` : `En çok ${durum.sinir} oda açabilirsin.`);
     return res.redirect("/sohbet");
   }
   await sohbetSayfasi(req, res, { panelAcik: "yeni" });
@@ -82,7 +82,7 @@ odalar.post("/oda", giris, async (req, res) => {
   const ad = metin(req.body.ad).replace(/\s+/g, " ");
   const aciklama = metin(req.body.aciklama);
   const durum = await olusturmaDurumu(ben);
-  const hata = !durum.rutbeYeter ? `Oda açmak için ${durum.rutbeAd || "yeterli rütbe"} olmalısın.`
+  const hata = !durum.rutbeYeter ? `Oda açmak için ${durum.kilit.rutbe?.name ?? "yeterli rütbe"} olmalısın.`
     : durum.sinirDolu ? `En çok ${durum.sinir} oda açabilirsin. Yeni bir oda için birini sil ya da sahipliğini devret.`
     : ad.length < 3 || ad.length > 60 ? "Oda adı 3 ile 60 karakter arasında olmalı."
     : aciklama.length > 280 ? "Açıklama en fazla 280 karakter olabilir." : "";

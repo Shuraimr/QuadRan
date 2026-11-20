@@ -39,11 +39,11 @@
               <% if (!o.devam) { %>
                 <div class="sohbet-meta">
                   <a class="kullanici" href="/profil/<%= o.m.yazar %>"><%= o.m.yazar %></a>
-                  <% if (o.m.rutbe) { %><span class="rozet"><%= o.m.rutbe %></span><% } %>
+                  <% if (o.m.rutbe) { %><%- include("rutbe", { rutbeAd: o.m.rutbe, rutbeId: o.m.rutbe_id }) %><% } %>
                   <span class="zaman"><%= zaman(o.m.created_at) %></span>
                 </div>
               <% } %>
-              <div class="sohbet-metin"><%= o.m.content %></div>
+              <div class="sohbet-metin"><%- icerikHtml(o.m.content, o.m.rutbe_id, o.m.yazar_rol) %></div>
             </div>
             <% if (locals.kullanici && o.m.yazar !== locals.kullanici.username) { %>
               <a class="sohbet-bayrak" href="/sikayet?sohbet_id=<%= o.m.id %>" data-sikayet-ac data-sohbet-id="<%= o.m.id %>" data-yazar="<%= o.m.yazar %>" data-baslik="Bu sohbet mesajını şikâyet et" aria-label="<%= o.m.yazar %> kişisinin mesajını şikâyet et" title="Şikâyet et"><%- include("ikon", { ad: "bayrak", boyut: 16 }) %></a>

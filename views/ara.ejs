@@ -99,7 +99,7 @@
           <a class="kart ara-satir" href="/profil/<%= u.username %>">
             <span class="avatar avatar-48"><%= u.username[0] %></span>
             <span class="ara-satir-govde">
-              <span class="satir"><strong><%- arVurgula(u.username) %></strong><% if (u.rutbe) { %><span class="rozet"><%= u.rutbe %></span><% } %></span>
+              <span class="satir"><strong><%- arVurgula(u.username) %></strong><% if (u.rutbe) { %><%- include("partials/rutbe", { rutbeAd: u.rutbe, rutbeId: u.rutbe_id }) %><% } %></span>
               <span class="kucuk ikincil"><%= u.konu_sayisi %> konu<% if (u.bio) { %> · <%= u.bio %><% } %></span>
             </span>
             <span class="puan"><%= u.points %> puan</span>

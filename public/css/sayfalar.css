@@ -229,7 +229,7 @@
   .siralama-kart .avatar { width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
   .siralama-kart.birinci .avatar { width: 52px; height: 52px; border-radius: 14px; font-size: 20px; }
   .siralama-kart strong { font-size: 13px; }
-  .siralama-kart .rozet { display: none; }
+  .siralama-kart .rozet { display: none; } /* rütbe çipi telefonda da görünür */
   .siralama-puan { font-size: 16px; }
   .siralama-tablo .gizle-mobil { display: none; }
   .siralama-tablo th:first-child, .siralama-tablo td:first-child { padding-left: 12px; width: 40px; }
@@ -365,9 +365,9 @@
 .mesaj-rozet.sessiz { background: var(--yuzey-3); color: var(--yazi-2); }
 
 /* Oda açma izni yoksa: kesikli kilit kartı. Bekleyen davet: sarı (bekliyor) kart */
-.oda-kilit-kart { display: flex; align-items: flex-start; gap: 10px; margin: 0 4px; padding: 12px 14px; border: 1px dashed var(--kenar); border-radius: 16px; color: var(--yazi-2); font-size: 13px; line-height: 1.45; }
-.oda-kilit-kart svg { flex: none; margin-top: 1px; }
-.oda-kilit-kart strong { color: var(--yazi); }
+.kilit-kart { display: flex; align-items: flex-start; gap: 10px; margin: 0 4px; padding: 12px 14px; border: 1px dashed var(--kenar); border-radius: 16px; color: var(--yazi-2); font-size: 13px; line-height: 1.45; }
+.kilit-kart svg { flex: none; margin-top: 1px; }
+.kilit-kart strong { color: var(--yazi); }
 .oda-davet { display: grid; gap: 10px; margin: 0 4px; padding: 12px 14px; border: 1px solid var(--d-bekliyor); border-radius: 16px; background: var(--d-bekliyor-zemin); font-size: 14px; line-height: 1.45; }
 .oda-davet p { margin: 0; overflow-wrap: anywhere; }
 .oda-davet-eylem { display: flex; gap: 8px; }
@@ -463,4 +463,60 @@
   /* ⋮ düğmesi görsel olarak 32px kalır (her mesaj satırı şişmesin) ama dokunma alanı 44px'e genişler */
   .sohbet-mesaj .mesaj-menu-dugme { position: relative; }
   .sohbet-mesaj .mesaj-menu-dugme::after { content: ""; position: absolute; inset: -6px; }
+}
+
+.kilit-kart .rutbe-cip { margin: 0 2px; }
+.kilit-ek { display: block; margin-top: 4px; }
+/* İmza: mesajın altında küçük, soluk, tek satır */
+.imza { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--kenar-ince); color: var(--yazi-2); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+
+/* Çözüm: konu sahibinin kabul ettiği cevap yeşil kenarlı, "Çözüm" çipiyle ilk mesajın altında sabit durur */
+.yorum.cozum { border-color: var(--cozum); box-shadow: 0 0 0 1px var(--cozum), var(--kat-1); }
+.cozum-cip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px 2px 6px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 16px;
+  color: var(--cozum); background: color-mix(in srgb, var(--cozum) 16%, transparent); border: 1px solid color-mix(in srgb, var(--cozum) 45%, transparent);
+}
+
+/* ---------- Rütbe sistemi (sql/13) ---------- */
+.siralama-baslik { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+/* Profil: rütbe kartı */
+.rutbe-ust { display: flex; align-items: center; gap: 14px; }
+.rutbe-ilerleme { display: grid; gap: 8px; }
+.rutbe-ilerleme .ilerleme span { background: var(--rc); }
+.rutbe-ilerleme .rutbe-etiketleri { margin-top: 0; justify-content: space-between; gap: 8px; }
+.rutbe-sonraki { display: grid; gap: 8px; padding: 12px 14px; border: 1px dashed var(--kenar); border-radius: 14px; color: var(--yazi-2); }
+.rutbe-sonraki strong { color: var(--yazi); }
+.rutbe-acilacak { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+.rutbe-acilacak li { display: inline-flex; align-items: center; gap: 6px; }
+.rutbe-alt { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+/* Profil: puan geçmişi */
+.puan-gecmisi { display: grid; padding: 4px 0; }
+.puan-satir { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--kenar-ince); }
+.puan-satir:last-child { border-bottom: 0; }
+/* Puan geçmişi sayfalama: "En yeni" solda, "Daha eski" sağda; dokunma hedefi ≥44px */
+.puan-sayfa { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; }
+.puan-sayfa .baglanti { display: inline-flex; align-items: center; min-height: 44px; }
+.puan-metin { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.puan-miktar { font-family: var(--baslik-tipi); font-weight: 700; font-size: 18px; }
+.puan-miktar.artti, .puan-artti { color: var(--cozum); }
+.puan-miktar.azaldi { color: var(--hata); }
+/* /rutbeler sayfası */
+.rutbeler-sayfa { display: grid; gap: 20px; max-width: 760px; margin: 0 auto; padding: 32px 24px 64px; min-width: 0; }
+.rutbeler-baslik h1 { margin: 0 0 4px; }
+.rutbeler-baslik p { margin: 0; }
+.rutbe-liste { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.rutbe-satir { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border: 1px solid var(--kenar-ince); border-radius: 16px; background: var(--yuzey-1); }
+.rutbe-satir.simdiki { background: color-mix(in srgb, var(--rc) 10%, var(--yuzey-1)); border-color: color-mix(in srgb, var(--rc) 45%, transparent); }
+.rutbe-satir-govde { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.rutbe-satir-ust { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-family: var(--baslik-tipi); font-size: 17px; }
+.rutbe-esik { white-space: nowrap; text-align: right; }
+.puan-nasil { gap: 14px; }
+.puan-nasil h2 { margin: 0; font-size: 20px; }
+.puan-kaynaklar { display: grid; margin: 0; padding: 0; list-style: none; }
+.puan-kaynaklar li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--kenar-ince); }
+.puan-kaynaklar li:last-child { border-bottom: 0; }
+@media (max-width: 800px) {
+  .rutbeler-sayfa { padding: 20px 16px 48px; }
+  .rutbe-satir { padding: 10px 12px; gap: 10px; }
+  .rutbe-satir .rutbe-kutu { width: 40px; height: 40px; border-radius: 12px; }
 }

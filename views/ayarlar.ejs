@@ -3,8 +3,9 @@
   ayar  { username, bio, email, avatar_url, tema ("koyu"|"acik"|"sistem"), vurgu ("safir"|"zumrut"|"kehribar"|"ametist"|"yakut"),
           menu_sagda (bool), kompakt (bool), az_animasyon (bool) }
   ayar.konum, ayar.web_sitesi, ayar.dm_izni ("herkes"|"kimse"), ayar.cevrimici_goster (bool), ayar.engelliler [ { username } ]
-  hatalar { username, bio, konum, web_sitesi }   (isteğe bağlı)
-  Formlar: POST /ayarlar/profil (username, bio, konum, web_sitesi) · POST /ayarlar/gorunum · POST /ayarlar/gizlilik (dm_izni, cevrimici_goster)
+  ayar.imza (string | null), imzaKilit { acik, ad, rutbe, kalan }   imza alanı yalnızca rütbe izin veriyorsa (kilitBilgisi)
+  hatalar { username, bio, konum, web_sitesi, imza }   (isteğe bağlı)
+  Formlar: POST /ayarlar/profil (username, bio, konum, web_sitesi, imza) · POST /ayarlar/gorunum · POST /ayarlar/gizlilik (dm_izni, cevrimici_goster)
            · POST /engel/<ad>/kaldir · POST /hesap/sil
 %>
 <%- include("partials/bas", { baslik: "Ayarlar" }) %>
@@ -56,6 +57,15 @@
         <input name="web_sitesi" type="url" value="<%= ayar.web_sitesi || '' %>" maxlength="200" placeholder="https://ornek.com" pattern="https?://.+">
       </label>
       <div class="yardim"><span><%= h.web_sitesi || "http:// ya da https:// ile başlamalı" %></span></div>
+      <%# İmza (rütbe ayrıcalığı): açıksa alan, kapalıysa kilit kartı (hangi rütbede açılacağı ve kalan puan) %>
+      <% if (locals.imzaKilit && !imzaKilit.acik) { %>
+        <%- include("partials/kilit", { kilit: imzaKilit }) %>
+      <% } else { %>
+        <label class="alan <%= h.imza ? 'hatali' : '' %>"><span>İmza</span>
+          <input name="imza" value="<%= ayar.imza || '' %>" maxlength="120" placeholder="Mesajlarının altında görünür">
+        </label>
+        <div class="yardim"><span><%= h.imza || "Konu ve cevaplarının altında küçük yazıyla görünür" %></span><span>en fazla 120</span></div>
+      <% } %>
       <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
     </form>
 

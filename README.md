@@ -108,3 +108,11 @@ Arayüz Figma'da tasarlandı: bilgi mimarisi, tasarım sistemi (renk değişkenl
 ## Durum ve sıradakiler
 
 Temel özellikler çalışıyor. Bilinen eksikler (avatar yükleme, gerçek e-posta gönderimi) [`docs/AKTARIM.md`](docs/AKTARIM.md) içinde. Sıradaki büyük işler: referans ve üyelik sistemi, rütbe ve profil geliştirmeleri, çok oyunculu oyunlar, avatar ve profil efektleri.
+
+## Lisans
+
+QuadRan [GNU Affero Genel Kamu Lisansı v3.0 (AGPL-3.0)](LICENSE) ya da daha yeni bir sürümüyle lisanslanmıştır.
+
+Kısaca: kodu kullanabilir, değiştirebilir ve ücretli bir hizmet olarak bile sunabilirsin; ama değiştirdiğin hâlini başkalarına
+(internet üzerinden bir site olarak sunmak dahil) açtığında, kaynak kodunu da aynı lisansla açmak zorundasın. QuadRan'ın kapalı
+kaynak bir kopyası yapılamaz. Bağlayıcı olan metin [LICENSE](LICENSE) dosyasıdır.

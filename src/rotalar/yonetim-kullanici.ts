@@ -6,7 +6,7 @@ import { randomInt } from "node:crypto";
 import { pool } from "../db.ts";
 import { sifreHashle } from "../sifre.ts";
 import {
-  bildir, sayi, metin, geriAdres, rutbeSql, banliSql, likeKac, puanEkle, rozetVer, bildirimGonder,
+  bildir, sayi, metin, geriAdres, rutbeSutunlari, banliSql, likeKac, puanEkle, rozetVer, bildirimGonder,
 } from "../yardimci.ts";
 import { denetim } from "../denetim.ts";
 import { kullaniciGetir, islemHatasi, banla, banKaldir, BAN_SURELERI } from "../islemler.ts";
@@ -55,7 +55,7 @@ yonetimKullanici.get("/yonetim/uyeler", async (req, res) => {
   const sf = sayfala(req, Number(n));
   const [kullanicilar]: any = await pool.query(
     `SELECT users.id, users.username, users.email, users.points, users.created_at, users.last_seen_at, users.deleted_at,
-            users.banned_until, ${banliSql("users")} AS banli, roles.name AS rol, ${rutbeSql("users")} AS rutbe
+            users.banned_until, ${banliSql("users")} AS banli, roles.name AS rol, ${rutbeSutunlari("users")}
        FROM users JOIN roles ON roles.id = users.role_id
       WHERE ${nerede}
       ORDER BY ${SIRALAR[sirala]} ${yon === "asc" ? "ASC" : "DESC"}, users.id DESC
@@ -101,7 +101,7 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
   const [satirlar]: any = await pool.query(
     `SELECT users.id, users.username, users.email, users.bio, users.points, users.created_at, users.last_seen_at, users.deleted_at,
             users.banned_at, users.banned_until, users.ban_reason, ${banliSql("users")} AS banli,
-            roles.name AS rol, ${rutbeSql("users")} AS rutbe
+            roles.name AS rol, ${rutbeSutunlari("users")}
        FROM users JOIN roles ON roles.id = users.role_id WHERE users.id = ?`,
     [id]
   );
@@ -243,12 +243,11 @@ yonetimKullanici.post("/yonetim/uyeler/:id/puan", sadeceAdmin, async (req, res, 
   if (!hata && hedef!.silindi) hata = "Kapatılmış hesabın puanı değiştirilemez.";
   if (hata) { bildir(req, "hata", hata); return res.redirect(geriAdres(req, detay(id))); }
 
-  const [[once]]: any = await pool.query("SELECT points FROM users WHERE id = ?", [id]);
-  await puanEkle(id, fark); // puan sıfırın altına inmez
-  const [[sonra]]: any = await pool.query("SELECT points FROM users WHERE id = ?", [id]);
-  await denetim(req, res, "kullanici.puan", "kullanici", id, { fark, sebep, onceki: once.points, sonraki: sonra.points });
+  // Önceki/sonraki puan puanEkle'nin kilit altında okuduğu değerlerden gelir: ayrı SELECT'ler başka bir işlemin araya girmesiyle yanlış kayıt yazabilirdi.
+  const { eski: onceki, yeni: sonraki } = await puanEkle(id, fark, "duzeltme"); // puan sıfırın altına inmez; geçmişe "düzeltme" olarak yazılır
+  await denetim(req, res, "kullanici.puan", "kullanici", id, { fark, sebep, onceki, sonraki });
   await bildirimGonder({ alan: id, yapan: null, tur: "moderasyon", metin: `Puanın yönetici tarafından ${fark > 0 ? "+" : ""}${fark} değiştirildi: ${sebep}`, link: "/profil/" + hedef!.username });
-  bildir(req, "basari", `Puan ${once.points} → ${sonra.points} oldu.`);
+  bildir(req, "basari", `Puan ${onceki} → ${sonraki} oldu.`);
   res.redirect(geriAdres(req, detay(id)));
 });
 
@@ -337,8 +336,30 @@ yonetimKullanici.post("/yonetim/uyeler/:id/rozet-al", sadeceAdmin, async (req, r
   if (!id) return next();
   const [rozetler]: any = await pool.query("SELECT id, name FROM badges WHERE id = ?", [sayi(req.body.badge_id)]);
   if (!rozetler[0]) { bildir(req, "hata", "Rozet bulunamadı."); return res.redirect(geriAdres(req, detay(id))); }
-  const [sonuc]: any = await pool.query("DELETE FROM user_badges WHERE user_id = ? AND badge_id = ?", [id, rozetler[0].id]);
-  if (!sonuc.affectedRows) { bildir(req, "hata", "Kullanıcıda bu rozet yok."); return res.redirect(geriAdres(req, detay(id))); }
+  // Rozet silme + rozet puanını geri alma TEK transaction'da: yarım kalırsa rozet gider ama puan kalırdı.
+  // Geri alınan miktar o günkü puan_rozet ayarından değil points_log'daki "hâlâ açık" miktardan gelir
+  // (SUM('rozet') + SUM('rozet_geri') bu rozet için); ayar sonradan değişmiş olabilir.
+  const baglanti = await pool.getConnection();
+  let silindi = false;
+  try {
+    await baglanti.beginTransaction();
+    await baglanti.query("SELECT id FROM users WHERE id = ? FOR UPDATE", [id]); // eşzamanlı iki "rozet al" aynı puanı iki kez düşmesin
+    const [sonuc]: any = await baglanti.query("DELETE FROM user_badges WHERE user_id = ? AND badge_id = ?", [id, rozetler[0].id]);
+    silindi = sonuc.affectedRows > 0;
+    if (silindi) {
+      const [[acik]]: any = await baglanti.query(
+        "SELECT COALESCE(SUM(miktar), 0) AS n FROM points_log WHERE user_id = ? AND sebep IN ('rozet', 'rozet_geri') AND ilgili_id = ?",
+        [id, rozetler[0].id]);
+      if (Number(acik.n) > 0) await puanEkle(id, -Number(acik.n), "rozet_geri", rozetler[0].id, baglanti);
+    }
+    await baglanti.commit();
+  } catch (hata) {
+    await baglanti.rollback();
+    throw hata;
+  } finally {
+    baglanti.release();
+  }
+  if (!silindi) { bildir(req, "hata", "Kullanıcıda bu rozet yok."); return res.redirect(geriAdres(req, detay(id))); }
   await denetim(req, res, "kullanici.rozet_al", "kullanici", id, { rozet: rozetler[0].name });
   bildir(req, "basari", `“${rozetler[0].name}” rozeti geri alındı.`);
   res.redirect(geriAdres(req, detay(id)));

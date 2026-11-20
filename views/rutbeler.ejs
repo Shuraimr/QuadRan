@@ -1,0 +1,50 @@
+<%#
+  Rütbeler: GET /rutbeler (herkese açık)
+  satirlar [ { id, name, min_points, renk, simge, acilan [ { etiket } ], simdiki (bool) } ]   küçükten büyüğe; acilan: bu rütbede YENİ açılanlar
+  puan { konu, cevap, oy, gunluk, seri, cozum, rozet }   "Puan nasıl kazanılır?" kartındaki güncel değerler (panelden ayarlanır)
+%>
+<%- include("partials/bas", { baslik: "Rütbeler" }) %>
+<%- include("partials/ust-cubuk") %>
+<main class="rutbeler-sayfa">
+  <header class="rutbeler-baslik">
+    <h1>Rütbeler</h1>
+    <p class="ikincil">Puan topladıkça rütben yükselir ve yeni şeyler açılır.</p>
+  </header>
+
+  <ol class="rutbe-liste">
+    <% for (const r of satirlar) { %>
+      <li class="rutbe-satir rutbe-<%= r.renk %><%= r.simdiki ? ' simdiki' : '' %>"<%- r.simdiki ? ' aria-current="true"' : '' %>>
+        <span class="rutbe-kutu"><%- include("partials/ikon", { ad: r.simge, boyut: 24 }) %></span>
+        <div class="rutbe-satir-govde">
+          <div class="rutbe-satir-ust">
+            <strong class="rutbe-renk"><%= r.name %></strong>
+            <% if (r.simdiki) { %><span class="ikincil kucuk">· sen buradasın</span><% } %>
+          </div>
+          <div class="ikincil kucuk">
+            <% if (r.acilan.length) { %><%= r.acilan.map((a) => a.etiket).join(" · ") %><% } else if (r.min_points === 0) { %>Herkes bu rütbeyle başlar<% } else { %>Yeni ayrıcalık yok<% } %>
+          </div>
+        </div>
+        <span class="rutbe-esik"><strong><%= r.min_points %></strong> <span class="ikincil kucuk">puan</span></span>
+      </li>
+    <% } %>
+  </ol>
+
+  <section class="kart kutu puan-nasil">
+    <h2 class="baslik-tipi">Puan nasıl kazanılır?</h2>
+    <ul class="puan-kaynaklar">
+      <% for (const [ad, deger, not] of [
+        ["Konu aç", puan.konu, ""],
+        ["Cevap yaz", puan.cevap, ""],
+        ["Mesajına artı oy gelsin", puan.oy, "eksi oy aynı değerle puan düşürür"],
+        ["Cevabın çözüm seçilsin", puan.cozum, "konu sahibi işaretler"],
+        ["Yeni rozet kazan", puan.rozet, ""],
+        ["Günde ilk ziyaret", puan.gunluk, ""],
+        ["7 gün üst üste ziyaret", puan.seri, "her 7. ardışık günde"],
+      ]) { %>
+        <li><span><%= ad %><% if (not) { %> <span class="ikincil kucuk">· <%= not %></span><% } %></span><strong class="puan-artti">+<%= deger %></strong></li>
+      <% } %>
+    </ul>
+    <p class="ikincil kucuk">Yazdığın mesajı silersen o mesajdan kazandığın puan geri alınır. Puan hareketlerini profilindeki “Puan geçmişi”nden görebilirsin.</p>
+  </section>
+</main>
+<%- include("partials/son") %>

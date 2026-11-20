@@ -7,7 +7,7 @@
 import type { Request, Response } from "express";
 import { pool } from "./db.ts";
 import { denetim } from "./denetim.ts";
-import { rutbeSql, bildirimGonder, kisalt, banliSql } from "./yardimci.ts";
+import { rutbeSutunlari, bildirimGonder, kisalt, banliSql } from "./yardimci.ts";
 import {
   HEDEF_SUTUN, banla, mesajiSil, sohbetMesajiSil, ozelMesajiSil, odaMesajiSil, sikayetleriKapat, type Yetkili,
 } from "./islemler.ts";
@@ -48,7 +48,7 @@ export function sebepHatasi(sebep: string | null, aciklama: string | null, hedef
 
 export type Onizleme = {
   tur: string; id: number;
-  yazarId: number; yazar: string; yazarRol: string; rutbe: string | null; banli: boolean;
+  yazarId: number; yazar: string; yazarRol: string; rutbe: string | null; rutbe_id?: number | null; banli: boolean;
   icerik: string | null; tarih: Date | null; silindi: boolean;
   link: string;
   konu?: { id: number; title: string };
@@ -60,8 +60,7 @@ export type Onizleme = {
 
 // Bir şikâyet hedefinin (mesaj, kullanıcı...) gösterim bilgisi. Bulunamazsa null.
 export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme | null> {
-  const kisi = (t: string) => `${t}.id AS yazar_id, ${t}.username AS yazar, ${rutbeSql(t)} AS rutbe, ${banliSql(t)} AS banli,
-            (SELECT roles.name FROM roles WHERE roles.id = ${t}.role_id) AS yazar_rol`;
+  const kisi = (t: string) => `${t}.id AS yazar_id, ${t}.username AS yazar, ${rutbeSutunlari(t)}, ${banliSql(t)} AS banli`;
   let satir: any;
   if (tur === "konu_mesaji") {
     [[satir]] = (await pool.query(
@@ -73,7 +72,7 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
       `SELECT posts.content, u.username FROM posts JOIN users u ON u.id = posts.user_id
         WHERE posts.topic_id = ? AND posts.id < ? AND posts.deleted_at IS NULL ORDER BY posts.id DESC LIMIT 1`, [satir.konu_id, id]);
     return {
-      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, banli: !!satir.banli,
+      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, rutbe_id: satir.rutbe_id, banli: !!satir.banli,
       icerik: satir.content, tarih: satir.created_at, silindi: !!satir.deleted_at,
       link: `/konu/${satir.konu_id}#mesaj-${id}`, konu: { id: satir.konu_id, title: satir.konu_baslik },
       onceki: once ? { yazar: once.username, icerik: once.content } : null,
@@ -87,7 +86,7 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
       `SELECT c.content, u.username FROM chat_messages c JOIN users u ON u.id = c.user_id
         WHERE c.id < ? AND c.deleted_at IS NULL ORDER BY c.id DESC LIMIT 1`, [id]);
     return {
-      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, banli: !!satir.banli,
+      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, rutbe_id: satir.rutbe_id, banli: !!satir.banli,
       icerik: satir.content, tarih: satir.created_at, silindi: !!satir.deleted_at, link: `/sohbet?genel=1#s-${id}`,
       onceki: once ? { yazar: once.username, icerik: once.content } : null,
     };
@@ -96,7 +95,7 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
     [[satir]] = (await pool.query(`SELECT ${kisi("u")} FROM users u WHERE u.id = ?`, [id])) as any;
     if (!satir) return null;
     return {
-      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, banli: !!satir.banli,
+      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, rutbe_id: satir.rutbe_id, banli: !!satir.banli,
       icerik: null, tarih: null, silindi: false, link: `/profil/${satir.yazar}`,
     };
   }
@@ -121,7 +120,7 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
       id: m.id, gonderen: m.gonderen, icerik: m.deleted_at ? "Bu mesaj silindi." : m.content, hedef, silindi: !!m.deleted_at, tarih: m.created_at,
     });
     return {
-      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, banli: !!satir.banli,
+      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, rutbe_id: satir.rutbe_id, banli: !!satir.banli,
       icerik: satir.content, tarih: satir.created_at, silindi: !!satir.deleted_at,
       link: "", alici: satir.alici,
       baglam: [...oncesi.reverse().map((m: any) => bicim(m, false)), bicim({ ...satir, gonderen: satir.yazar }, true), ...sonrasi.map((m: any) => bicim(m, false))],
@@ -144,7 +143,7 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
       id: m.id, gonderen: m.gonderen, icerik: m.deleted_at ? "Bu mesaj silindi." : m.content, hedef, silindi: !!m.deleted_at, tarih: m.created_at,
     });
     return {
-      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, banli: !!satir.banli,
+      tur, id, yazarId: satir.yazar_id, yazar: satir.yazar, yazarRol: satir.yazar_rol, rutbe: satir.rutbe, rutbe_id: satir.rutbe_id, banli: !!satir.banli,
       icerik: satir.content, tarih: satir.created_at, silindi: !!satir.deleted_at,
       link: "", oda: satir.oda,
       baglam: [...oncesi.reverse().map((m: any) => bicim(m, false)), bicim({ ...satir, gonderen: satir.yazar }, true), ...sonrasi.map((m: any) => bicim(m, false))],

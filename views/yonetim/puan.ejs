@@ -1,4 +1,4 @@
-<%# Puan kuralları: puan { konu, cevap, oy }, enfazla. POST /yonetim/puan alanlar: konu, cevap, oy (site_settings: puan_konu, puan_cevap, puan_oy) %>
+<%# Puan kuralları: puan { konu, cevap, oy, gunluk, seri, cozum, rozet }, enfazla. POST /yonetim/puan alanlar: aynı adlar (site_settings: puan_<ad>) %>
 <%- include("duzen-ust", { baslik: "Puan ve ödüller", aktif: "puan" }) %>
 <%- include("puan-sekmeler", { sekme: "kurallar" }) %>
 <form class="kart yn-kart yn-form" method="post" action="/yonetim/puan"><%- include("csrf") %>
@@ -8,7 +8,13 @@
     <label class="yn-etiketli">Cevap yazma<input class="yn-girdi" type="number" name="cevap" min="0" max="<%= enfazla %>" step="1" value="<%= puan.cevap %>" required></label>
     <label class="yn-etiketli">Mesajına gelen artı oy<input class="yn-girdi" type="number" name="oy" min="0" max="<%= enfazla %>" step="1" value="<%= puan.oy %>" required></label>
   </div>
-  <p class="ikincil kucuk">Varsayılanlar 5 / 2 / 1. Eksi oy aynı değerle puan düşürür; mesaj silinince yazarken kazanılan puan geri alınır. Değişiklik yalnızca bundan sonraki işlemleri etkiler, mevcut puanları geriye dönük değiştirmez. Sıralamadaki hafta/ay görünümü yeni değerlerle hesaplanır.</p>
+  <div class="yn-satir yn-genis">
+    <label class="yn-etiketli">Günlük ilk ziyaret<input class="yn-girdi" type="number" name="gunluk" min="0" max="<%= enfazla %>" step="1" value="<%= puan.gunluk %>" required></label>
+    <label class="yn-etiketli">7 gün üst üste ziyaret<input class="yn-girdi" type="number" name="seri" min="0" max="<%= enfazla %>" step="1" value="<%= puan.seri %>" required></label>
+    <label class="yn-etiketli">Çözüm seçilen cevap<input class="yn-girdi" type="number" name="cozum" min="0" max="<%= enfazla %>" step="1" value="<%= puan.cozum %>" required></label>
+    <label class="yn-etiketli">Yeni rozet<input class="yn-girdi" type="number" name="rozet" min="0" max="<%= enfazla %>" step="1" value="<%= puan.rozet %>" required></label>
+  </div>
+  <p class="ikincil kucuk">Varsayılanlar: konu 5, cevap 2, artı oy 1, günlük ziyaret 1, 7 günlük seri 5, çözüm 15, rozet 10. Eksi oy aynı değerle puan düşürür; mesaj silinince yazarken kazanılan puan geri alınır; çözüm işareti kaldırılırsa çözüm puanı da geri alınır. Seri puanı her 7. ardışık günde bir verilir. Değişiklik yalnızca bundan sonraki işlemleri etkiler, mevcut puanları geriye dönük değiştirmez. Sıralamadaki hafta/ay görünümü puan geçmişinden hesaplanır.</p>
   <button class="buton buton-birincil">Kaydet</button>
 </form>
 <%- include("duzen-alt") %>

@@ -1,0 +1,5 @@
+<%#
+  İmza: yazarın imzası, mesajın altında küçük soluk yazı. Yalnızca yazarın rütbesi imza ayrıcalığını veriyorsa
+  (ya da yazar yönetici/moderatörse) gösterilir; rütbe düşerse/ayrıcalık kapanırsa imza gizlenir ama silinmez.
+  Beklenen veri: yazar { imza, rutbe_id, yazar_rol }. Yönetici/moderatör bütün ayrıcalıklardan muaf: imza her zaman görünür.
+%><% if (yazar.imza && (["admin", "moderator"].includes(yazar.yazar_rol) || (rutbeBulId(yazar.rutbe_id) || {}).imza)) { %><div class="imza"><%= yazar.imza %></div><% } %>

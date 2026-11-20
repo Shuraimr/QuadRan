@@ -30,7 +30,7 @@
       <% for (const u of kullanicilar) { %>
         <tr>
           <td data-etiket="#"><%= u.id %></td>
-          <td data-etiket="Üye"><a class="kullanici" href="/yonetim/uyeler/<%= u.id %>"><%= u.username %></a> <small class="ikincil"><%= u.rutbe %></small></td>
+          <td data-etiket="Üye"><a class="kullanici" href="/yonetim/uyeler/<%= u.id %>"><%= u.username %></a> <%- include("../partials/rutbe", { rutbeAd: u.rutbe, rutbeId: u.rutbe_id }) %></td>
           <% if (admin) { %><td data-etiket="E-posta" class="yn-kisa"><%= u.email %></td><% } %>
           <td data-etiket="Rol"><span class="etiket"><%= u.rol %></span></td>
           <td data-etiket="Puan"><%= u.points %></td>

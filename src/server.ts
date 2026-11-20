@@ -1,10 +1,12 @@
 import { SEBEP_LISTESI } from "./sikayet.ts";
 import { belirtme } from "./gizlilik.ts";
+import { rutbeBulId, icerikHtml, rutbeCizimiBaslat, rutbeTazele } from "./rutbe.ts";
 import express from "express";
 import { oturum, ortakVeriler, csrfKoru } from "./oturum.ts";
 import { hesap } from "./rotalar/hesap.ts";
 import { forum } from "./rotalar/forum.ts";
 import { mesaj } from "./rotalar/mesaj.ts";
+import { rutbeRotasi } from "./rotalar/rutbe.ts";
 import { iletisim } from "./rotalar/iletisim.ts";
 import { odalar } from "./rotalar/odalar.ts";
 import { moderasyon } from "./rotalar/moderasyon.ts";
@@ -32,9 +34,35 @@ app.use(ortakVeriler);
 // Her POST'ta gizli _csrf alanını doğrular (gövde yukarıda çözümlendiği için burada okunabilir)
 app.use(csrfKoru);
 
+// Rütbe çipi/ayrıcalığı numarayla çözülür (src/rutbe.ts rutbeBulId). Çizim sırasında bir numara önbellekte bulunamazsa
+// (ör. rütbe başka bir süreçten az önce eklendi) sayfa sessizce gri çiple gitmesin: önbellek BİR KEZ tazelenir ve sayfa
+// yeniden çizilir. Hâlâ eksikse uyarı zaten konsola yazılmıştır, yine de sayfa gösterilir.
+app.use((req, res, next) => {
+  const orijinal = (res as any).render.bind(res);
+  (res as any).render = (gorunum: string, secenek?: any, cb?: Function) => {
+    if (typeof secenek === "function") { cb = secenek; secenek = undefined; }
+    const bitir = (hata: Error | null, html?: string) =>
+      cb ? cb(hata, html) : hata ? next(hata) : res.send(html);
+    // Her çizimin kendi "eksik" durumu var (src/rutbe.ts): eşzamanlı isteklerin bayrakları birbirine karışmaz.
+    const durum = { eksik: false };
+    rutbeCizimiBaslat(durum, () => orijinal(gorunum, secenek, (hata: Error | null, html?: string) => {
+      if (!hata && durum.eksik) {
+        const ikinci = { eksik: false };
+        rutbeTazele()
+          .then(() => rutbeCizimiBaslat(ikinci, () => orijinal(gorunum, secenek, (h2: Error | null, h2html?: string) => bitir(h2, h2html))))
+          .catch(next);
+        return;
+      }
+      bitir(hata, html);
+    }));
+  };
+  next();
+});
+
 // Gerçek sayfalar
 app.use(hesap);
 app.use(forum);
+app.use(rutbeRotasi);  // /rutbeler
 app.use(mesaj);
 app.use(iletisim);
 app.use(odalar);       // /oda: özel odalar (davetle girilen grup sohbetleri)
@@ -53,6 +81,9 @@ if (process.env.NODE_ENV !== "production") {
 // Şikâyet penceresi (partials/sikayet-penceresi.ejs) birçok sayfada yer alır; sebep listesi ve Türkçe "-i hâli" yardımcısı her şablonda hazır olsun
 app.locals.sikayetSebepleri = SEBEP_LISTESI;
 app.locals.belirtme = belirtme;
+// Rütbe çipi (partials/rutbe.ejs) ve kullanıcı içeriğinde yazar rütbesine göre bağlantı (src/rutbe.ts)
+app.locals.rutbeBulId = rutbeBulId;
+app.locals.icerikHtml = icerikHtml;
 
 // Bütün şablonlarda kullanılabilen yardımcı: "2 saat önce" gibi yazar
 app.locals.zaman = (tarih: Date) => {

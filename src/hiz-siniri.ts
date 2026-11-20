@@ -57,3 +57,6 @@ export const kayitIp = new HizSiniri(5, 60);
 // Oda mesajı: aynı kullanıcıdan dakikada en çok 20 mesaj (art arda gönderip odayı doldurmasın).
 // Sayaç yalnızca bu kullanım için kurulur: giriş sayaçlarından farklı olarak her gönderimde say() çağrılır.
 export const odaMesaj = new HizSiniri(20, 1);
+// Konu açma ve cevap yazma: aynı kullanıcıdan dakikada en çok 6 (puan kasmak ya da konuyu doldurmak için seri yazmayı yavaşlatır).
+// Ortak sayaç: konu açmak da bir mesajdır. Yetkililer (admin/moderatör) muaf; oda mesajındaki gibi say() yalnızca doğrulama geçince çağrılır.
+export const cevapYazma = new HizSiniri(6, 1);

@@ -2,7 +2,7 @@
   Sohbet merkezinin sol listesi (yalnızca üyeler): /sohbet ve /oda/:id sayfalarında aynı parça.
   Beklenen veriler:
   hub        { odalar [{ id, ad, sessiz, kapali, okunmamis, son_metin, son_zaman }], davetler [{ id, oda, davet_eden }],
-               genel { metin, zaman } | null, olustur { izinli, rutbeYeter, sinirDolu, rutbeAd, kalanPuan, sinir } }
+               genel { metin, zaman } | null, olustur { izinli, rutbeYeter, sinirDolu, kilit { ad, rutbe, kalan }, sinir } }
   aktifOda   açık odanın numarası; 0 ise "Genel sohbet" açıktır
   Davete cevap: POST /oda/davet/:id/kabul | /ret · "Oda aç": /oda/yeni (JS varsa pencere, #oda-yeni)
   Telefonda (≤960px) bu liste ile konuşma ayrı görünümlerdir: listede iken konuşma gizlenir (.mesaj-acik sınıfı sayfada).
@@ -31,14 +31,14 @@
   </div>
   <div class="oda-liste-kaydir">
     <% if (!slOl_.izinli) { %>
-      <div class="oda-kilit-kart">
-        <%- include("ikon", { ad: "kilit", boyut: 18 }) %>
-        <% if (!slOl_.rutbeYeter) { %>
-          <span>Oda açmak için <strong><%= slOl_.rutbeAd %></strong> olmalısın · <%= slOl_.kalanPuan %> puan kaldı</span>
-        <% } else { %>
+      <% if (!slOl_.rutbeYeter) { %>
+        <%- include("kilit", { kilit: slOl_.kilit }) %>
+      <% } else { %>
+        <div class="kilit-kart">
+          <%- include("ikon", { ad: "kilit", boyut: 18 }) %>
           <span>En çok <strong><%= slOl_.sinir %></strong> oda açabilirsin. Yeni oda için birini sil ya da sahipliğini devret.</span>
-        <% } %>
-      </div>
+        </div>
+      <% } %>
     <% } %>
 
     <% for (const d of sl_.davetler) { %>

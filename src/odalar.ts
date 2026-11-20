@@ -4,7 +4,8 @@
 import { randomInt } from "node:crypto";
 import { pool } from "./db.ts";
 import { ayarlar } from "./ayarlar.ts";
-import { rutbeSql, kisalt, likeKac } from "./yardimci.ts";
+import { rutbeSutunlari, kisalt, likeKac } from "./yardimci.ts";
+import { rutbeler, kilitBilgisi } from "./rutbe.ts";
 import { cevrimiciSql } from "./gizlilik.ts";
 
 export type OdaRol = "sahip" | "yonetici" | "uye";
@@ -28,31 +29,26 @@ export function kodDuzelt(ham: string): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Oda açma kuralı: yeterli rütbe + sahip olunan oda sınırı. Yöneticiler ve moderatörler rütbe şartından muaftır
-// (sınır herkese uygulanır). Eşik PUAN olarak saklanır (rütbe puandan hesaplanır); gösterilen rütbe adı,
-// o puanın karşılık geldiği en yüksek rütbedir.
+// Oda açma kuralı: rütbenin "oda_ac" ayrıcalığı (src/rutbe.ts, panelde Rütbeler tablosundan ayarlanır) + sahip olunan
+// oda sınırı. Yöneticiler ve moderatörler rütbe şartından muaftır (sınır herkese uygulanır).
+// kilit: ayrıcalığı ilk açan rütbe ve kalan puan (kilit kartı partials/kilit.ejs için).
 // ---------------------------------------------------------------------------
 export type OlusturmaDurumu = {
   izinli: boolean;
   rutbeYeter: boolean; sinirDolu: boolean;
-  esik: number; rutbeAd: string; kalanPuan: number;
+  kilit: ReturnType<typeof kilitBilgisi>;
   sahip: number; sinir: number;
 };
 
 export async function olusturmaDurumu(kullanici: { id: number; points: number; rol: string }): Promise<OlusturmaDurumu> {
   const { oda } = await ayarlar();
-  const [[r]]: any = await pool.query("SELECT name FROM ranks WHERE min_points <= ? ORDER BY min_points DESC LIMIT 1", [oda.rutbeEsigi]);
+  await rutbeler(); // önbellek taze olsun
   const [[s]]: any = await pool.query("SELECT COUNT(*) AS n FROM rooms WHERE sahip_id = ? AND deleted_at IS NULL", [kullanici.id]);
-  const yetkili = ["admin", "moderator"].includes(kullanici.rol);
-  const puan = Number(kullanici.points);
-  const rutbeYeter = yetkili || puan >= oda.rutbeEsigi;
+  const kilit = kilitBilgisi(kullanici, "oda_ac");
+  const rutbeYeter = kilit.acik;
   const sahip = Number(s.n);
   const sinirDolu = sahip >= oda.kisiSiniri;
-  return {
-    izinli: rutbeYeter && !sinirDolu, rutbeYeter, sinirDolu,
-    esik: oda.rutbeEsigi, rutbeAd: r?.name ?? "", kalanPuan: Math.max(0, oda.rutbeEsigi - puan),
-    sahip, sinir: oda.kisiSiniri,
-  };
+  return { izinli: rutbeYeter && !sinirDolu, rutbeYeter, sinirDolu, kilit, sahip, sinir: oda.kisiSiniri };
 }
 
 // Sistem satırı ("ayse odaya ahmet’i ekledi"): room_messages'a tur='sistem' olarak yazılır, metin hazırdır.
@@ -157,7 +153,7 @@ export async function odaDetayi(oda: NonNullable<Awaited<ReturnType<typeof uyeli
 
   const [mesajlar]: any = await pool.query(
     `SELECT * FROM (
-       SELECT m.id, m.tur, m.content, m.created_at, m.user_id, u.username AS yazar, ${rutbeSql("u")} AS rutbe, mm.rol AS oda_rol,
+       SELECT m.id, m.tur, m.content, m.created_at, m.user_id, u.username AS yazar, ${rutbeSutunlari("u")}, mm.rol AS oda_rol,
               EXISTS (SELECT 1 FROM user_blocks b WHERE b.blocker_id = ? AND b.blocked_id = m.user_id) AS engelli
          FROM room_messages m JOIN users u ON u.id = m.user_id
          LEFT JOIN room_members mm ON mm.room_id = m.room_id AND mm.user_id = m.user_id
@@ -169,7 +165,7 @@ export async function odaDetayi(oda: NonNullable<Awaited<ReturnType<typeof uyeli
   for (const m of mesajlar) m.engelli = !!m.engelli;
 
   const [uyeler]: any = await pool.query(
-    `SELECT u.id, u.username, ${rutbeSql("u")} AS rutbe, m.rol, ${cevrimiciSql("u")} AS cevrimici
+    `SELECT u.id, u.username, ${rutbeSutunlari("u")}, m.rol, ${cevrimiciSql("u")} AS cevrimici
        FROM room_members m JOIN users u ON u.id = m.user_id
       WHERE m.room_id = ? AND u.deleted_at IS NULL
       ORDER BY FIELD(m.rol, 'sahip', 'yonetici', 'uye'), u.username`,
@@ -204,7 +200,7 @@ export async function odaDetayi(oda: NonNullable<Awaited<ReturnType<typeof uyeli
 export async function davetAra(benId: number, odaId: number, q: string) {
   if (!q) return [];
   const [satirlar]: any = await pool.query(
-    `SELECT u.username, ${rutbeSql("u")} AS rutbe FROM users u
+    `SELECT u.username, ${rutbeSutunlari("u")} FROM users u
       WHERE u.username LIKE ? AND u.deleted_at IS NULL AND u.id <> ?
         AND NOT EXISTS (SELECT 1 FROM room_members m WHERE m.room_id = ? AND m.user_id = u.id)
         AND NOT EXISTS (SELECT 1 FROM room_invites i WHERE i.room_id = ? AND i.davet_edilen = u.id AND i.durum = 'bekliyor')

@@ -81,7 +81,7 @@
       <% } else if (!aramaSonuc.length) { %>
         <li class="kisi-bos">Davet edilebilecek eşleşen kullanıcı yok.</li>
       <% } else { for (const k of aramaSonuc) { %>
-        <li class="oda-kisi"><span class="avatar avatar-36"><%= k.username[0] %></span><strong><%= k.username %></strong><% if (k.rutbe) { %><span class="rozet"><%= k.rutbe %></span><% } %>
+        <li class="oda-kisi"><span class="avatar avatar-36"><%= k.username[0] %></span><strong><%= k.username %></strong><% if (k.rutbe) { %><%- include("rutbe", { rutbeAd: k.rutbe, rutbeId: k.rutbe_id }) %><% } %>
           <form method="post" action="/oda/<%= oda.id %>/davet"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="davet"><input type="hidden" name="kullanici" value="<%= k.username %>"><button class="buton buton-tonal">Davet et</button></form></li>
       <% } } %>
     </ul>

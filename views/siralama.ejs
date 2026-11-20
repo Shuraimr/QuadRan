@@ -23,13 +23,13 @@
   const srPodyumSirali = [srPodyum[1], srPodyum[0], srPodyum[2]].filter(Boolean);
   const srTablo = srListe.slice(3);
   const srBenimTabloda = srBenim && srTablo.some(s => s.username === srBenim.username);
-  const srSimdikiRutbe = locals.kullanici ? locals.kullanici.rutbe : null;
+  const srSimdikiRutbe = locals.kullanici ? locals.kullanici.rutbe_id : null;
   const srPuanEtiketi = srDonem === "tum" ? "Puan" : "Dönem puanı";
 %>
 <main class="siralama-sayfa">
   <div class="siralama-ana">
     <div class="siralama-ust">
-      <h1>Sıralama</h1>
+      <div class="siralama-baslik"><h1>Sıralama</h1><a class="baglanti kucuk" href="/rutbeler">Rütbeler →</a></div>
       <nav class="siralama" aria-label="Dönem">
         <% for (const d of srDonemler) { %>
           <a class="<%= srDonem === d.ad ? 'aktif' : '' %>" href="/siralama?donem=<%= d.ad %>" <% if (srDonem === d.ad) { %>aria-current="page"<% } %>><%= d.etiket %></a>
@@ -46,7 +46,7 @@
             <span class="siralama-madalya" aria-label="<%= s.sira %>. sıra"><%= s.sira %></span>
             <span class="avatar"><%= s.username[0] %></span>
             <strong><%= s.username %></strong>
-            <% if (s.rutbe) { %><span class="rozet"><%= s.rutbe %></span><% } %>
+            <% if (s.rutbe) { %><%- include("partials/rutbe", { rutbeAd: s.rutbe, rutbeId: s.rutbe_id }) %><% } %>
             <span class="siralama-puan"><%= s.puan %></span>
             <span class="kucuk ikincil"><%= s.konu_sayisi %> konu</span>
           </a>
@@ -60,7 +60,7 @@
             <tr>
               <th scope="col">Sıra</th>
               <th scope="col">Kullanıcı</th>
-              <th scope="col" class="gizle-mobil">Rütbe</th>
+              <th scope="col">Rütbe</th>
               <th scope="col" class="sayi"><%= srPuanEtiketi %></th>
               <th scope="col" class="sayi gizle-mobil">Konu</th>
             </tr>
@@ -70,7 +70,7 @@
               <tr class="ben">
                 <td class="sira-no"><%= srBenim.sira %></td>
                 <td><a class="siralama-kisi" href="/profil/<%= srBenim.username %>"><span class="avatar"><%= srBenim.username[0] %></span><span>Senin sıran</span></a></td>
-                <td class="gizle-mobil"><% if (srBenim.rutbe) { %><span class="rozet"><%= srBenim.rutbe %></span><% } %></td>
+                <td><% if (srBenim.rutbe) { %><%- include("partials/rutbe", { rutbeAd: srBenim.rutbe, rutbeId: srBenim.rutbe_id }) %><% } %></td>
                 <td class="sayi puan"><%= srBenim.puan %></td>
                 <td class="sayi gizle-mobil"><%= srBenim.konu_sayisi %></td>
               </tr>
@@ -81,7 +81,7 @@
               <tr class="<%= ben ? 'ben' : '' %>">
                 <td class="sira-no"><%= s.sira %></td>
                 <td><a class="siralama-kisi" href="/profil/<%= s.username %>"><span class="avatar"><%= s.username[0] %></span><span><%= s.username %><%= ben ? " (sen)" : "" %></span></a></td>
-                <td class="gizle-mobil"><% if (s.rutbe) { %><span class="rozet"><%= s.rutbe %></span><% } %></td>
+                <td><% if (s.rutbe) { %><%- include("partials/rutbe", { rutbeAd: s.rutbe, rutbeId: s.rutbe_id }) %><% } %></td>
                 <td class="sayi puan"><%= s.puan %></td>
                 <td class="sayi gizle-mobil"><%= s.konu_sayisi %></td>
               </tr>
@@ -114,9 +114,9 @@
       <p class="ikincil kucuk">Rütben toplam puanına göre belirlenir.</p>
       <div>
         <% for (const r of srRutbeler) { %>
-          <div class="siralama-rutbe <%= r.name === srSimdikiRutbe ? 'simdiki' : '' %>">
-            <span class="rozet"><%= r.name %></span>
-            <% if (r.name === srSimdikiRutbe) { %><span class="kucuk ikincil">Senin rütben</span><% } %>
+          <div class="siralama-rutbe <%= r.id === srSimdikiRutbe ? 'simdiki' : '' %>">
+            <%- include("partials/rutbe", { rutbeAd: r.name, rutbeId: r.id }) %>
+            <% if (r.id === srSimdikiRutbe) { %><span class="kucuk ikincil">Senin rütben</span><% } %>
             <span class="esik"><%= r.min_points %> puan</span>
           </div>
         <% } %>

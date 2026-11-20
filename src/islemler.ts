@@ -4,7 +4,7 @@
 // Fonksiyonlar HTTP'yi (req/res) bilmez: sadece veritabanı işi yapar ve sonucu döner.
 // İşlem kaydı (denetim) ve toast, çağıran route'ta yazılır.
 import { pool } from "./db.ts";
-import { bildirimGonder, kisalt, banliSql } from "./yardimci.ts";
+import { bildirimGonder, kisalt, banliSql, silinenCozumuTemizle, mesajPuaniniGeriAl, mesajPuaniniGeriVer, rutbeKontrol } from "./yardimci.ts";
 
 export type Yetkili = { id: number; rol: string };
 export type Hedef = { id: number; username: string; rol: string; silindi: boolean; banli: boolean };
@@ -125,10 +125,24 @@ export async function mesajiSil(postId: number, yetkiliId: number, sebep?: strin
   const mesaj = satirlar[0];
   if (!mesaj) return null;
 
-  // Üç yazma işlemi birlikte olmalı: yarım kalırsa (mesaj silinmiş ama şikâyet açık) tutarsızlık olur.
+  // Yazma işlemleri birlikte olmalı: yarım kalırsa (mesaj silinmiş ama şikâyet açık, çözüm işareti duruyor) tutarsızlık olur.
+  // Silinen cevap konunun çözümüyse (ya da silinen mesaj konunun kendisiyse, çözüm cevabı için) işaret kalkar ve açık çözüm
+  // puanı geri alınır; yazarın bu mesajdan kazandığı puan da geri alınır (hepsi aynı transaction).
   const baglanti = await pool.getConnection();
+  let puanlar: { kisi: number; eski: number; yeni: number }[] = [];
   try {
     await baglanti.beginTransaction();
+    // Kilit sırası HER YERDE aynı: konu → mesaj → users (silinenCozumuTemizle konuyu zaten kilitler, kilit yeniden alınabilir).
+    // "Silinmemiş mi" denetimi kilidin İÇİNDE yeniden yapılır: yukarıdaki ilk okuma kilitsizdi, aynı mesaja gelen eşzamanlı
+    // silmelerin hepsi onu geçebilirdi (puan satırı tekti ama bildirim ve işlem kaydı çoğalırdı). Kaybeden istek burada
+    // silinmiş mesajı görür, hiçbir şey yazmadan null döner; çağıranlar null görünce bildirim/işlem kaydı yazmaz.
+    await baglanti.query("SELECT id FROM topics WHERE id = ? FOR UPDATE", [mesaj.topic_id]);
+    const [[hala]]: any = await baglanti.query("SELECT id FROM posts WHERE id = ? AND deleted_at IS NULL FOR UPDATE", [postId]);
+    if (!hala) { await baglanti.rollback(); return null; }
+    mesaj.ilk_mi = !!mesaj.ilk_mi;
+    puanlar = await silinenCozumuTemizle(baglanti, mesaj); // konu kilidi önce (puan kilitlerinden önce)
+    const kayip = await mesajPuaniniGeriAl(baglanti, mesaj);
+    if (kayip) puanlar.push(kayip);
     await baglanti.query("UPDATE posts SET deleted_at = NOW() WHERE id = ?", [postId]);
     if (mesaj.ilk_mi) await baglanti.query("UPDATE topics SET deleted_at = COALESCE(deleted_at, NOW()) WHERE id = ?", [mesaj.topic_id]);
     await baglanti.query(
@@ -143,6 +157,8 @@ export async function mesajiSil(postId: number, yetkiliId: number, sebep?: strin
     baglanti.release();
   }
 
+  for (const p of puanlar) await rutbeKontrol(p.kisi, p.eski, p.yeni);
+
   // Yapan null: bildirimde yetkilinin adı görünmez, "Moderasyon" olarak gelir.
   await bildirimGonder({
     alan: mesaj.user_id, yapan: null, tur: "moderasyon",
@@ -153,17 +169,38 @@ export async function mesajiSil(postId: number, yetkiliId: number, sebep?: strin
 }
 
 // Silinmiş mesajı geri getir. İlk mesajsa konu da geri gelir. Geri alınan: true.
+// Yazarın silinirken geri alınan puanı geri verilir (mesajPuaniniGeriVer): yetkili yanlışlıkla sildiyse kişi kaybetmesin.
+// Puan çoğalmaz çünkü geri verilen miktar 'silme' + 'geri_yukleme' kayıtlarından hesaplanır (tekrar geri yükleme 0 verir).
+// Silinirken çözüm işareti kalktıysa geri alınca otomatik YENİDEN işaretlenmez ve çözüm puanı geri verilmez:
+// konu sahibi isterse cevabı yeniden çözüm seçer. Aksi hâlde sil → geri al ile puan çoğaltılabilirdi.
 export async function mesajiGeriAl(postId: number): Promise<boolean> {
   const [satirlar]: any = await pool.query(
-    `SELECT posts.id, posts.topic_id,
+    `SELECT posts.id, posts.user_id, posts.topic_id,
             posts.id = (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = posts.topic_id) AS ilk_mi
        FROM posts WHERE posts.id = ? AND posts.deleted_at IS NOT NULL`,
     [postId]
   );
   const mesaj = satirlar[0];
   if (!mesaj) return false;
-  await pool.query("UPDATE posts SET deleted_at = NULL WHERE id = ?", [postId]);
-  if (mesaj.ilk_mi) await pool.query("UPDATE topics SET deleted_at = NULL WHERE id = ?", [mesaj.topic_id]);
+  const baglanti = await pool.getConnection();
+  let puan: { kisi: number; eski: number; yeni: number } | null = null;
+  try {
+    await baglanti.beginTransaction();
+    await baglanti.query("SELECT id FROM topics WHERE id = ? FOR UPDATE", [mesaj.topic_id]); // kilit sırası: önce konu, sonra mesaj, sonra users
+    // Kilit içinde yeniden denetim (mesajiSil ile aynı neden): eşzamanlı iki geri alma puanı/kaydı iki kez işlemesin.
+    const [[hala]]: any = await baglanti.query("SELECT id FROM posts WHERE id = ? AND deleted_at IS NOT NULL FOR UPDATE", [postId]);
+    if (!hala) { await baglanti.rollback(); return false; }
+    await baglanti.query("UPDATE posts SET deleted_at = NULL WHERE id = ?", [postId]);
+    if (mesaj.ilk_mi) await baglanti.query("UPDATE topics SET deleted_at = NULL WHERE id = ?", [mesaj.topic_id]);
+    puan = await mesajPuaniniGeriVer(baglanti, mesaj);
+    await baglanti.commit();
+  } catch (hata) {
+    await baglanti.rollback();
+    throw hata;
+  } finally {
+    baglanti.release();
+  }
+  if (puan) await rutbeKontrol(puan.kisi, puan.eski, puan.yeni);
   return true;
 }
 
@@ -173,15 +210,38 @@ export async function konuyuSil(topicId: number, yetkiliId: number, sebep?: stri
   if (!konu || konu.deleted_at) return false;
   const [[ilk]]: any = await pool.query("SELECT MIN(id) AS id FROM posts WHERE topic_id = ?", [topicId]);
   const silinen = ilk?.id ? await mesajiSil(ilk.id, yetkiliId, sebep) : null;
-  if (!silinen) await pool.query("UPDATE topics SET deleted_at = NOW() WHERE id = ?", [topicId]); // ilk mesaj zaten silinmişti
-  return true;
+  if (silinen) return true;
+  // mesajiSil null döndü: ilk mesaj zaten silinmişti ya da eşzamanlı başka bir istek bizden önce sildi.
+  // Yalnızca konu hâlâ açıksa kapatılır; satır değişmediyse (affectedRows 0) işlem yapılmamış sayılır, çağıran kayıt yazmaz.
+  const [s]: any = await pool.query("UPDATE topics SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL", [topicId]);
+  return s.affectedRows > 0;
 }
 
+// Konuyu geri getir: konu + ilk mesaj birlikte döner, ilk mesajın geri alınan puanı da geri verilir (mesajiGeriAl ile aynı kural).
 export async function konuyuGeriAl(topicId: number): Promise<boolean> {
   const [[konu]]: any = await pool.query("SELECT id, deleted_at FROM topics WHERE id = ?", [topicId]);
   if (!konu || !konu.deleted_at) return false;
-  await pool.query("UPDATE topics SET deleted_at = NULL WHERE id = ?", [topicId]);
-  await pool.query("UPDATE posts SET deleted_at = NULL WHERE id = (SELECT m FROM (SELECT MIN(id) AS m FROM posts WHERE topic_id = ?) AS x)", [topicId]);
+  const baglanti = await pool.getConnection();
+  let puan: { kisi: number; eski: number; yeni: number } | null = null;
+  try {
+    await baglanti.beginTransaction();
+    // Kilit sırası: önce konu, sonra mesaj, sonra users. Silinmiş mi denetimi kilidin içinde yeniden yapılır (eşzamanlı geri almada tek kayıt).
+    const [[hala]]: any = await baglanti.query("SELECT id FROM topics WHERE id = ? AND deleted_at IS NOT NULL FOR UPDATE", [topicId]);
+    if (!hala) { await baglanti.rollback(); return false; }
+    await baglanti.query("UPDATE topics SET deleted_at = NULL WHERE id = ?", [topicId]);
+    const [[ilk]]: any = await baglanti.query("SELECT id, user_id FROM posts WHERE topic_id = ? ORDER BY id LIMIT 1", [topicId]);
+    if (ilk) {
+      await baglanti.query("UPDATE posts SET deleted_at = NULL WHERE id = ?", [ilk.id]);
+      puan = await mesajPuaniniGeriVer(baglanti, ilk);
+    }
+    await baglanti.commit();
+  } catch (hata) {
+    await baglanti.rollback();
+    throw hata;
+  } finally {
+    baglanti.release();
+  }
+  if (puan) await rutbeKontrol(puan.kisi, puan.eski, puan.yeni);
   return true;
 }
 

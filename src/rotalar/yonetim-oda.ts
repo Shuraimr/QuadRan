@@ -1,6 +1,6 @@
 // Yönetim paneli: Sohbet > Odalar sekmesi (özel odalar, sql/12_odalar.sql).
 //   GET  /yonetim/sohbet/odalar                       oda listesi + oda açma kuralları (moderatör + admin; kuralları yalnızca admin değiştirir)
-//   POST /yonetim/sohbet/odalar/ayar                  oda_rutbe_esigi ve kisi_basi_oda_siniri (yalnızca admin)
+//   POST /yonetim/sohbet/odalar/ayar                  kisi_basi_oda_siniri (yalnızca admin; oda açabilen rütbe: Puan ve ödüller > Rütbeler)
 //   POST /yonetim/sohbet/odalar/:id/kapat|ac          odayı kapat (üyeler okur ama yazamaz) / yeniden aç
 //
 // GİZLİLİK: oda yalnızca üyelerinindir. Bu sayfa odaların mesajlarını HİÇ göstermez, yalnızca sayıları (üye, mesaj).
@@ -10,7 +10,7 @@ import express from "express";
 import { pool } from "../db.ts";
 import { bildir, bildirimGonder, metin, sayi, likeKac, kisalt } from "../yardimci.ts";
 import { denetim } from "../denetim.ts";
-import { ayarlar, ayarYaz, ayarOnbellekTemizle, ODA_ESIK_ENFAZLA, ODA_SINIR_ENFAZLA } from "../ayarlar.ts";
+import { ayarlar, ayarYaz, ayarOnbellekTemizle, ODA_SINIR_ENFAZLA } from "../ayarlar.ts";
 import { sayfala, secim, sadeceAdmin } from "./yonetim-ortak.ts";
 
 export const yonetimOda = express.Router();
@@ -40,23 +40,21 @@ yonetimOda.get(LISTE, async (req, res) => {
   const a = await ayarlar();
   res.render("yonetim/odalar", {
     baslik: "Sohbet", aktif: "sohbet", satirlar, sf, qs: { q, durum }, yol: LISTE, filtreli: !!q || durum !== "hepsi",
-    oda: a.oda, esikEnfazla: ODA_ESIK_ENFAZLA, sinirEnfazla: ODA_SINIR_ENFAZLA, duzenleyebilir: res.locals.kullanici.rol === "admin",
+    oda: a.oda, sinirEnfazla: ODA_SINIR_ENFAZLA, duzenleyebilir: res.locals.kullanici.rol === "admin",
   });
 });
 
 yonetimOda.post(LISTE + "/ayar", sadeceAdmin, async (req, res) => {
   const k = res.locals.kullanici;
-  const esik = Number(metin(req.body.esik));
   const sinir = Number(metin(req.body.sinir));
-  if (!Number.isInteger(esik) || esik < 0 || esik > ODA_ESIK_ENFAZLA || !Number.isInteger(sinir) || sinir < 1 || sinir > ODA_SINIR_ENFAZLA) {
-    bildir(req, "hata", `Puan eşiği 0–${ODA_ESIK_ENFAZLA}, oda sınırı 1–${ODA_SINIR_ENFAZLA} arasında tam sayı olmalı.`);
+  if (!Number.isInteger(sinir) || sinir < 1 || sinir > ODA_SINIR_ENFAZLA) {
+    bildir(req, "hata", `Oda sınırı 1–${ODA_SINIR_ENFAZLA} arasında tam sayı olmalı.`);
     return res.redirect(LISTE);
   }
   const eski = (await ayarlar()).oda;
-  await ayarYaz("oda_rutbe_esigi", String(esik), k.id);
   await ayarYaz("kisi_basi_oda_siniri", String(sinir), k.id);
   ayarOnbellekTemizle();
-  await denetim(req, res, "ayar.oda", "ayar", null, { rutbe_esigi: [eski.rutbeEsigi, esik], kisi_siniri: [eski.kisiSiniri, sinir] });
+  await denetim(req, res, "ayar.oda", "ayar", null, { kisi_siniri: [eski.kisiSiniri, sinir] });
   bildir(req, "basari", "Oda ayarları kaydedildi.");
   res.redirect(LISTE);
 });
