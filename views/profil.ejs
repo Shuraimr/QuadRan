@@ -26,12 +26,15 @@
   const toplam = haftalik.reduce((t, g) => t + g.sayi, 0);
 %>
 <div class="profil">
-  <div>
-    <div class="banner" <% if (profil.banner_url) { %>style="background-image: url('<%= profil.banner_url %>')"<% } %>>
-      <% if (!profil.banner_url) { %><%- include("partials/kontur") %><% } %>
+  <%# Üst bölüm: banner + kimlik. Profil rengi/efekti/süsü kişi premium'dayken gelir (sorgu premium değilse NULL döndürür).
+      Renkler sunucuda #rrggbb doğrulanır. Arka efekt katmanı banner'ın içinde, ön efekt katmanı bütün üst bölümün üstünde oynar. %>
+  <div class="profil-ust" data-efekt="<%= profil.profil_efekti || '' %>"<%- Number(profil.profil_renk_gecis) ? " data-gecis" : "" %> style="<%= profil.profil_renk_ana ? '--pk-ana:' + profil.profil_renk_ana + ';' : '' %><%= profil.profil_renk_vurgu ? '--pk-vurgu:' + profil.profil_renk_vurgu : '' %>">
+    <div class="banner" data-konum="<%= profil.banner_konum || 'orta' %>">
+      <% if (profil.banner_url) { %><img src="<%= profil.banner_url %>" alt="" decoding="async"><% } else if (!profil.profil_renk_ana) { %><%- include("partials/kontur") %><% } %>
+      <%- include("partials/profil-efekt", { efekt: profil.profil_efekti, katman: "arka" }) %>
     </div>
     <div class="kimlik">
-      <span class="avatar avatar-buyuk" <% if (profil.avatar_url) { %>style="background-image: url('<%= profil.avatar_url %>')"<% } %>><%= profil.avatar_url ? "" : profil.username[0] %></span>
+      <%- include("partials/avatar", { ad: profil.username, url: profil.avatar_url, sus: profil.avatar_susu, sinif: "avatar-buyuk", oynat: true, bos: true }) %>
       <div class="kimlik-bilgi">
         <div class="satir"><h1><%= profil.username %></h1><% if (profil.rutbe) { %><%- include("partials/rutbe", { rutbeAd: profil.rutbe, rutbeId: profil.rutbe_id }) %><% } %></div>
         <div class="satir ikincil kucuk kimlik-meta">
@@ -71,6 +74,7 @@
         <% } %>
       </div>
     </div>
+    <%- include("partials/profil-efekt", { efekt: profil.profil_efekti, katman: "on" }) %>
   </div>
 
   <% if (profil.bio) { %><p class="bio"><%= profil.bio %></p><% } %>
@@ -166,13 +170,14 @@
             <div class="kucuk"><strong><%= sonraki.name %></strong> rütbesine <strong><%= sonraki.min_points - profil.points %></strong> puan kaldı<%= acilacaklar.length && !locals.yetkiliProfil ? " · açılacaklar:" : "" %></div>
             <% if (acilacaklar.length && !locals.yetkiliProfil) { %>
               <ul class="rutbe-acilacak">
-                <% for (const a of acilacaklar) { %><li><%- include("partials/ikon", { ad: "kilit", boyut: 14 }) %><%= a.etiket %></li><% } %>
+                <% for (const a of acilacaklar) { %><li<%- a.yakinda ? ' class="yakinda"' : "" %>><%- include("partials/ikon", { ad: "kilit", boyut: 14 }) %><%= a.etiket %><%= a.yakinda ? " · yakında" : "" %></li><% } %>
               </ul>
             <% } %>
           </div>
         <% } %>
         <div class="rutbe-alt">
-          <% if (kendisi) { %><a class="baglanti" href="/profil/<%= profil.username %>?sekme=puan">Puan geçmişi</a><% } else { %><span></span><% } %>
+          <%# "Puan geçmişi" burada yok: kendi profilinde sekme listesinde zaten duruyor (aynı hedef aynı sayfada iki kez olmasın).
+              Boş span, "Bütün rütbeler" bağlantısını sağa yaslı tutar. %><span></span>
           <a class="baglanti" href="/rutbeler">Bütün rütbeler →</a>
         </div>
         <div class="sayilar">

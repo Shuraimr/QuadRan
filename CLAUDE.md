@@ -25,12 +25,13 @@ src/ayarlar.ts       site_settings önbelleği (puan kuralları, duyuru, kayıt 
 src/gizlilik.ts      engelleme, mesaj izni, çevrimiçi görünürlüğü
 src/islemler.ts      yetkili işlemleri (ban, soft delete/geri al), src/sikayet.ts şikâyet modeli, src/denetim.ts işlem kaydı
 src/hiz-siniri.ts    bellek içi hız sınırı, src/sifre.ts scrypt
+src/yukleme.ts       dosya yükleme (multer + sharp, avatar/banner; ileride sohbet/oda/DM), src/premium.ts premiumMu, src/profil-gorunum.ts efekt/süs verisi
 src/rotalar/         hesap, forum (akış/konu/profil/ara/sıralama/keşfet/şikâyet), mesaj (kendi mesajını düzenle/sil),
                      iletisim (DM, bildirim, sohbet, engel), moderasyon (sitedeki ⋮ menüsü), yonetim-* (/yonetim paneli)
-views/partials/      ust-cubuk, kenar-menu (masaüstü sol menü + tablet rayı), alt-menu (telefon), avatar-menusu, bildirim-paneli,
+views/partials/      avatar (resim+süs), profil-karti, profil-efekt, avatar-sus, profil-gorunumu-bolumu, ust-cubuk, kenar-menu (masaüstü sol menü + tablet rayı), alt-menu (telefon), avatar-menusu, bildirim-paneli,
                      sikayet-penceresi, oy, yorum, gonderi-karti, ikon (SVG ikon seti), bas/son
 views/yonetim/       panel şablonları (duzen-ust/duzen-alt ortak düzen)
-sql/01..15           sırayla uygulanan şema + seed + değişiklikler (Docker ilk kurulumda hepsini çalıştırır)
+sql/01..19           sırayla uygulanan şema + seed + değişiklikler (Docker ilk kurulumda hepsini çalıştırır)
 ```
 
 ## Kodlama kuralları
@@ -76,12 +77,16 @@ Bir arayüz işinin tamamı (bilgi mimarisi → Figma → onay → kodlama → �
 
 `shurai` (admin), `ayse` (moderatör), `ahmet` (üye) — şifreleri `test1234`. Kimse uzaklaştırılmış olmamalı.
 
-**Günlük ziyaret puanı** (`puan_gunluk`, sql/13) her kullanıcının günde İLK isteğinde puan değiştirir (ve `son_gunluk_puan`/`seri_gun` yazar): test sunucusuna giriş yapmak bile puanı +1 yapar. Seed puanı sabit sayı DEĞİL, **`points_log` toplamıdır** (başlangıç: shurai 9, ayse 3, ahmet 7 + önceki günlük satırları). Test bitince, `test` kullanıcısına (kullanıcının kendi hesabı) dokunmadan:
+**Günlük ziyaret puanı** (`puan_gunluk`, sql/13) her kullanıcının günde İLK isteğinde puan değiştirir (ve `son_gunluk_puan`/`seri_gun` yazar): test sunucusuna giriş yapmak bile puanı +1 yapar. Seed puanı sabit sayı DEĞİL, **`points_log` toplamıdır** (şu an: shurai 9, ayse 3, ahmet 5). `test` kullanıcısı (kullanıcının kendi hesabı)
+seed kullanıcılarına oy verebilir: o oyların puan satırları da seed kullanıcılarına yazılır ve **kullanıcıya aittir**. Bu yüzden temizlik
+tarihe göre değil, **testten önce not edilen son satır numarasına** göre yapılır:
 
 ```sql
--- bugün test sırasında oluşan günlük/seri/test puan satırlarını sil (yalnızca seed kullanıcıları)
-DELETE FROM points_log WHERE sebep IN ('gunluk','seri','oy','cozum','cozum_geri','rozet_geri','geri_yukleme','konu','cevap','silme','rozet','duzeltme')
-  AND created_at >= CURDATE() AND user_id IN (SELECT id FROM users WHERE username IN ('shurai','ayse','ahmet'));
+-- testten ÖNCE: başlangıç noktalarını not et
+SELECT (SELECT MAX(id) FROM points_log) AS log, (SELECT MAX(id) FROM notifications) AS bildirim,
+       (SELECT MAX(id) FROM audit_log) AS kayit, (SELECT MAX(id) FROM posts) AS mesaj, (SELECT MAX(id) FROM topics) AS konu;
+-- testten SONRA: yalnızca o numaradan sonra seed kullanıcılarına yazılan puan satırlarını sil (<LOG> = not edilen sayı)
+DELETE FROM points_log WHERE id > <LOG> AND user_id IN (SELECT id FROM (SELECT id FROM users WHERE username IN ('shurai','ayse','ahmet')) u);
 -- puanı log toplamından yeniden hesapla, günlük giriş durumunu sıfırla
 UPDATE users SET points = (SELECT COALESCE(SUM(miktar),0) FROM points_log WHERE user_id = users.id),
        son_gunluk_puan = NULL, seri_gun = 0, kutlama_rutbe_id = NULL
@@ -90,7 +95,7 @@ UPDATE users SET points = (SELECT COALESCE(SUM(miktar),0) FROM points_log WHERE 
 SELECT id, username, points FROM users WHERE points <> (SELECT COALESCE(SUM(miktar),0) FROM points_log WHERE user_id = users.id);
 ```
 
-Testte oluşturduğun konu/mesaj/oy/rozet satırlarını da ayrıca sil (puan satırı silinince o kayıtların kendisi kalmasın). Rütbe tablosunu (`ranks`) test için değiştirdiysen varsayılana döndür (docs/AKTARIM.md "Rütbe sistemi").
+Silmeden önce `SELECT` ile bak: test sırasında kullanıcı :3000'de seed kullanıcılarına oy verdiyse o satırlar da bu aralığa düşer (`test` kullanıcısının `post_votes` satırlarıyla eşleşenleri bırak). Testte oluşturduğun konu/mesaj/oy/rozet satırlarını da ayrıca sil (puan satırı silinince o kayıtların kendisi kalmasın). Rütbe tablosunu (`ranks`) test için değiştirdiysen varsayılana döndür (docs/AKTARIM.md "Rütbe sistemi").
 
 ## Sürüm ve yayın
 
@@ -107,7 +112,7 @@ Testte oluşturduğun konu/mesaj/oy/rozet satırlarını da ayrıca sil (puan sa
    - Oluşturma: **belli bir rütbeden sonra** (eşik panelden ayarlanabilir; varsayılan Müdavim / 100 puan). Admin ve moderatör rütbe şartından **muaf** (kullanıcı onayladı); kişi başı oda sınırı herkese uygulanır.
    - Oda mesajı şikâyeti `reports.hedef_tur = 'oda_mesaji'`; panelde Sohbet › Odalar sekmesi. Yeni adresler: `/oda/yeni`, `/oda/:id[/uyeler|davet|baglantilar|ayarlar|ayril]`, `/oda/katil/:kod`, `/yonetim/sohbet/odalar`
 3. **Rütbe, premium, profil, referans** — kullanıcı kararları (2026-11-19), bu SIRAYLA, her aşama ayrı tasarım + onay + sürüm:
-   1. **Rütbe sistemi** (kodlandı, eleştiri 5.0 → 7.7 → 7.4 → 7.7, revizyonda — kalan 6 madde docs/elestiri-kaydi.md son satırında; günlük konu/cevap puanı tavanı kullanıcıya sorulacak; kullanıcı kararları 2026-11-20: yetkililer bağlantı dahil BÜTÜN ayrıcalıklardan muaf; "davet" puanı referans aşamasına (3.4) ertelendi — `puan_davet` ayarı ve `points_log.sebep = 'davet'` hazır ama KULLANILMIYOR, referans/davet kabulü `puanEkle(..., "davet", ...)` ile bağlanacak; telefonda kartlarda rütbe çipi tam gösterilir; **kişinin kendi konusuna yazdığı cevap puan getirmez** (konu sil → puan kasma döngüsünü kapatır, kullanıcı kararı 2026-11-20); sql/13 + sql/14 + sql/15, `src/rutbe.ts`, `src/rotalar/rutbe.ts`; ayrıntı docs/AKTARIM.md "Rütbe sistemi"). İlk kararlar: rütbe ayrıcalıkları (her rütbe bir şey açar: oda açma, imza, profil efekti, günlük oy vb.; panelden rütbe başına ayarlanır),
+   1. **Rütbe sistemi** (kodlandı, eleştiri 5.0 → 7.7 → 7.4 → 7.7 → 7.0; son revizyon uygulandı, kullanıcı token tasarrufu için eleştiriyi burada BIRAKTI (2026-11-20); kullanıcı kararları 2026-11-20: günlük konu/cevap puanı tavanı var (panelden, varsayılan 40; dolunca içerik yazılır, puan gelmez); Efsane/Duayen ayrıcalıkları (çerçeve, isim rengi) profil/premium aşamasına ertelendi, /rutbeler'de "yakında"; hazır olmayan ayrıcalıklar (görsel/video yükleme) vaat edilmez, "yakında" gösterilir; telefonda /rutbeler üstünde "← Profil"; kullanıcı kararları 2026-11-20: yetkililer bağlantı dahil BÜTÜN ayrıcalıklardan muaf; "davet" puanı referans aşamasına (3.4) ertelendi — `puan_davet` ayarı ve `points_log.sebep = 'davet'` hazır ama KULLANILMIYOR, referans/davet kabulü `puanEkle(..., "davet", ...)` ile bağlanacak; telefonda kartlarda rütbe çipi tam gösterilir; **kişinin kendi konusuna yazdığı cevap puan getirmez** (konu sil → puan kasma döngüsünü kapatır, kullanıcı kararı 2026-11-20); sql/13–16, `src/rutbe.ts`, `src/rotalar/rutbe.ts`; ayrıntı docs/AKTARIM.md "Rütbe sistemi"). İlk kararlar: rütbe ayrıcalıkları (her rütbe bir şey açar: oda açma, imza, profil efekti, günlük oy vb.; panelden rütbe başına ayarlanır),
       rütbe görünümü (simge + renk, ad yanındaki rozet rütbe rengiyle, rütbe atlayınca kutlama bildirimi), daha fazla rütbe ve ilerleme
       (profilde "sonraki rütbede ne açılır"), yeni puan kaynakları (günlük giriş, kabul edilen cevap, davet vb.).
    2. **Premium üyelik + profil efektleri**: Ücretsiz / Premium seviyeleri; gerçek ödeme YOK, panelden elle verilir (ödeme sonra bağlanacak).
@@ -124,6 +129,15 @@ Testte oluşturduğun konu/mesaj/oy/rozet satırlarını da ayrıca sil (puan sa
       **Şimdilik verilecek premium (kullanıcı, 2026-11-20):** "daha şekilli isim yazısı" (isim yazı stilleri: yazı tipi, renk/renk geçişi,
       isteğe bağlı ince ışıltı animasyonu) ve "profil arka planını seçebilme" (profil sayfasının arka planı: hazır seçenekler; yükleme profil
       aşamasıyla). Discord vari hareketli profil efektleri + avatar süsleri daha sonra ayrı tasarlanacak.
+      **Yeni yön (kullanıcı, 2026-11-20):** Figma'da Discord benzeri **profil penceresi animasyonları** tasarlanıyor; tema serbest
+      (cadılar bayramı, melek, şeytan vb.; başka yerlerden fikir alınabilir). **Kristal temalı efekt YAPILMAYACAK** (kullanıcının kendi
+      fikri, saklı). Ayrıca Discord benzeri **profil rengi seçimi** (premium): hazır/standart paletle KISITLANMAZ, kullanıcı istediği
+      rengi kendisi seçebilir (renk seçici).
+      **Admin (kurucu) premium şartından muaf** (`premiumSql`, kullanıcı kararı 2026-11-20); moderatör muaf değil.
+      **Kullanıcı düzeltmesi (2026-11-20):** Figma 11'deki efektler/süsler onaylandı, AMA profil kartı sitenin tasarım dilini
+      kullanır (Material 3 benzeri): gradyan YALNIZCA profil kartında ve kullanıcı "Geçiş"i seçerse (varsayılan düz, ölçülü;
+      sitenin başka yerinde gradyan yok), ama köşe yarıçapı (kart 16px, iç içe küçülür), kapsayıcılar (`--yuzey-*`),
+      yükseklik (yalnızca `--kat-1/2`), avatar = yuvarlatılmış kare (daire değil), buton/çip/form ölçüleri mevcut CSS'ten gelir.
    3. **Profil**: avatar ve banner yükleme — **multer + sharp** paketleri onaylandı. Küçültme/sıkıştırma profilde fark edilmemeli
       (yüksek kalite, retina için 2x boyut). Depolama genel tasarlanmalı: ileride sohbet/oda/DM'lerde **fotoğraf ve video yükleme** gelecek.
       Ayrıca profil vitrini ve sekmeler (rozet vitrini, sabitlenmiş konu, etkinlik), **takip sistemi** (takip/takipçi, takip edilenlerin konuları akışta).

@@ -22,12 +22,14 @@ export const SIMGE_ADLARI: Record<string, string> = {
 };
 
 // Açılıp kapanan ayrıcalıklar. ad: kilit kartında "<ad> ... rütbesinde açılır"; acar: "Artık ..." cümlesi.
+// hazir: false = özellik henüz yok (görsel/video yükleme profil aşamasında gelecek). Bunlar sayfalarda soluk "yakında" diye
+// gösterilir, kutlama/bildirim cümlesine KATILMAZ: yoksa "görsel yükleyebilirsin" denir ama yükleme yerine hiçbir şey çıkmaz.
 export const AYRICALIKLAR = [
-  { anahtar: "oda_ac",   ad: "Oda açma",           acar: "oda açabilirsin" },
-  { anahtar: "baglanti", ad: "Bağlantı paylaşma",  acar: "bağlantıların tıklanabilir olur" },
-  { anahtar: "gorsel",   ad: "Görsel yükleme",     acar: "görsel yükleyebilirsin" },
-  { anahtar: "video",    ad: "Video yükleme",      acar: "video yükleyebilirsin" },
-  { anahtar: "imza",     ad: "İmza",               acar: "imza ekleyebilirsin" },
+  { anahtar: "oda_ac",   ad: "Oda açma",           acar: "oda açabilirsin", hazir: true },
+  { anahtar: "baglanti", ad: "Bağlantı paylaşma",  acar: "bağlantıların tıklanabilir olur", hazir: true },
+  { anahtar: "gorsel",   ad: "Görsel yükleme",     acar: "görsel yükleyebilirsin", hazir: false },
+  { anahtar: "video",    ad: "Video yükleme",      acar: "video yükleyebilirsin", hazir: false },
+  { anahtar: "imza",     ad: "İmza",               acar: "imza ekleyebilirsin", hazir: true },
 ] as const;
 export type AyricalikAnahtari = (typeof AYRICALIKLAR)[number]["anahtar"];
 
@@ -122,17 +124,18 @@ export function gunlukOyHakki(kisi: { points: number; rol?: string }): number | 
 export const sinirsizOyRutbesi = () => sonListe.find((r) => r.gunluk_oy === null);
 
 // Bir rütbenin bir önceki rütbeye göre YENİ açtıkları. etiket: kilitli kutuda ("Oda açma"), cumle: "Artık: ...".
-export function acilanlar(onceki: Rutbe | undefined, rutbe: Rutbe): { etiket: string; cumle: string }[] {
-  const liste: { etiket: string; cumle: string }[] = [];
+export function acilanlar(onceki: Rutbe | undefined, rutbe: Rutbe): { etiket: string; cumle: string; yakinda: boolean }[] {
+  const liste: { etiket: string; cumle: string; yakinda: boolean }[] = [];
   for (const a of AYRICALIKLAR) {
-    if (rutbe[a.anahtar] && !onceki?.[a.anahtar]) liste.push({ etiket: a.ad, cumle: a.acar });
+    // yakinda: özellik henüz yok; listede soluk gösterilir ama bildirim/kutlama cümlesine girmez (çağıranlar !yakinda süzer)
+    if (rutbe[a.anahtar] && !onceki?.[a.anahtar]) liste.push({ etiket: a.ad, cumle: a.acar, yakinda: !a.hazir });
   }
   if (onceki && rutbe.gunluk_oy !== onceki.gunluk_oy) {
     // null (sınırsız) her sayıdan büyüktür; yalnızca artış "açılan" sayılır
     const artti = rutbe.gunluk_oy === null || (onceki.gunluk_oy !== null && rutbe.gunluk_oy > onceki.gunluk_oy);
     if (artti) liste.push(rutbe.gunluk_oy === null
-      ? { etiket: "Sınırsız oy", cumle: "günde sınırsız oy verebilirsin" }
-      : { etiket: `Günde ${rutbe.gunluk_oy} oy`, cumle: `günde ${rutbe.gunluk_oy} oy verebilirsin` });
+      ? { etiket: "Sınırsız oy", cumle: "günde sınırsız oy verebilirsin", yakinda: false }
+      : { etiket: `Günde ${rutbe.gunluk_oy} oy`, cumle: `günde ${rutbe.gunluk_oy} oy verebilirsin`, yakinda: false });
   }
   return liste;
 }

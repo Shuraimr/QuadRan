@@ -1,0 +1,14 @@
+<%#
+  /premium (yer tutucu). u: kişinin kendi kartı verisi (profil-karti.ejs), premium (bool).
+  Reklam dili yok; yalnızca ne olduğunu ve şimdilik nasıl verildiğini söyler.
+%>
+<%- include("partials/bas", { baslik: "Premium" }) %>
+<%- include("partials/ust-cubuk") %>
+<main class="premium-sayfa">
+  <h1>Premium</h1>
+  <%- include("partials/profil-karti", { u }) %>
+  <p class="ikincil">Premium üyeler profil efekti, avatar süsü, serbest profil rengi ile hareketli avatar ve banner kullanabilir. Yukarıdaki kart şu anki profil kartın.</p>
+  <p class="ikincil">Premium şu an yönetici tarafından veriliyor. <%= premium ? "Hesabında premium açık" + (u.premium_bitis && new Date(u.premium_bitis).getFullYear() < 3000 ? ": " + new Date(u.premium_bitis).toLocaleDateString("tr-TR") + " tarihine kadar." : " (süresiz).") : "Hesabında premium kapalı." %></p>
+  <a class="buton buton-tonal" href="/ayarlar#profil-gorunumu">Profil görünümü ayarları</a>
+</main>
+<%- include("partials/son") %>

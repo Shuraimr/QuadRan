@@ -19,7 +19,7 @@
       <a class="buton buton-birincil ust-konu-ac" href="/konu/yeni">Konu aç</a>
       <a class="ikon-dugme ust-mesajlar<%= (locals.okunmamisMesaj || 0) > 0 ? ' zil' : '' %>" href="/mesajlar" aria-label="Mesajlar<%= (locals.okunmamisMesaj || 0) > 0 ? ' (' + okunmamisMesaj + ' okunmamış)' : '' %>"><%- include("ikon", { ad: "mektup" }) %></a>
       <button class="ikon-dugme ust-zil<%= locals.okunmamisBildirim === 0 ? '' : ' zil' %>" type="button" popovertarget="bildirim-paneli" aria-label="Bildirimler"><%- include("ikon", { ad: "zil" }) %></button>
-      <button class="avatar avatar-ust" type="button" popovertarget="avatar-menusu" aria-label="Hesap menüsü"><%= kullanici.username[0] %></button>
+      <%- include("avatar", { ad: kullanici.username, url: kullanici.avatar_url, sus: kullanici.avatar_susu, sinif: "avatar-ust", etiket: "button", ek: 'popovertarget="avatar-menusu" aria-label="Hesap menüsü"', bos: true }) %>
     <% } else { %>
       <a class="buton buton-cerceveli" href="/giris">Giriş yap</a>
       <a class="buton buton-birincil" href="/kayit">Kayıt ol</a>

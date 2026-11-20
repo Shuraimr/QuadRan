@@ -97,7 +97,7 @@
       <div class="ara-liste">
         <% for (const u of arKullanicilar) { %>
           <a class="kart ara-satir" href="/profil/<%= u.username %>">
-            <span class="avatar avatar-48"><%= u.username[0] %></span>
+            <%- include("partials/avatar", { ad: u.username, url: u.avatar_url, sus: u.avatar_susu, sinif: "avatar-48", bos: true }) %>
             <span class="ara-satir-govde">
               <span class="satir"><strong><%- arVurgula(u.username) %></strong><% if (u.rutbe) { %><%- include("partials/rutbe", { rutbeAd: u.rutbe, rutbeId: u.rutbe_id }) %><% } %></span>
               <span class="kucuk ikincil"><%= u.konu_sayisi %> konu<% if (u.bio) { %> · <%= u.bio %><% } %></span>

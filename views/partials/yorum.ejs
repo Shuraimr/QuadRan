@@ -5,8 +5,8 @@
     <div class="oy"><%- include("oy", { hedef: mesaj }) %></div>
     <div class="yorum-icerik">
       <div class="gonderi-meta">
-        <span class="avatar"><%= mesaj.yazar[0] %></span>
-        <a class="kullanici" href="/profil/<%= mesaj.yazar %>"><%= mesaj.yazar %></a>
+        <%- include("avatar", { ad: mesaj.yazar, url: mesaj.avatar_url, sus: mesaj.avatar_susu, etiket: "a", href: "/profil/" + encodeURIComponent(mesaj.yazar), ek: 'data-uye-karti="' + mesaj.yazar.replace(/"/g, "") + '" tabindex="-1"', bos: true }) %>
+        <a class="kullanici" href="/profil/<%= encodeURIComponent(mesaj.yazar) %>" data-uye-karti="<%= mesaj.yazar %>"><%= mesaj.yazar %></a>
         <% if (mesaj.rutbe) { %><%- include("rutbe", { rutbeAd: mesaj.rutbe, rutbeId: mesaj.rutbe_id }) %><% } %>
         <% if (mesaj.konu_sahibi) { %><span class="cip-cerceveli">Konu sahibi</span><% } %>
         <% if (mesaj.cozum) { %><span class="cozum-cip"><%- include("ikon", { ad: "onay", boyut: 13 }) %>Çözüm</span><% } %>

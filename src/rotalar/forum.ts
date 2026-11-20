@@ -6,7 +6,7 @@ import { yasakliIfade, puanKurallari } from "../ayarlar.ts";
 import { SEBEPLER, sebepHatasi } from "../sikayet.ts";
 import { engelle, mesajDurumu } from "../gizlilik.ts";
 import {
-  rutbeSutunlari, skorSql, puanEkle, cozumPuaniGeriAl, rutbeKontrol, bildirimGonder, rozetVer, bildir, kisalt,
+  rutbeSutunlari, avatarSutunlari, profilGorunumSutunlari, skorSql, puanEkle, tavanliPuanEkle, cozumPuaniGeriAl, rutbeKontrol, bildirimGonder, rozetVer, bildir, kisalt,
   girisGerekli, geriAdres, sayi, metin,
 } from "../yardimci.ts";
 import {
@@ -85,7 +85,7 @@ forum.get("/", async (req, res) => {
 
   const [sohbet] = await pool.query(`
     SELECT * FROM (
-      SELECT chat_messages.id, chat_messages.content, users.username AS yazar
+      SELECT chat_messages.id, chat_messages.content, users.username AS yazar, ${avatarSutunlari("users")}
         FROM chat_messages JOIN users ON users.id = chat_messages.user_id
        WHERE chat_messages.deleted_at IS NULL
        ORDER BY chat_messages.id DESC LIMIT 3
@@ -192,7 +192,7 @@ forum.post("/konu/yeni", girisGerekli("Konu açmak için giriş yapman gerekiyor
     baglanti.release(); // bağlantıyı havuza geri ver (unutulursa havuz zamanla tükenir)
   }
 
-  await puanEkle(k.id, (await puanKurallari()).konu, "konu", konuId);
+  await tavanliPuanEkle(k.id, (await puanKurallari()).konu, "konu", konuId); // günlük tavanlı (yardimci.ts)
   await rozetVer(k.id, "İlk Konu");
   bildir(req, "basari", "Konun yayınlandı");
   res.redirect("/konu/" + konuId);
@@ -312,7 +312,7 @@ forum.post("/konu/:id/cevap", girisGerekli("Cevap yazmak için giriş yapman ger
 
   // Kendi konusuna yazılan cevap puan getirmez: yoksa kişi kendi konusuna cevap yığıp puan kasabilirdi; üstelik konuyu silince
   // kendi cevaplarının puanı (kayıt konu mesajına bağlı olmadığı için) kalırdı. Rozet/bildirim davranışı değişmedi.
-  if (konu.user_id !== k.id) await puanEkle(k.id, (await puanKurallari()).cevap, "cevap", mesajId);
+  if (konu.user_id !== k.id) await tavanliPuanEkle(k.id, (await puanKurallari()).cevap, "cevap", mesajId);
   await bildirimGonder({
     alan: konu.user_id, yapan: k.id, tur: "cevap",
     metin: `${k.username} konuna cevap yazdı: “${kisalt(content, 50)}”`,
@@ -408,7 +408,7 @@ forum.post("/konu/:id/cozum", girisGerekli("Çözüm seçmek için giriş yapman
 // ---------------------------------------------------------------------------
 // Oy: POST /oy  alanlar: post_id, value (1 ya da -1)
 //   Aynı oyu tekrar verirsen oy geri alınır (düğme aç/kapa gibi çalışır).
-//   Mesaj sahibinin puanı oy farkı kadar değişir.
+//   Yazara uygulanan puan = hedef (oy × puan_oy, oy geri alınınca 0) − post_votes.puan_etkisi (şimdiye kadar gerçekte uygulanan).
 // ---------------------------------------------------------------------------
 forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), async (req, res) => {
   const k = res.locals.kullanici;
@@ -435,23 +435,28 @@ forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), asyn
   // Okuma ve yazma aynı transaction'da: iki hızlı tıklama aynı anda gelirse puan iki kez değişmesin.
   // SELECT ... FOR UPDATE o satırı transaction bitene kadar kilitler.
   const oyPuani = (await puanKurallari()).oy; // bir oyun puan değeri (yönetici ayarı)
-  const baglanti = await pool.getConnection();
-  let fark = 0;
   let yeniArtiOy = false;
   let puanDegisimi: { eski: number; yeni: number } | null = null;
   let dolduHak: number | null = null; // günlük oy hakkı dolduysa hak sayısı
+  // Transaction bir fonksiyonda: MySQL ters sırada kilit alan iki işlemden birini ER_LOCK_DEADLOCK (1213) ile öldürür; o zaman
+  // tüm işlem baştan denenebilir (hiçbir şey yazılmamıştır). Her denemede durum değişkenleri sıfırlanır.
+  const islem = async () => {
+  yeniArtiOy = false; puanDegisimi = null; dolduHak = null;
+  const baglanti = await pool.getConnection();
   try {
     await baglanti.beginTransaction();
     // Oy veren kişinin satırı kilitlenir: aynı kişinin eşzamanlı oyları SIRAYLA işlenir. Günlük hak sayımı da bu kilidin
     // İÇİNDE yapılır (eskiden transaction'dan önceydi; hak 1 iken 4 eşzamanlı istek hepsi "0 oy var" görüp 4 oy verebilirdi).
     // Mesajın yazarı da (puanı değişecek) AYNI sorguda, numara sırasıyla kilitlenir: iki kişi birbirinin mesajına aynı anda
-    // oy verirse ters sırada kilit alıp birbirini bekleyerek kilitlenmezler (deadlock).
+    // oy verirse ters sırada kilit alıp birbirini bekleyerek kilitlenmesinler diye. Bu sırayla bile tam garanti yok (commit sonrası bildirim INSERT'inin FK denetimi
+    // users satırlarını ters sırada kilitleyebilir), bu yüzden deadlock olursa aşağıda yeniden denenir.
     await baglanti.query("SELECT id FROM users WHERE id IN (?, ?) ORDER BY id FOR UPDATE", [k.id, mesaj.user_id]);
     const [eski]: any = await baglanti.query(
-      "SELECT value, created_at >= CURDATE() AS bugun FROM post_votes WHERE user_id = ? AND post_id = ? FOR UPDATE",
+      "SELECT value, puan_etkisi, created_at >= CURDATE() AS bugun FROM post_votes WHERE user_id = ? AND post_id = ? FOR UPDATE",
       [k.id, postId]
     );
     const eskiDeger = eski[0]?.value ?? 0;
+    const eskiEtki = Number(eski[0]?.puan_etkisi ?? 0); // bu oyun yazara şimdiye kadar GERÇEKTE uyguladığı puan (sql/16)
     // Günlük oy hakkı (rütbe ayrıcalığı; yönetici/moderatör ve sınırsız rütbeler muaf). Oy GERİ ALMA her zaman serbest;
     // bugün zaten verilmiş bir oyu tekrar değiştirmek de yeni hak harcamaz. Sayım post_votes.created_at'ten gelir:
     // oy verilince/değişince o satırın tarihi bugüne çekilir, geri alınınca satır silinir ve hak geri döner.
@@ -464,19 +469,30 @@ forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), asyn
     if (dolduHak !== null) {
       await baglanti.rollback(); // hiçbir şey yazılmadı; kilit bırakılır
     } else {
+      // Hedef: bu oy kaldıktan sonra yazarın puanına yapması gereken toplam etki (geri alınırsa 0).
+      // Yazara uygulanan = hedef − şimdiye kadar uygulanan. "Oy farkı × puan" yerine bu yol seçildi: puan 0'da kırpıldığında
+      // (puanEkle eksiye inmez) eksi oy hiçbir şey düşürmemiş olabilir; fark hesabı o zaman sonradan fazladan puan verirdi.
+      let hedef = 0;
       if (eskiDeger === deger) {
         await baglanti.query("DELETE FROM post_votes WHERE user_id = ? AND post_id = ?", [k.id, postId]);
-        fark = -deger;
       } else {
         await baglanti.query(
           "INSERT INTO post_votes (user_id, post_id, value) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value), created_at = NOW()",
           [k.id, postId, deger]
         );
-        fark = deger - eskiDeger;
+        hedef = deger * oyPuani;
         yeniArtiOy = eskiDeger === 0 && deger === 1;
       }
-      // Yazarın puanı oy farkı kadar değişir (geri alma ve eksi oy dahil); puan geçmişine 'oy' olarak yazılır
-      if (fark * oyPuani !== 0) puanDegisimi = await puanEkle(mesaj.user_id, fark * oyPuani, "oy", postId, baglanti);
+      // Yazarın puanı değişir (geri alma ve eksi oy dahil); puan geçmişine 'oy' olarak yazılır
+      let uygulanan = 0;
+      if (hedef - eskiEtki !== 0) {
+        puanDegisimi = await puanEkle(mesaj.user_id, hedef - eskiEtki, "oy", postId, baglanti);
+        uygulanan = puanDegisimi.yeni - puanDegisimi.eski; // kırpıldıysa istenenden az olabilir
+      }
+      // Oy duruyorsa gerçekte uygulanan toplamı satıra yaz: bir sonraki değişiklik/geri alma tam bu kadarını düzeltir
+      if (eskiDeger !== deger) {
+        await baglanti.query("UPDATE post_votes SET puan_etkisi = ? WHERE user_id = ? AND post_id = ?", [eskiEtki + uygulanan, k.id, postId]);
+      }
       await baglanti.commit();
     }
   } catch (hata) {
@@ -484,6 +500,16 @@ forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), asyn
     throw hata;
   } finally {
     baglanti.release();
+  }
+  };
+  let basarili = false;
+  for (let deneme = 0; deneme < 3 && !basarili; deneme++) {
+    try { await islem(); basarili = true; }
+    catch (hata: any) { if (hata?.errno !== 1213) throw hata; } // yalnızca deadlock yeniden denenir
+  }
+  if (!basarili) {
+    bildir(req, "hata", "Oy şu an kaydedilemedi, tekrar dene.");
+    return res.redirect(geri);
   }
   if (dolduHak !== null) {
     const sr = sinirsizOyRutbesi();
@@ -494,7 +520,15 @@ forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), asyn
   // Rütbe atlama bildirimi transaction'dan SONRA (bildirim satırı users satırının kilidini beklemesin)
   if (puanDegisimi) await rutbeKontrol(mesaj.user_id, puanDegisimi.eski, puanDegisimi.yeni);
 
+  // Aynı kişi artıyı aç/kapa yapıp bildirim yağdırmasın: aynı yapan + aynı mesaj için okunmamış oy bildirimi varsa yenisi yazılmaz
+  let tekrar = false;
   if (yeniArtiOy) {
+    const [[var_]]: any = await pool.query(
+      "SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND actor_id = ? AND tur = 'oy' AND link = ? AND read_at IS NULL",
+      [mesaj.user_id, k.id, `/konu/${mesaj.topic_id}#mesaj-${postId}`]);
+    tekrar = Number(var_.n) > 0;
+  }
+  if (yeniArtiOy && !tekrar) {
     await bildirimGonder({
       alan: mesaj.user_id, yapan: k.id, tur: "oy",
       metin: `${k.username} mesajına artı oy verdi`,
@@ -510,9 +544,24 @@ forum.post("/oy", girisGerekli("Oy vermek için giriş yapman gerekiyor."), asyn
 const ROL_ADLARI: Record<string, string> = { admin: "Yönetici", moderator: "Moderatör", uye: "Üye" };
 const GUNLER = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
 
+// Üye kartı penceresi (Figma 38:75): konu/mesaj kartlarında yazar adına tıklayınca quadran.js bu kısmi HTML'i getirir ve popover'da gösterir.
+// JS yoksa bağlantı zaten /profil/:ad'a gider. Sayfa değil yalnızca kart döner (layout yok).
+forum.get("/profil/:username/kart", async (req, res) => {
+  const [[u]]: any = await pool.query(
+    `SELECT users.id, users.username, users.bio, users.created_at, ${rutbeSutunlari("users")}, ${profilGorunumSutunlari("users")}
+       FROM users WHERE users.username = ? AND users.deleted_at IS NULL`, [req.params.username]);
+  if (!u) return res.status(404).type("text/plain").send("Kullanıcı bulunamadı");
+  const ben = res.locals.kullanici;
+  // Kendi kartında "Mesaj gönder" yok; misafirde var (tıklayınca girişe gider, profildeki gibi)
+  const durum = ben && ben.id !== u.id ? await mesajDurumu(ben.id, u.id) : null;
+  res.set("Cache-Control", "no-store");
+  res.render("partials/profil-karti", { u, mesajAtabilir: !ben ? true : durum === "izinli" });
+});
+
 forum.get("/profil/:username", async (req, res, next) => {
   const [satirlar]: any = await pool.query(
-    `SELECT users.id, users.username, users.bio, users.konum, users.web_sitesi, users.avatar_url, users.banner_url, users.created_at, users.points,
+    `SELECT users.id, users.username, users.bio, users.konum, users.web_sitesi, users.created_at, users.points,
+            ${profilGorunumSutunlari("users")}, -- avatar, banner, efekt, süs, renkler (premium'a bağlı olanlar premium değilse NULL)
             roles.name AS rol,
             ${rutbeSutunlari("users")},
             (SELECT COUNT(*) FROM topics WHERE topics.user_id = users.id AND topics.deleted_at IS NULL) AS konu_sayisi,

@@ -12,6 +12,8 @@ import { odalar } from "./rotalar/odalar.ts";
 import { moderasyon } from "./rotalar/moderasyon.ts";
 import { yonetim } from "./rotalar/yonetim.ts";
 import { duyuruRotasi } from "./ayarlar.ts";
+import { premiumRotasi } from "./rotalar/premium.ts";
+import { EFEKTLER, SUSLER, SVG, EFEKT_ADLARI, SUS_ADLARI } from "./profil-gorunum.ts";
 import { onizleme } from "./onizleme.ts";
 import { katmanlar } from "./onizleme-katmanlar.ts";
 import { sayfalar } from "./onizleme-sayfalar.ts";
@@ -25,6 +27,12 @@ app.set("views", "views");
 
 // public/ klasöründeki dosyalar (CSS gibi) doğrudan sunulur: /css/quadran.css
 app.use(express.static("public"));
+// Yüklenen avatar/banner dosyaları (src/yukleme.ts): adları rastgele (uuid) ve değişmez olduğundan uzun süre önbelleğe alınır.
+// nosniff: tarayıcı dosyayı içeriğine bakıp başka türe yorumlamaz (yalnızca WebP olarak yazıyoruz, ek güvence).
+app.use("/yuklemeler", express.static("yuklemeler", {
+  maxAge: "30d", immutable: true, index: false, dotfiles: "deny",
+  setHeaders: (res) => { res.setHeader("X-Content-Type-Options", "nosniff"); },
+}));
 
 // Form gövdelerini (application/x-www-form-urlencoded) req.body'ye çevirir
 app.use(express.urlencoded({ extended: false }));
@@ -63,6 +71,7 @@ app.use((req, res, next) => {
 app.use(hesap);
 app.use(forum);
 app.use(rutbeRotasi);  // /rutbeler
+app.use(premiumRotasi); // /premium
 app.use(mesaj);
 app.use(iletisim);
 app.use(odalar);       // /oda: özel odalar (davetle girilen grup sohbetleri)
@@ -84,6 +93,9 @@ app.locals.belirtme = belirtme;
 // Rütbe çipi (partials/rutbe.ejs) ve kullanıcı içeriğinde yazar rütbesine göre bağlantı (src/rutbe.ts)
 app.locals.rutbeBulId = rutbeBulId;
 app.locals.icerikHtml = icerikHtml;
+// Profil efektleri ve avatar süsleri (src/profil-gorunum.ts): sabit veri, şablonlar çizer
+app.locals.EFEKTLER = EFEKTLER; app.locals.SUSLER = SUSLER; app.locals.SVG = SVG;
+app.locals.EFEKT_ADLARI = EFEKT_ADLARI; app.locals.SUS_ADLARI = SUS_ADLARI;
 
 // Bütün şablonlarda kullanılabilen yardımcı: "2 saat önce" gibi yazar
 app.locals.zaman = (tarih: Date) => {

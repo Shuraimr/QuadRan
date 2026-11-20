@@ -33,7 +33,7 @@
             <% if (o.devam) { %>
               <span class="sohbet-yer"></span>
             <% } else { %>
-              <a class="avatar avatar-36" href="/profil/<%= o.m.yazar %>" aria-label="<%= o.m.yazar %> profili"><%= o.m.yazar[0] %></a>
+              <%- include("avatar", { ad: o.m.yazar, url: o.m.avatar_url, sus: o.m.avatar_susu, sinif: "avatar-36", etiket: "a", href: "/profil/" + encodeURIComponent(o.m.yazar), ek: 'aria-label="' + o.m.yazar.replace(/"/g, "") + ' profili" data-uye-karti="' + o.m.yazar.replace(/"/g, "") + '"', bos: true }) %>
             <% } %>
             <div class="sohbet-icerik">
               <% if (!o.devam) { %>

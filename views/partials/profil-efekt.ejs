@@ -1,0 +1,16 @@
+<%#
+  Profil efekti katmanı (Figma 33:4…35:579): kartın üstünde oynayan parçacıklar. Veriler src/profil-gorunum.ts EFEKTLER (sabit).
+  Beklenen: efekt (anahtar ya da boş), katman ("arka" | "on"), tum (bool: önizleme, 6 efekt birden; seçili olmayan `hidden`)
+  "arka": banner kutusunun İÇİNDE çağrılır (parçacıklar banner'a göre konumlanır); "on": bütün kartın üstünde, küçük ve yarı saydam.
+  Katman pointer-events:none ve aria-hidden; hareket public/css/efektler.css'te (azaltılmış harekette durağan görünür).
+  Konumlar 300×440 karta göre pikseldir, burada yüzdeye çevrilir.
+%><%
+  const hepsi_ = locals.tum ? Object.keys(EFEKTLER) : (locals.efekt && EFEKTLER[locals.efekt] ? [locals.efekt] : []);
+  const kimlik_ = Math.random().toString(36).slice(2, 8);
+  if (hepsi_.length) { %><div class="ef-katman ef-<%= katman %>" aria-hidden="true"><%
+  for (const ad_ of hepsi_) { %><div class="ef-grup" data-efekt="<%= ad_ %>"<%- locals.tum && ad_ !== locals.efekt ? " hidden" : "" %>><%
+    for (const [i_, p_] of EFEKTLER[ad_][katman].entries()) { const v_ = SVG[p_.svg];
+      const x1_ = p_.x1 ?? p_.x0, y1_ = p_.y1 ?? p_.y0;
+      %><span class="ef-p ef-<%= p_.tur %><%= p_.nabiz ? ' nabiz' : '' %><%= v_.tam ? ' tam' : '' %>" style="--l:<%= (p_.x0 / 3).toFixed(2) %>;--t:<%= (p_.y0 / 4.4).toFixed(2) %>;--dx:<%= ((x1_ - p_.x0) / 3).toFixed(2) %>;--dy:<%= ((y1_ - p_.y0) / 4.4).toFixed(2) %>;--r0:<%= p_.r0 || 0 %>;--r1:<%= p_.r1 || 0 %>;--faz:<%= p_.faz ?? i_ % 4 %>;--op:<%= p_.op ?? 1 %><%= p_.blur ? ';--blur:' + p_.blur + 'px' : '' %><%= p_.parilti ? ';--parilti:' + p_.parilti : '' %>"><%- v_.svg.replaceAll("{ID}", kimlik_) %></span><%
+    } %></div><%
+  } %></div><% } %>

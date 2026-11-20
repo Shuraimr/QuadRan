@@ -9,7 +9,7 @@
 <% if (locals.kullanici) { const k_ = locals.kullanici; const statik_ = !!locals.statik; %>
 <div class="acilir-menu avatar-menusu<%= statik_ ? ' katman-statik' : ' acilir-menu-ustte' %>"<%- statik_ ? "" : ' id="avatar-menusu" popover aria-label="Hesap menüsü"' %>>
   <div class="avatar-menusu-baslik">
-    <span class="avatar avatar-48"><%= k_.username[0] %></span>
+    <%- include("avatar", { ad: k_.username, url: k_.avatar_url, sus: k_.avatar_susu, sinif: "avatar-48", oynat: true, bos: true }) %>
     <div>
       <strong><%= k_.username %></strong>
       <div class="ikincil kucuk"><%= k_.rutbe || "Çaylak" %> · <%= k_.points ?? 0 %> puan</div>

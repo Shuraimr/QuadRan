@@ -1,0 +1,25 @@
+<%#
+  Profil kartı (Figma 38:75 üye kartı, Ayarlar önizlemesi, /premium). Sitenin kart dilinde: zemin --yuzey-1, kenar --kenar-ince.
+  Beklenen: u { username, bio, avatar_url, banner_url, avatar_susu, profil_efekti, profil_renk_ana, profil_renk_vurgu,
+                rutbe, rutbe_id, created_at }   (premium'a bağlı alanlar sorguda premium değilse NULL gelir)
+  mesajAtabilir (bool, ziyaretçi için), onizleme (bool: Ayarlar önizlemesi; 6 efekt/süs birden çizilir, JS seçilene göre gösterir, düğme yok)
+  Renk kullanımı (ölçülü): ANA renk yalnızca banner'ı (resim yoksa) ve avatar halkasını boyar, VURGU rengi üst kenar çizgisi ve küçük vurgular.
+  Renk seçilmemişse CSS yedekleri (--ton / --yuzey-2 ve --vurgu) devreye girer. Renkler sunucuda #rrggbb olarak doğrulanır.
+%><%
+  const o_ = !!locals.onizleme;
+  const stil_ = (u.profil_renk_ana ? "--pk-ana:" + u.profil_renk_ana + ";" : "") + (u.profil_renk_vurgu ? "--pk-vurgu:" + u.profil_renk_vurgu : "");
+%><article class="pk"<%- o_ ? " data-pk-onizleme" : "" %> data-efekt="<%= u.profil_efekti || '' %>"<%- Number(u.profil_renk_gecis) ? " data-gecis" : "" %> style="<%= stil_ %>">
+  <div class="pk-banner" data-konum="<%= u.banner_konum || 'orta' %>">
+    <% if (u.banner_url) { %><img src="<%= u.banner_url %>" alt="" loading="lazy" decoding="async"><% } %>
+    <%- include("profil-efekt", { efekt: u.profil_efekti, katman: "arka", tum: o_ }) %>
+  </div>
+  <div class="pk-avatar"><%- include("avatar", { ad: u.username, url: u.avatar_url, sus: u.avatar_susu, sinif: "avatar-kart", oynat: true, tum: o_, bos: true }) %></div>
+  <div class="pk-metin">
+    <div class="satir"><h3 class="pk-ad"><% if (o_) { %><%= u.username %><% } else { %><a href="/profil/<%= encodeURIComponent(u.username) %>"><%= u.username %></a><% } %></h3>
+      <% if (u.rutbe) { %><%- include("rutbe", { rutbeAd: u.rutbe, rutbeId: u.rutbe_id }) %><% } %></div>
+    <% if (u.bio) { %><div><div class="ust-etiket">HAKKINDA</div><p class="pk-bio"><%= u.bio %></p></div><% } %>
+    <div class="ikincil kucuk">Üye · <%= new Date(u.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %></div>
+    <% if (!o_ && locals.mesajAtabilir) { %><a class="buton buton-birincil" href="/mesajlar/<%= encodeURIComponent(u.username) %>">Mesaj gönder</a><% } %>
+  </div>
+  <%- include("profil-efekt", { efekt: u.profil_efekti, katman: "on", tum: o_ }) %>
+</article>

@@ -9,6 +9,8 @@ import {
   bildir, sayi, metin, geriAdres, rutbeSutunlari, banliSql, likeKac, puanEkle, rozetVer, bildirimGonder,
 } from "../yardimci.ts";
 import { denetim } from "../denetim.ts";
+import { dosyaSil } from "../yukleme.ts";
+import { PREMIUM_SURELERI, PREMIUM_SURESIZ } from "../premium.ts";
 import { kullaniciGetir, islemHatasi, banla, banKaldir, BAN_SURELERI } from "../islemler.ts";
 import { yaptirimGecmisi, BAN_EYLEMLERI } from "../yaptirim.ts";
 import { sadeceAdmin, sayfala, secim, onayIste } from "./yonetim-ortak.ts";
@@ -101,6 +103,7 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
   const [satirlar]: any = await pool.query(
     `SELECT users.id, users.username, users.email, users.bio, users.points, users.created_at, users.last_seen_at, users.deleted_at,
             users.banned_at, users.banned_until, users.ban_reason, ${banliSql("users")} AS banli,
+            users.premium_bitis, (users.premium_bitis > NOW()) AS premium_aktif,
             roles.name AS rol, ${rutbeSutunlari("users")}
        FROM users JOIN roles ON roles.id = users.role_id WHERE users.id = ?`,
     [id]
@@ -315,6 +318,26 @@ yonetimKullanici.post("/yonetim/uyeler/:id/oturumlari-kapat", sadeceAdmin, async
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Premium ver / kaldır (yalnızca admin). Gerçek ödeme YOK: bitiş tarihi elle verilir. Süre bugünden başlar (mevcut süreye eklenmez, değiştirir);
+// "süresiz" çok ileri bir tarihtir (PREMIUM_SURESIZ), "kaldir" tarihi siler. Premium rolden bağımsızdır, adminin kendisine de verilebilir.
+yonetimKullanici.post("/yonetim/uyeler/:id/premium", sadeceAdmin, async (req, res, next) => {
+  const id = sayi(req.params.id);
+  if (!id) return next();
+  const hedef = await kullaniciGetir(id);
+  const secim_ = metin(req.body.sure);
+  const kaldir = secim_ === "kaldir";
+  const sure = Object.hasOwn(PREMIUM_SURELERI, secim_) ? PREMIUM_SURELERI[secim_] : undefined; // hasOwn: "constructor" gibi anahtarlar listede sayılmasın
+  let hata = !hedef ? "Kullanıcı bulunamadı." : hedef.silindi ? "Kapatılmış hesaba premium verilemez." : null;
+  if (!hata && !kaldir && !sure) hata = "Geçersiz süre.";
+  if (hata) { bildir(req, "hata", hata); return res.redirect(geriAdres(req, detay(id))); }
+  if (kaldir) await pool.query("UPDATE users SET premium_bitis = NULL WHERE id = ?", [id]);
+  else if (sure!.ay === null) await pool.query("UPDATE users SET premium_bitis = ? WHERE id = ?", [PREMIUM_SURESIZ, id]);
+  else await pool.query("UPDATE users SET premium_bitis = DATE_ADD(NOW(), INTERVAL ? MONTH) WHERE id = ?", [sure!.ay, id]);
+  await denetim(req, res, kaldir ? "kullanici.premium_kaldir" : "kullanici.premium_ver", "kullanici", id, { kullanici: hedef!.username, sure: kaldir ? null : sure!.etiket });
+  bildir(req, "basari", kaldir ? `${hedef!.username} kullanıcısının premium üyeliği kaldırıldı.` : `${hedef!.username} kullanıcısına premium verildi (${sure!.etiket.toLowerCase()}).`);
+  res.redirect(geriAdres(req, detay(id)));
+});
+
 // Rozet ver / al (yalnızca admin)
 yonetimKullanici.post("/yonetim/uyeler/:id/rozet-ver", sadeceAdmin, async (req, res, next) => {
   const id = sayi(req.params.id);
@@ -381,11 +404,14 @@ yonetimKullanici.post("/yonetim/uyeler/:id/hesap-kapat", sadeceAdmin, async (req
   await bildirimGonder({ alan: id, yapan: null, tur: "moderasyon", metin: `Hesabın yönetici tarafından kapatıldı. Sebep: ${sebep}`, link: "/" });
 
   // Kullanıcı adı ve e-posta değişir ki aynısı tekrar kayıt olabilsin (hesap/sil ile aynı kural)
+  const [[dosyalar]]: any = await pool.query("SELECT avatar_url, banner_url FROM users WHERE id = ?", [id]);
   await pool.query(
     `UPDATE users SET deleted_at = NOW(), username = CONCAT('silinmis_', id), email = CONCAT('silinmis_', id, '@quadran.invalid'),
-            bio = NULL, avatar_url = NULL, banner_url = NULL, password_hash = '' WHERE id = ?`,
+            bio = NULL, avatar_url = NULL, banner_url = NULL, avatar_hareketli = 0, banner_hareketli = 0,
+            profil_efekti = NULL, avatar_susu = NULL, profil_renk_ana = NULL, profil_renk_vurgu = NULL, profil_renk_gecis = 0, password_hash = '' WHERE id = ?`,
     [id]
   );
+  await dosyaSil(dosyalar?.avatar_url); await dosyaSil(dosyalar?.banner_url); // yüklenen dosyalar diskten de silinir
   await denetim(req, res, "kullanici.hesap_kapat", "kullanici", id, { eski_ad: hedef!.username, sebep });
   bildir(req, "basari", `${hedef!.username} hesabı kapatıldı.`);
   res.redirect(geriAdres(req, detay(id)));

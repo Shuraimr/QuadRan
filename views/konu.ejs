@@ -18,7 +18,7 @@
       </div>
       <h1><%= konu.title %></h1>
       <div class="yazar-satiri">
-        <span class="avatar avatar-36"><%= konu.yazar[0] %></span>
+        <%- include("partials/avatar", { ad: konu.yazar, url: konu.avatar_url, sus: konu.avatar_susu, sinif: "avatar-36", bos: true }) %>
         <a class="kullanici" href="/profil/<%= konu.yazar %>"><%= konu.yazar %></a>
         <% if (konu.rutbe) { %><%- include("partials/rutbe", { rutbeAd: konu.rutbe, rutbeId: konu.rutbe_id }) %><% } %>
       </div>
@@ -53,7 +53,7 @@
     <% } else if (locals.kullanici) { %>
       <form class="kart cevap-kutusu" id="cevap" method="post" action="/konu/<%= konu.id %>/cevap"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <div class="ust">
-          <span class="avatar avatar-36"><%= kullanici.username[0] %></span>
+          <%- include("partials/avatar", { ad: kullanici.username, url: kullanici.avatar_url, sus: kullanici.avatar_susu, sinif: "avatar-36", bos: true }) %>
           <textarea name="content" placeholder="Cevabını yaz" required maxlength="10000" aria-label="Cevabın"></textarea>
         </div>
         <div class="satir">
@@ -85,7 +85,7 @@
   <aside class="sutun sag-panel">
     <section class="kart panel panel-20">
       <div class="satir">
-        <span class="avatar avatar-48"><%= konu.yazar[0] %></span>
+        <%- include("partials/avatar", { ad: konu.yazar, url: konu.avatar_url, sus: konu.avatar_susu, sinif: "avatar-48", bos: true }) %>
         <div>
           <div class="satir"><strong><%= konu.yazar %></strong><% if (konu.rutbe) { %><%- include("partials/rutbe", { rutbeAd: konu.rutbe, rutbeId: konu.rutbe_id }) %><% } %></div>
           <div class="ikincil kucuk"><%= konu.puan ?? 0 %> puan · <%= konu.konu_sayisi ?? 0 %> konu</div>

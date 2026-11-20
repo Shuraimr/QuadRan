@@ -139,6 +139,13 @@
         <input class="yn-girdi" type="number" name="fark" step="1" required placeholder="Puan farkı (+10 / -5)" aria-label="Puan farkı">
         <input class="yn-girdi" name="sebep" minlength="3" maxlength="200" required placeholder="Sebep" aria-label="Puan sebebi">
         <button class="buton buton-cerceveli">Puanı düzelt</button></form>
+      <form class="yn-form" method="post" action="<%= yol_ %>/premium"><%- include("csrf") %>
+        <p class="yn-premium-durum">Premium: <%= Number(k.premium_aktif) ? (new Date(k.premium_bitis).getFullYear() >= 3000 ? "süresiz" : new Date(k.premium_bitis).toLocaleDateString("tr-TR") + " tarihine kadar") : "yok" %></p>
+        <select class="yn-girdi" name="sure" aria-label="Premium süresi">
+          <% for (const [d, a] of [["1","1 ay"],["3","3 ay"],["12","12 ay"],["suresiz","Süresiz"],["kaldir","Premium'u kaldır"]]) { %><option value="<%= d %>"><%= a %></option><% } %>
+        </select>
+        <button class="buton buton-cerceveli">Premium uygula</button>
+        <small class="ikincil">Ödeme yok; elle verilir. Süre bugünden başlar.</small></form>
       <form class="yn-form" method="post" action="<%= yol_ %>/rozet-ver"><%- include("csrf") %>
         <select class="yn-girdi" name="badge_id" aria-label="Rozet"><% for (const r of tumRozetler) { %><option value="<%= r.id %>"><%= r.name %></option><% } %></select>
         <button class="buton buton-cerceveli">Rozet ver</button></form>

@@ -1,0 +1,13 @@
+<%#
+  Avatar: resim varsa <img>, yoksa kullanıcı adının ilk harfi. Her yerde bunu kullan (sql/18: avatar_url).
+  Beklenen: ad (kullanıcı adı), url (avatar_url ya da boş), sus (avatar_susu ya da boş; yalnızca premium üyede dolu gelir),
+  sinif ("avatar-36" gibi boyut sınıfı, isteğe bağlı), etiket ("span" varsayılan | "a" | "button"), href (a için),
+  ek (sabit öznitelik metni: yalnızca şablondaki sabit değerler, kullanıcı verisi DEĞİL), oynat (bool: süs her zaman oynar; yoksa
+  listelerdeki gibi hareketsiz, üzerine gelince bir kez oynar), tum (bool: önizleme, 6 süs birden), bos (bool: süs amaçlı, ekran okuyucudan gizle)
+%><%
+  const et_ = locals.etiket || "span";
+  const sinif_ = "avatar" + (locals.sinif ? " " + locals.sinif : "") + (locals.oynat ? " avatar-oynat" : "");
+  const alt_ = locals.bos ? "" : ad + " profil resmi";
+%><<%= et_ %> class="<%= sinif_ %>"<% if (et_ === "a") { %> href="<%= locals.href %>"<% } %><% if (et_ === "button") { %> type="button"<% } %><% if (locals.sus || locals.tum) { %> data-sus="<%= locals.sus || '' %>"<% } %><%- locals.ek ? " " + locals.ek : "" %>><%
+  if (locals.url) { %><img src="<%= url %>" alt="<%= alt_ %>" loading="lazy" decoding="async"><% } else { %><%= ad[0] %><% }
+  %><%- include("avatar-sus", { sus: locals.sus, tum: locals.tum }) %></<%= et_ %>>

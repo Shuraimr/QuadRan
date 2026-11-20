@@ -14,6 +14,10 @@
     <label class="yn-etiketli">Çözüm seçilen cevap<input class="yn-girdi" type="number" name="cozum" min="0" max="<%= enfazla %>" step="1" value="<%= puan.cozum %>" required></label>
     <label class="yn-etiketli">Yeni rozet<input class="yn-girdi" type="number" name="rozet" min="0" max="<%= enfazla %>" step="1" value="<%= puan.rozet %>" required></label>
   </div>
+  <div class="yn-satir yn-genis">
+    <label class="yn-etiketli">Günlük konu + cevap puanı tavanı (0 = sınırsız)<input class="yn-girdi" type="number" name="gunluk_tavan" min="0" max="<%= tavanEnfazla %>" step="1" value="<%= puan.gunlukTavan %>" required></label>
+  </div>
+  <p class="ikincil kucuk">Tavan: bir kişi günde konu açma ve cevap yazmadan en çok bu kadar puan kazanır (yetkililer dahil); aşan içerik yine yayınlanır, yalnızca puan vermez. Varsayılan 40. Silinen içeriğin puanı geri alınır ama tavanı yeniden açmaz.</p>
   <p class="ikincil kucuk">Varsayılanlar: konu 5, cevap 2, artı oy 1, günlük ziyaret 1, 7 günlük seri 5, çözüm 15, rozet 10. Eksi oy aynı değerle puan düşürür; mesaj silinince yazarken kazanılan puan geri alınır; çözüm işareti kaldırılırsa çözüm puanı da geri alınır. Seri puanı her 7. ardışık günde bir verilir. Değişiklik yalnızca bundan sonraki işlemleri etkiler, mevcut puanları geriye dönük değiştirmez. Sıralamadaki hafta/ay görünümü puan geçmişinden hesaplanır.</p>
   <button class="buton buton-birincil">Kaydet</button>
 </form>

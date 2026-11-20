@@ -3,10 +3,13 @@ import express from "express";
 import { createHash, randomBytes } from "node:crypto";
 import { pool } from "../db.ts";
 import { sifreHashle, sifreDogru } from "../sifre.ts";
-import { bildir, girisGerekli, metin, yerelAdres, banliSql } from "../yardimci.ts";
+import { bildir, girisGerekli, metin, yerelAdres, banliSql, premiumSql } from "../yardimci.ts";
 import { ayarlar, yasakliIfade } from "../ayarlar.ts";
 import { izinli, kilitBilgisi } from "../rutbe.ts";
 import { girisIp, girisHesap, sifirlamaIp, kayitIp } from "../hiz-siniri.ts";
+import { yuklemeKatmani, jsonIstiyor, kirpmaOku, gorselIsle, dosyaSil, yuklemeBekleme, yuklemeSay, GorselHatasi, type GorselTuru } from "../yukleme.ts";
+import { premiumMu } from "../premium.ts";
+import { efektGecerli, susGecerli, renkGecerli } from "../profil-gorunum.ts";
 
 export const hesap = express.Router();
 
@@ -245,7 +248,9 @@ hesap.post("/sifre-sifirla/:token", async (req, res) => {
 // ---------------------------------------------------------------------------
 async function ayarlariOku(userId: number) {
   const [satirlar]: any = await pool.query(
-    "SELECT username, bio, konum, web_sitesi, imza, dm_izni, cevrimici_goster, email, avatar_url, tema, vurgu, menu_sagda, kompakt, az_animasyon FROM users WHERE id = ?",
+    `SELECT username, bio, konum, web_sitesi, imza, dm_izni, cevrimici_goster, email, avatar_url, banner_url, created_at, tema, vurgu, menu_sagda, kompakt, az_animasyon,
+            premium_bitis, banner_konum, ${premiumSql("users")} AS premium_aktif, profil_efekti, avatar_susu, profil_renk_ana, profil_renk_vurgu, profil_renk_gecis
+       FROM users WHERE id = ?`,
     [userId]
   );
   const ayar = satirlar[0];
@@ -319,6 +324,86 @@ hesap.post("/ayarlar/gorunum", girisGerekli(), async (req, res) => {
   );
   bildir(req, "basari", "Görünüm ayarların kaydedildi");
   res.redirect("/ayarlar#gorunum");
+});
+
+// ---------------------------------------------------------------------------
+// Ayarlar › Profil görünümü (sql/18): avatar/banner yükleme (herkes) ve efekt, süs, renk (yalnızca premium)
+// ---------------------------------------------------------------------------
+const GORSEL_ADI: Record<GorselTuru, string> = { avatar: "Avatar", banner: "Banner" };
+const GERI = "/ayarlar#profil-gorunumu";
+
+const BANNER_KONUMLARI = ["ust", "orta", "alt"];
+
+async function gorselYukle(req: express.Request, res: express.Response, tur: GorselTuru) {
+  const k = res.locals.kullanici;
+  // Kırp penceresi (fetch) JSON bekler: hata pencerede gösterilir. JS'siz form eskisi gibi toast + yönlendirme ile döner.
+  const json = jsonIstiyor(req);
+  const hata = (ileti: string, kod = 400) => {
+    if (json) return res.status(kod).json({ hata: ileti });
+    bildir(req, "hata", ileti); return res.redirect(GERI);
+  };
+  if (!req.file) return hata("Yüklemek için bir resim seç (JPG, PNG, WebP ya da GIF, en fazla 8 MB).");
+  // Geniş ekran yaslaması yalnızca banner'da anlamlı; gönderilmediyse (JS'siz) varsayılan "orta". Geçersiz değer reddedilir.
+  const konum = tur === "banner" && req.body?.konum !== undefined ? String(req.body.konum) : "orta";
+  if (!BANNER_KONUMLARI.includes(konum)) return hata("Geçersiz banner konumu.");
+  const bekle = yuklemeBekleme(k.id);
+  if (bekle) return hata(`Çok fazla yükleme yaptın. ${bekle} dakika sonra tekrar dene.`, 429);
+  yuklemeSay(k.id);
+  let sonuc;
+  try {
+    sonuc = await gorselIsle(req.file.buffer, tur, premiumMu(k), kirpmaOku(req.body));
+  } catch (e) {
+    return hata(e instanceof GorselHatasi ? e.message : "Resim işlenemedi. Başka bir dosya dene.");
+  }
+  // Sütun adları koddaki sabit değerlerden gelir (tur yalnızca "avatar" | "banner"), kullanıcıdan değil
+  const [[eski]]: any = await pool.query(`SELECT ${tur}_url AS adres FROM users WHERE id = ?`, [k.id]);
+  await pool.query(`UPDATE users SET ${tur}_url = ?, ${tur}_hareketli = ? WHERE id = ?`, [sonuc.adres, sonuc.hareketli ? 1 : 0, k.id]);
+  if (tur === "banner") await pool.query("UPDATE users SET banner_konum = ? WHERE id = ?", [konum, k.id]);
+  await dosyaSil(eski?.adres); // eski dosya yetim kalmasın
+  if (sonuc.duraganYapildi) bildir(req, "basari", `Hareketli ${tur === "avatar" ? "avatar" : "banner"} premium üyelerde oynar; ilk kare kaydedildi.`);
+  else bildir(req, "basari", `${GORSEL_ADI[tur]} güncellendi`);
+  if (json) return res.json({ tamam: true, adres: GERI });
+  res.redirect(GERI);
+}
+hesap.post("/ayarlar/avatar", ...yuklemeKatmani("dosya", GERI), (req, res) => gorselYukle(req, res, "avatar"));
+hesap.post("/ayarlar/banner", ...yuklemeKatmani("dosya", GERI), (req, res) => gorselYukle(req, res, "banner"));
+
+for (const tur of ["avatar", "banner"] as const) {
+  hesap.post(`/ayarlar/${tur}/kaldir`, girisGerekli(), async (req, res) => {
+    const k = res.locals.kullanici;
+    const [[eski]]: any = await pool.query(`SELECT ${tur}_url AS adres FROM users WHERE id = ?`, [k.id]);
+    await pool.query(`UPDATE users SET ${tur}_url = NULL, ${tur}_hareketli = 0${tur === "banner" ? ", banner_konum = 'orta'" : ""} WHERE id = ?`, [k.id]);
+    await dosyaSil(eski?.adres);
+    bildir(req, "basari", `${GORSEL_ADI[tur]} kaldırıldı`);
+    res.redirect(GERI);
+  });
+}
+
+hesap.post("/ayarlar/profil-gorunumu", girisGerekli(), async (req, res) => {
+  const k = res.locals.kullanici;
+  const sec = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const varsayilan = !!req.body.varsayilana_don;
+  const efekt = varsayilan ? "" : sec(req.body.efekt);
+  const sus = varsayilan ? "" : sec(req.body.sus);
+  // "Kendi renklerimi kullan" kapalıysa renk alanları (renk seçici her zaman bir değer gönderir) yok sayılır ve NULL yazılır
+  const renkKullan = !varsayilan && !!req.body.renk_kullan;
+  const ana = renkKullan ? sec(req.body.renk_ana).toLowerCase() : "";
+  const vurgu = renkKullan ? sec(req.body.renk_vurgu).toLowerCase() : "";
+  const gecis = renkKullan && req.body.renk_gecis === "gecis" ? 1 : 0; // varsayılan: düz
+  // Sunucu doğrulaması: yalnızca bilinen efekt/süs adları ve #rrggbb (CSS'e yazılacağı için başka hiçbir biçim girmez)
+  if ((efekt && !efektGecerli(efekt)) || (sus && !susGecerli(sus))) { bildir(req, "hata", "Geçersiz efekt ya da süs seçimi."); return res.redirect(GERI); }
+  if ((ana && !renkGecerli(ana)) || (vurgu && !renkGecerli(vurgu))) { bildir(req, "hata", "Renk #rrggbb biçiminde olmalı (örn. #4b2a6b)."); return res.redirect(GERI); }
+  // Premium kontrolü: ücretsiz kişi bir şey SEÇEMEZ, yalnızca temizleyebilir (hepsi boş)
+  if (!premiumMu(k) && (efekt || sus || ana || vurgu || gecis)) {
+    bildir(req, "hata", "Efekt, süs ve renk seçimi premium üyelere özel. Premium şu an yönetici tarafından veriliyor.");
+    return res.redirect(GERI);
+  }
+  await pool.query(
+    "UPDATE users SET profil_efekti = ?, avatar_susu = ?, profil_renk_ana = ?, profil_renk_vurgu = ?, profil_renk_gecis = ? WHERE id = ?",
+    [efekt || null, sus || null, ana || null, vurgu || null, gecis, k.id]
+  );
+  bildir(req, "basari", "Profil görünümün kaydedildi");
+  res.redirect(GERI);
 });
 
 // Gizlilik: özel mesaj izni ve çevrimiçi durumu. Engellenenler listesi aynı kartta, engeli kaldırma POST /engel/:ad/kaldir.
@@ -404,11 +489,15 @@ hesap.post("/hesap/eposta", girisGerekli(), async (req, res) => {
 // Kullanıcı adı ve e-posta değiştirilir ki aynı ad/adres tekrar kayıt olabilsin.
 hesap.post("/hesap/sil", girisGerekli(), async (req, res) => {
   const id = res.locals.kullanici.id;
+  const [[dosyalar]]: any = await pool.query("SELECT avatar_url, banner_url FROM users WHERE id = ?", [id]);
   await pool.query(
     `UPDATE users SET deleted_at = NOW(), username = CONCAT('silinmis_', id), email = CONCAT('silinmis_', id, '@quadran.invalid'),
-            bio = NULL, avatar_url = NULL, banner_url = NULL, password_hash = '' WHERE id = ?`,
+            bio = NULL, avatar_url = NULL, banner_url = NULL, avatar_hareketli = 0, banner_hareketli = 0,
+            profil_efekti = NULL, avatar_susu = NULL, profil_renk_ana = NULL, profil_renk_vurgu = NULL, profil_renk_gecis = 0, password_hash = '' WHERE id = ?`,
     [id]
   );
+  // Yüklenen dosyalar diskten de silinir (kişisel veri)
+  await dosyaSil(dosyalar?.avatar_url); await dosyaSil(dosyalar?.banner_url);
   req.session.destroy(() => {
     res.clearCookie("quadran.sid");
     res.redirect("/");

@@ -1,11 +1,11 @@
 <%#
   Beklenen veriler:
-  ayar  { username, bio, email, avatar_url, tema ("koyu"|"acik"|"sistem"), vurgu ("safir"|"zumrut"|"kehribar"|"ametist"|"yakut"),
+  ayar  { username, bio, email, avatar_url, banner_url, profil_efekti, avatar_susu, profil_renk_ana, profil_renk_vurgu, profil_renk_gecis, premium_aktif, tema ("koyu"|"acik"|"sistem"), vurgu ("safir"|"zumrut"|"kehribar"|"ametist"|"yakut"),
           menu_sagda (bool), kompakt (bool), az_animasyon (bool) }
   ayar.konum, ayar.web_sitesi, ayar.dm_izni ("herkes"|"kimse"), ayar.cevrimici_goster (bool), ayar.engelliler [ { username } ]
   ayar.imza (string | null), imzaKilit { acik, ad, rutbe, kalan }   imza alanı yalnızca rütbe izin veriyorsa (kilitBilgisi)
   hatalar { username, bio, konum, web_sitesi, imza }   (isteğe bağlı)
-  Formlar: POST /ayarlar/profil (username, bio, konum, web_sitesi, imza) · POST /ayarlar/gorunum · POST /ayarlar/gizlilik (dm_izni, cevrimici_goster)
+  Formlar: POST /ayarlar/avatar|banner (multipart) · /ayarlar/avatar|banner/kaldir · /ayarlar/profil-gorunumu · POST /ayarlar/profil (username, bio, konum, web_sitesi, imza) · POST /ayarlar/gorunum · POST /ayarlar/gizlilik (dm_izni, cevrimici_goster)
            · POST /engel/<ad>/kaldir · POST /hesap/sil
 %>
 <%- include("partials/bas", { baslik: "Ayarlar" }) %>
@@ -16,6 +16,7 @@
     <h1>Ayarlar</h1>
     <div class="kategoriler">
       <a class="kategori-ogesi aktif" href="#profil" data-bolum-bag><%- include("partials/ikon", { ad: "kisi" }) %> Profil</a>
+      <a class="kategori-ogesi" href="#profil-gorunumu" data-bolum-bag><%- include("partials/ikon", { ad: "kisi" }) %> Profil görünümü</a>
       <a class="kategori-ogesi" href="#gorunum" data-bolum-bag><%- include("partials/ikon", { ad: "palet" }) %> Görünüm</a>
       <a class="kategori-ogesi" href="#gizlilik" data-bolum-bag><%- include("partials/ikon", { ad: "kilit" }) %> Gizlilik</a>
       <a class="kategori-ogesi" href="#hesap" data-bolum-bag><%- include("partials/ikon", { ad: "kalkan" }) %> Hesap ve güvenlik</a>
@@ -24,23 +25,6 @@
   <div class="bolumler">
     <form class="kart bolum" id="profil" method="post" action="/ayarlar/profil"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <div><h2>Profil</h2><p class="ikincil kucuk">Herkese açık profilinde görünen bilgiler</p></div>
-      <p class="ikincil kucuk">Fotoğraf ve banner yükleme daha sonra eklenecek.</p>
-      <div class="ust-etiket">BANNER</div>
-      <label class="yukleme">
-        <input type="file" name="banner" disabled accept="image/png, image/jpeg" aria-label="Banner yükle">
-        <span class="daire"><%- include("partials/ikon", { ad: "yukle", boyut: 22 }) %></span>
-        <strong>Banner yüklemek için sürükle ya da tıkla</strong>
-        <span class="ikincil kucuk">1500 × 500 önerilir · PNG veya JPG · en fazla 2 MB</span>
-      </label>
-      <p class="ikincil kucuk">Banner yüklemezsen vurgu renginde kristal desen gösterilir.</p>
-      <div class="ust-etiket">PROFİL FOTOĞRAFI</div>
-      <div class="satir" style="gap: 16px">
-        <span class="avatar avatar-72"><%= ayar.username[0] %></span>
-        <label class="buton buton-tonal" style="position: relative; overflow: hidden">Fotoğrafı değiştir
-          <input type="file" name="avatar" disabled accept="image/png, image/jpeg" style="position: absolute; inset: 0; opacity: 0; cursor: pointer">
-        </label>
-        <button class="buton buton-metin" name="avatar_kaldir" value="1" type="button" disabled>Kaldır</button>
-      </div>
       <label class="alan <%= h.username ? 'hatali' : '' %>" style="margin-top: 8px"><span>Kullanıcı adı</span>
         <input name="username" value="<%= ayar.username %>" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+">
       </label>
@@ -68,6 +52,8 @@
       <% } %>
       <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
     </form>
+
+    <%- include("partials/profil-gorunumu-bolumu") %>
 
     <form class="kart bolum" id="gorunum" method="post" action="/ayarlar/gorunum"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <div><h2>Görünüm</h2><p class="ikincil kucuk">Hesabına kaydedilir, her cihazda aynı görünür</p></div>
@@ -122,7 +108,7 @@
           <ul class="engelli-liste">
             <% for (const e of engelliler_) { %>
               <li class="engelli-satir">
-                <span class="avatar avatar-36"><%= e.username[0] %></span>
+                <%- include("partials/avatar", { ad: e.username, sinif: "avatar-36", bos: true }) %>
                 <strong><%= e.username %></strong>
                 <form method="post" action="/engel/<%= encodeURIComponent(e.username) %>/kaldir"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
                   <button class="buton buton-cerceveli">Engeli kaldır</button>
@@ -150,6 +136,7 @@
       Bağlantılar düz çapa (#profil...) olduğu için JS olmadan da çalışır; JS o an görünen bölümü vurgular. %>
   <nav class="ayar-dok" aria-label="Ayarlar bölümleri" data-alt-cubuk>
     <a href="#profil" data-bolum-bag aria-current="true"><%- include("partials/ikon", { ad: "kisi", boyut: 20 }) %><span>Profil</span></a>
+    <a href="#profil-gorunumu" data-bolum-bag><%- include("partials/ikon", { ad: "kisi", boyut: 20 }) %><span>Profil görünümü</span></a>
     <a href="#gorunum" data-bolum-bag><%- include("partials/ikon", { ad: "palet", boyut: 20 }) %><span>Görünüm</span></a>
     <a href="#gizlilik" data-bolum-bag><%- include("partials/ikon", { ad: "kilit", boyut: 20 }) %><span>Gizlilik</span></a>
     <a href="#hesap" data-bolum-bag><%- include("partials/ikon", { ad: "kalkan", boyut: 20 }) %><span>Hesap ve güvenlik</span></a>

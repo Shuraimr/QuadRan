@@ -31,7 +31,7 @@
            const islemVar = !oda.kapali && !benMi && u.rol !== "sahip" && (oda.rol === "sahip" || (oda.rol === "yonetici" && u.rol === "uye")); %>
         <li class="oda-uye">
           <a class="oda-uye-kimlik" href="/profil/<%= u.username %>">
-            <span class="avatar avatar-36"><%= u.username[0] %></span>
+            <%- include("avatar", { ad: u.username, url: u.avatar_url, sus: u.avatar_susu, sinif: "avatar-36", bos: true }) %>
             <span class="oda-uye-ad"><strong><%= u.username %><%= benMi ? " (sen)" : "" %></strong>
               <small class="ikincil"><% if (u.cevrimici) { %><span class="sohbet-nokta" aria-hidden="true"></span>Çevrimiçi<% } else if (u.rutbe) { %><%= u.rutbe %><% } %></small></span>
           </a>
@@ -81,7 +81,7 @@
       <% } else if (!aramaSonuc.length) { %>
         <li class="kisi-bos">Davet edilebilecek eşleşen kullanıcı yok.</li>
       <% } else { for (const k of aramaSonuc) { %>
-        <li class="oda-kisi"><span class="avatar avatar-36"><%= k.username[0] %></span><strong><%= k.username %></strong><% if (k.rutbe) { %><%- include("rutbe", { rutbeAd: k.rutbe, rutbeId: k.rutbe_id }) %><% } %>
+        <li class="oda-kisi"><%- include("avatar", { ad: k.username, url: k.avatar_url, sus: k.avatar_susu, sinif: "avatar-36", bos: true }) %><strong><%= k.username %></strong><% if (k.rutbe) { %><%- include("rutbe", { rutbeAd: k.rutbe, rutbeId: k.rutbe_id }) %><% } %>
           <form method="post" action="/oda/<%= oda.id %>/davet"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="davet"><input type="hidden" name="kullanici" value="<%= k.username %>"><button class="buton buton-tonal">Davet et</button></form></li>
       <% } } %>
     </ul>
@@ -89,7 +89,7 @@
       <h3 class="oda-etiket">Bekleyen davetler</h3>
       <ul class="kisi-sonuclar">
         <% for (const b of bekleyenDavetler) { %>
-          <li class="oda-kisi"><span class="avatar avatar-36"><%= b.username[0] %></span><strong><%= b.username %></strong>
+          <li class="oda-kisi"><%- include("avatar", { ad: b.username, url: b.avatar_url, sus: b.avatar_susu, sinif: "avatar-36", bos: true }) %><strong><%= b.username %></strong>
             <form method="post" action="/oda/<%= oda.id %>/davet/<%= b.id %>/iptal"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="panel" value="davet"><button class="buton buton-metin oda-iptal">Geri al</button></form></li>
         <% } %>
       </ul>

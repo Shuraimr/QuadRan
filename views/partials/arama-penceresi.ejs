@@ -34,7 +34,7 @@
           <h3 class="arama-grup-baslik">KULLANICILAR</h3>
           <% for (const u of ornek_.kullanicilar) { %>
             <a class="arama-sonuc" href="/profil/<%= u.username %>">
-              <span class="avatar"><%= u.username[0] %></span>
+              <%- include("avatar", { ad: u.username, url: u.avatar_url, sus: u.avatar_susu, bos: true }) %>
               <span class="arama-sonuc-ad"><%= u.username %></span>
               <span class="arama-sonuc-not"><%= u.rutbe %></span>
             </a>

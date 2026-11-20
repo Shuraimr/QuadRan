@@ -63,4 +63,6 @@ export const EYLEM_ETIKETLERI: Record<string, string> = {
   "bildirim.toplu": "Toplu bildirim gönderildi",
   "kullanici.uyar": "Üye uyarıldı",
   "kullanici.oturum_kapat": "Oturumlar kapatıldı",
+  "kullanici.premium_ver": "Premium verildi",
+  "kullanici.premium_kaldir": "Premium kaldırıldı",
 };

@@ -8,7 +8,7 @@ import express from "express";
 import { pool } from "../db.ts";
 import { metin, bildir, yerelAdres, banliSql } from "../yardimci.ts";
 import { denetim } from "../denetim.ts";
-import { ayarlar, ayarYaz, ayarOnbellekTemizle, kelimeListesi, PUAN_ENFAZLA } from "../ayarlar.ts";
+import { ayarlar, ayarYaz, ayarOnbellekTemizle, kelimeListesi, PUAN_ENFAZLA, TAVAN_ENFAZLA } from "../ayarlar.ts";
 import { sadeceAdmin, onayIste } from "./yonetim-ortak.ts";
 
 export const yonetimSite = express.Router();
@@ -44,7 +44,7 @@ yonetimSite.use("/yonetim/puan", sadeceAdmin);
 
 yonetimSite.get("/yonetim/puan", async (req, res) => {
   const a = await ayarlar();
-  res.render("yonetim/puan", { baslik: "Puan ve ödüller", aktif: "puan", puan: a.puan, enfazla: PUAN_ENFAZLA });
+  res.render("yonetim/puan", { baslik: "Puan ve ödüller", aktif: "puan", puan: a.puan, enfazla: PUAN_ENFAZLA, tavanEnfazla: TAVAN_ENFAZLA });
 });
 
 yonetimSite.post("/yonetim/puan", async (req, res) => {
@@ -63,7 +63,16 @@ yonetimSite.post("/yonetim/puan", async (req, res) => {
     }
     yeni[alan] = n;
   }
+  // Günlük konu/cevap puanı tavanı (0 = sınırsız): kuralların geri kalanından ayrı, kendi üst sınırı var
+  const tavanHam = metin(req.body.gunluk_tavan);
+  const tavan = Number(tavanHam);
+  if (tavanHam === "" || !Number.isInteger(tavan) || tavan < 0 || tavan > TAVAN_ENFAZLA) {
+    bildir(req, "hata", `Günlük puan tavanı 0 ile ${TAVAN_ENFAZLA} arasında tam bir sayı olmalı (0 = sınırsız).`);
+    return res.redirect("/yonetim/puan");
+  }
+  yeni.gunlukTavan = tavan;
   const eski = (await ayarlar()).puan;
+  await ayarYaz("puan_gunluk_tavan", String(tavan), k.id);
   await ayarYaz("puan_konu", String(yeni.konu), k.id);
   await ayarYaz("puan_cevap", String(yeni.cevap), k.id);
   await ayarYaz("puan_oy", String(yeni.oy), k.id);

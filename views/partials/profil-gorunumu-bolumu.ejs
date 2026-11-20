@@ -1,0 +1,144 @@
+<%#
+  Ayarlar › Profil görünümü (Figma 37:4 masaüstü, 38:4 telefon). ayarlar.ejs içinde çağrılır; `ayar`, `kullanici` ve `premium` verisi gerekir.
+  Gruplar: Görseller (avatar/banner, herkes) · Renk · Efekt · Avatar süsü (üçü premium). Sağda (telefonda üstte) kişinin KENDİ kartı canlı önizleme:
+  quadran.js seçimler değişince kartın öznitelik/değişkenlerini günceller. JS yokken seçimler yine çalışır, Kaydet'ten sonra kart güncellenir.
+  Ücretsiz kişi her şeyi seçip önizleyebilir; sunucu kaydı reddeder, düğme "Premium ile kaydet" olur ve /premium'a gider.
+%><%
+  const prem_ = !!Number(ayar.premium_aktif);
+  const onizle_ = { username: ayar.username, bio: ayar.bio, avatar_url: ayar.avatar_url, banner_url: ayar.banner_url, banner_konum: ayar.banner_konum, avatar_susu: ayar.avatar_susu,
+    profil_efekti: ayar.profil_efekti, profil_renk_ana: ayar.profil_renk_ana, profil_renk_vurgu: ayar.profil_renk_vurgu, profil_renk_gecis: ayar.profil_renk_gecis,
+    rutbe: kullanici.rutbe, rutbe_id: kullanici.rutbe_id, created_at: ayar.created_at };
+  const renkVar_ = !!(ayar.profil_renk_ana || ayar.profil_renk_vurgu);
+%><section class="kart bolum" id="profil-gorunumu" data-profil-gorunum data-premium="<%= prem_ ? '1' : '0' %>">
+  <div><h2>Profil görünümü</h2><p class="ikincil kucuk">Kartın ve profilin nasıl göründüğünü seç. Sağdaki kart seçimlerini anında gösterir.</p></div>
+  <div class="pg-duzen">
+    <div class="pg-onizleme" aria-label="Canlı önizleme">
+      <div class="ust-etiket">ÖNİZLEME</div>
+      <%- include("profil-karti", { u: onizle_, onizleme: true }) %>
+    </div>
+    <div class="pg-ayar">
+      <%# Görseller (Figma 40:4): her satırda önizleme · ad ve bilgi · eylemler. "Değiştir" bir <label>: içindeki dosya girişi görünmez
+          ama klavyeyle odaklanır (odak halkası label'da :focus-within ile çizilir). JS varsa dosya seçilince "Kırp ve konumla" penceresi
+          açılır (aşağıda); JS yoksa "Yükle" düğmesi görünür ve form eskisi gibi gönderilir, sunucu ortadan kırpar. %>
+      <div class="pg-grup">
+        <div><div class="ust-etiket">GÖRSELLER</div><p class="ikincil kucuk">JPG, PNG, WebP ya da GIF · en fazla 8 MB. Hareketli GIF premium'da oynar.</p></div>
+        <% for (const [tur_, baslik_, adres_, bilgi_] of [["avatar", "Avatar", ayar.avatar_url, "Kare · 256 px"], ["banner", "Banner", ayar.banner_url, "Geniş · telefonda 2,2:1"]]) { %>
+          <div class="gs-satir" data-gorsel-satiri="<%= tur_ %>">
+            <% if (tur_ === "avatar") { %><%- include("avatar", { ad: ayar.username, url: ayar.avatar_url, sinif: "gs-avatar", bos: true }) %>
+            <% } else if (adres_) { %><span class="gs-banner" data-konum="<%= ayar.banner_konum || 'orta' %>"><img src="<%= adres_ %>" alt="" decoding="async"></span>
+            <% } else { %><span class="gs-banner" aria-hidden="true"></span><% } %>
+            <div class="gs-bilgi"><strong><%= baslik_ %></strong><span class="ikincil kucuk"><%= bilgi_ %></span></div>
+            <div class="gs-eylem">
+              <form method="post" action="/ayarlar/<%= tur_ %>" enctype="multipart/form-data"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+                <label class="buton buton-tonal gs-degistir"><%= adres_ ? "Değiştir" : "Seç" %><input type="file" class="gorunmez" name="dosya" accept="image/jpeg,image/png,image/webp,image/gif" aria-label="<%= baslik_ %> için resim seç" data-kirp="<%= tur_ %>" required></label>
+                <button class="buton buton-birincil" type="submit" data-yukle-gonder>Yükle</button>
+              </form>
+              <% if (adres_) { %>
+                <form method="post" action="/ayarlar/<%= tur_ %>/kaldir"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><button class="buton buton-metin" type="submit">Kaldır</button></form>
+              <% } %>
+            </div>
+          </div>
+        <% } %>
+      </div>
+
+      <hr class="ayirici">
+      <form class="pg-ayar" id="pg-form" method="post" action="/ayarlar/profil-gorunumu"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+        <% if (!prem_) { %><p class="ikincil kucuk">Renk, efekt ve süs premium üyelere özel. Hepsini deneyip önizleyebilirsin; kaydetmek için premium gerekir.</p><% } %>
+        <div class="pg-grup">
+          <div><div class="ust-etiket">RENK</div><p class="ikincil kucuk">Ana renk bannerı ve avatar halkasını boyar, vurgu rengi kartın üst çizgisinde ve küçük vurgularda durur. İstediğin rengi seçebilirsin.</p></div>
+          <label class="ayar-satiri anahtar">
+            <div><strong>Kendi renklerimi kullan</strong><span class="ikincil kucuk">Kapalıyken sitenin kendi renkleri kullanılır.</span></div>
+            <input type="checkbox" name="renk_kullan" value="1" data-pg="renk_kullan" <%= renkVar_ ? "checked" : "" %>><span class="ray"></span>
+          </label>
+          <div class="siralama" role="radiogroup" aria-label="Banner renk biçimi">
+            <% for (const [d_, a_] of [["duz", "Düz"], ["gecis", "Geçiş"]]) { %>
+              <label><input type="radio" name="renk_gecis" value="<%= d_ %>" data-pg="renk_gecis" <%= (Number(ayar.profil_renk_gecis) ? "gecis" : "duz") === d_ ? "checked" : "" %>><%= a_ %></label>
+            <% } %>
+          </div>
+          <div class="renk-satir">
+            <% for (const [alan_, ad_, varsayilan_, deger_] of [["renk_ana", "Ana renk", "#4b2a6b", ayar.profil_renk_ana], ["renk_vurgu", "Vurgu rengi", "#9db4ff", ayar.profil_renk_vurgu]]) { %>
+              <div class="renk-alan"><span><%= ad_ %></span>
+                <label class="renk-dugme" aria-label="<%= ad_ %>"><input type="color" name="<%= alan_ %>" value="<%= deger_ || varsayilan_ %>" data-pg="<%= alan_ %>" data-renk-secici></label>
+                <input class="renk-hex" type="text" value="<%= deger_ || varsayilan_ %>" maxlength="7" pattern="#[0-9A-Fa-f]{6}" aria-label="<%= ad_ %> HEX" data-renk-hex="<%= alan_ %>" autocomplete="off" spellcheck="false">
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="pg-grup">
+          <div><div class="ust-etiket">EFEKT</div><p class="ikincil kucuk">Kartının ve profilinin üstünde oynayan hareketli kaplama.</p></div>
+          <div class="pg-secimler" role="radiogroup" aria-label="Profil efekti">
+            <label class="efekt-kutu"><input type="radio" name="efekt" value="" data-pg="efekt" <%= !ayar.profil_efekti ? "checked" : "" %>><span class="ef-mini ef-mini-yok"><%- include("ikon", { ad: "yasak", boyut: 24 }) %></span>Yok</label>
+            <% for (const [ef_, ad_] of Object.entries(EFEKT_ADLARI)) { %>
+              <label class="efekt-kutu"><input type="radio" name="efekt" value="<%= ef_ %>" data-pg="efekt" <%= ayar.profil_efekti === ef_ ? "checked" : "" %>>
+                <span class="ef-mini"><%- include("profil-efekt", { efekt: ef_, katman: "arka" }) %><%- include("profil-efekt", { efekt: ef_, katman: "on" }) %></span><%= ad_ %></label>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="pg-grup">
+          <div><div class="ust-etiket">AVATAR SÜSÜ</div><p class="ikincil kucuk">Avatarının çevresinde duran süs. Listelerde küçük ve durağandır, üzerine gelince oynar.</p></div>
+          <div class="pg-secimler" role="radiogroup" aria-label="Avatar süsü">
+            <label class="sus-kutu"><input type="radio" name="sus" value="" data-pg="sus" <%= !ayar.avatar_susu ? "checked" : "" %>><span class="sus-mini"><%- include("avatar", { ad: ayar.username, url: ayar.avatar_url, sinif: "avatar-orta", bos: true }) %></span>Yok</label>
+            <% for (const [s_, ad_] of Object.entries(SUS_ADLARI)) { %>
+              <label class="sus-kutu"><input type="radio" name="sus" value="<%= s_ %>" data-pg="sus" <%= ayar.avatar_susu === s_ ? "checked" : "" %>>
+                <span class="sus-mini"><%- include("avatar", { ad: ayar.username, url: ayar.avatar_url, sus: s_, bos: true }) %></span><%= ad_ %></label>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="satir" style="justify-content: flex-end; flex-wrap: wrap">
+          <button class="buton buton-metin" type="submit" name="varsayilana_don" value="1" formnovalidate>Varsayılana dön</button>
+          <% if (prem_) { %><button class="buton buton-birincil" type="submit">Kaydet</button>
+          <% } else { %><a class="buton buton-birincil" href="/premium">Premium ile kaydet</a><% } %>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <%# Kırp ve konumla (Figma 40:29 masaüstü pencere, 40:70 telefonda alttan sayfa). Tek <dialog>; quadran.js dosya seçilince doldurup açar.
+      Kırpma tarayıcıda hesaplanır ve sunucuya kaynak görselin piksel koordinatlarında gider (kirp_x, kirp_y, kirp_g, kirp_y2); sunucu yeniden doğrular. %>
+  <dialog class="yeni-mesaj-penceresi kirp-pencere" id="kirp-pencere" aria-labelledby="kirp-baslik" data-tur="avatar" data-konum="orta">
+    <div class="yeni-mesaj-ic kirp-ic">
+      <div class="yeni-mesaj-ust">
+        <h2 id="kirp-baslik">Kırp ve konumla</h2>
+        <button class="ikon-dugme" type="button" data-dialog-kapat aria-label="Kapat"><%- include("ikon", { ad: "kapat", boyut: 20 }) %></button>
+      </div>
+      <p class="ikincil kucuk" id="kirp-ipucu">Sürükleyerek konumla; kaydırıcı, fare tekerleği ya da iki parmakla yakınlaştır.</p>
+      <div class="kirp-alan" tabindex="0" role="group" aria-label="Kırpma alanı. Ok tuşlarıyla kaydır, artı ve eksi ile yakınlaştır" aria-describedby="kirp-ipucu">
+        <img class="kirp-resim" alt="" draggable="false">
+        <div class="kirp-izgara" aria-hidden="true"></div>
+        <div class="kirp-maske" aria-hidden="true"></div>
+        <div class="kirp-serit kirp-serit-tablet" aria-hidden="true"><span>Tablet</span></div>
+        <div class="kirp-serit kirp-serit-masaustu" aria-hidden="true"><span>Masaüstü</span></div>
+      </div>
+      <label class="kirp-yakin"><span class="ikincil kucuk">Yakınlaştır</span><input type="range" id="kirp-yakin" min="100" max="400" value="100" step="1"></label>
+      <fieldset class="kirp-konum">
+        <legend class="ikincil kucuk">Geniş ekranda yasla</legend>
+        <div class="siralama" role="radiogroup" aria-label="Geniş ekranda yasla">
+          <% for (const [d_, a_] of [["ust", "Üst"], ["orta", "Orta"], ["alt", "Alt"]]) { %>
+            <label><input type="radio" name="kirp_konum" value="<%= d_ %>" <%= d_ === "orta" ? "checked" : "" %>><%= a_ %></label>
+          <% } %>
+        </div>
+      </fieldset>
+      <div class="kirp-onizleme">
+        <div class="ust-etiket">ÖNİZLEME</div>
+        <div class="kirp-pv kirp-pv-avatar">
+          <div><span class="kirp-kutu" data-pv="profil"></span><span class="ikincil kucuk">Profil</span></div>
+          <div><span class="kirp-kutu" data-pv="kart"></span><span class="ikincil kucuk">Kart</span></div>
+          <div><span class="kirp-kutu" data-pv="mesaj"></span><span class="ikincil kucuk">Mesaj</span></div>
+        </div>
+        <div class="kirp-pv kirp-pv-banner">
+          <div><span class="kirp-kutu kirp-kutu-genis" data-pv="telefon" data-oran="2.2"></span><span class="ikincil kucuk">Telefon</span></div>
+          <div><span class="kirp-kutu kirp-kutu-genis" data-pv="tablet" data-oran="3"></span><span class="ikincil kucuk">Tablet</span></div>
+          <div><span class="kirp-kutu kirp-kutu-genis" data-pv="masaustu" data-oran="3.7"></span><span class="ikincil kucuk">Masaüstü</span></div>
+        </div>
+      </div>
+      <p class="kirp-hata" id="kirp-hata" role="alert" hidden></p>
+      <div class="oda-form-eylem">
+        <button class="buton buton-cerceveli" type="button" data-dialog-kapat>Vazgeç</button>
+        <button class="buton buton-birincil" type="button" id="kirp-kaydet">Kaydet</button>
+      </div>
+    </div>
+  </dialog>
+</section>

@@ -60,7 +60,7 @@
         <h3>Genel sohbet</h3>
         <% for (const mesaj of sohbet) { %>
           <div class="sohbet-satiri">
-            <span class="avatar"><%= mesaj.yazar[0] %></span>
+            <%- include("partials/avatar", { ad: mesaj.yazar, url: mesaj.avatar_url, sus: mesaj.avatar_susu, bos: true }) %>
             <div>
               <div class="ad"><%= mesaj.yazar %></div>
               <div class="mesaj"><%= mesaj.content %></div>
@@ -82,7 +82,7 @@
         <% liderler.forEach((lider, i) => { %>
           <div class="lider">
             <span class="sira"><%= i + 1 %></span>
-            <span class="avatar avatar-orta"><%= lider.username[0] %></span>
+            <%- include("partials/avatar", { ad: lider.username, url: lider.avatar_url, sus: lider.avatar_susu, sinif: "avatar-orta", bos: true }) %>
             <span class="kullanici"><%= lider.username %></span>
             <% if (lider.rutbe) { %><%- include("partials/rutbe", { rutbeAd: lider.rutbe, rutbeId: lider.rutbe_id }) %><% } %>
             <span class="puan"><%= lider.points %></span>

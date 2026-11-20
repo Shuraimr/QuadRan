@@ -44,7 +44,7 @@
         <% for (const s of srPodyumSirali) { %>
           <a class="kart siralama-kart <%= s.sira === 1 ? 'birinci' : '' %>" href="/profil/<%= s.username %>">
             <span class="siralama-madalya" aria-label="<%= s.sira %>. sıra"><%= s.sira %></span>
-            <span class="avatar"><%= s.username[0] %></span>
+            <%- include("partials/avatar", { ad: s.username, url: s.avatar_url, sus: s.avatar_susu, bos: true }) %>
             <strong><%= s.username %></strong>
             <% if (s.rutbe) { %><%- include("partials/rutbe", { rutbeAd: s.rutbe, rutbeId: s.rutbe_id }) %><% } %>
             <span class="siralama-puan"><%= s.puan %></span>
@@ -69,7 +69,7 @@
             <% if (srBenim && !srBenimTabloda) { %>
               <tr class="ben">
                 <td class="sira-no"><%= srBenim.sira %></td>
-                <td><a class="siralama-kisi" href="/profil/<%= srBenim.username %>"><span class="avatar"><%= srBenim.username[0] %></span><span>Senin sıran</span></a></td>
+                <td><a class="siralama-kisi" href="/profil/<%= srBenim.username %>"><%- include("partials/avatar", { ad: srBenim.username, url: srBenim.avatar_url, sus: srBenim.avatar_susu, bos: true }) %><span>Senin sıran</span></a></td>
                 <td><% if (srBenim.rutbe) { %><%- include("partials/rutbe", { rutbeAd: srBenim.rutbe, rutbeId: srBenim.rutbe_id }) %><% } %></td>
                 <td class="sayi puan"><%= srBenim.puan %></td>
                 <td class="sayi gizle-mobil"><%= srBenim.konu_sayisi %></td>
@@ -80,7 +80,7 @@
               <% const ben = srBenim && s.username === srBenim.username; %>
               <tr class="<%= ben ? 'ben' : '' %>">
                 <td class="sira-no"><%= s.sira %></td>
-                <td><a class="siralama-kisi" href="/profil/<%= s.username %>"><span class="avatar"><%= s.username[0] %></span><span><%= s.username %><%= ben ? " (sen)" : "" %></span></a></td>
+                <td><a class="siralama-kisi" href="/profil/<%= s.username %>"><%- include("partials/avatar", { ad: s.username, url: s.avatar_url, sus: s.avatar_susu, bos: true }) %><span><%= s.username %><%= ben ? " (sen)" : "" %></span></a></td>
                 <td><% if (s.rutbe) { %><%- include("partials/rutbe", { rutbeAd: s.rutbe, rutbeId: s.rutbe_id }) %><% } %></td>
                 <td class="sayi puan"><%= s.puan %></td>
                 <td class="sayi gizle-mobil"><%= s.konu_sayisi %></td>

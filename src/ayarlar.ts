@@ -28,9 +28,11 @@ export const ODA_SINIR_ENFAZLA = 50;
 // Yönetici panelinden (Puan ve ödüller > Puan kuralları) değiştirilir.
 //   davet: KULLANILMIYOR, "davet" puan kaynağı referans aşamasına (CLAUDE.md yol haritası 3.4) ertelendi; ayar anahtarı ve
 //     points_log 'davet' sebebi şimdiden hazır, panelde gösterilmez. Referans/davet kabulü yazılırken puanEkle(..., "davet", ...) buraya bağlanacak.
+//   gunlukTavan (puan_gunluk_tavan): bir kişinin günde konu açma + cevap yazmadan kazanabileceği toplam puan; 0 = sınırsız
 //   gunluk: günde ilk ziyaret · seri: 7 gün üst üste ziyaret · cozum: cevabı çözüm seçilen yazara · rozet: her yeni rozet
-export type PuanKurallari = { konu: number; cevap: number; oy: number; gunluk: number; seri: number; cozum: number; rozet: number; davet: number };
-export const PUAN_VARSAYILAN: PuanKurallari = { konu: 5, cevap: 2, oy: 1, gunluk: 1, seri: 5, cozum: 15, rozet: 10, davet: 5 };
+export type PuanKurallari = { konu: number; cevap: number; oy: number; gunluk: number; seri: number; cozum: number; rozet: number; davet: number; gunlukTavan: number };
+export const PUAN_VARSAYILAN: PuanKurallari = { konu: 5, cevap: 2, oy: 1, gunluk: 1, seri: 5, cozum: 15, rozet: 10, davet: 5, gunlukTavan: 40 };
+export const TAVAN_ENFAZLA = 10000; // günlük konu/cevap puanı tavanı (sql/17): 0 = sınırsız
 export const PUAN_ENFAZLA = 1000; // yanlışlıkla 99999 yazılmasın diye üst sınır
 
 // Ayardan gelen metni güvenli bir tam sayıya çevirir; bozuksa varsayılana döner (site hiç bozulmasın).
@@ -68,6 +70,7 @@ export async function ayarlar(): Promise<SiteAyarlari> {
       cozum: puanDegeri(h.puan_cozum, PUAN_VARSAYILAN.cozum),
       rozet: puanDegeri(h.puan_rozet, PUAN_VARSAYILAN.rozet),
       davet: puanDegeri(h.puan_davet, PUAN_VARSAYILAN.davet), // henüz kullanılmıyor (referans aşamasında bağlanacak)
+      gunlukTavan: tamSayi(h.puan_gunluk_tavan, PUAN_VARSAYILAN.gunlukTavan, 0, TAVAN_ENFAZLA),
     },
     oda: {
       kisiSiniri: tamSayi(h.kisi_basi_oda_siniri, ODA_VARSAYILAN.kisiSiniri, 1, ODA_SINIR_ENFAZLA),

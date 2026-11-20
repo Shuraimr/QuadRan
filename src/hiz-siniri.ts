@@ -60,3 +60,5 @@ export const odaMesaj = new HizSiniri(20, 1);
 // Konu açma ve cevap yazma: aynı kullanıcıdan dakikada en çok 6 (puan kasmak ya da konuyu doldurmak için seri yazmayı yavaşlatır).
 // Ortak sayaç: konu açmak da bir mesajdır. Yetkililer (admin/moderatör) muaf; oda mesajındaki gibi say() yalnızca doğrulama geçince çağrılır.
 export const cevapYazma = new HizSiniri(6, 1);
+// Dosya yükleme (avatar/banner, src/yukleme.ts): aynı kullanıcıdan 10 dakikada en çok 10 yükleme (sharp işlemi pahalı, disk dolmasın).
+export const dosyaYukleme = new HizSiniri(10, 10);

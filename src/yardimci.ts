@@ -22,7 +22,28 @@ export const rolSql = (tablo: string) => `(SELECT roles.name FROM roles WHERE ro
 // (yönetici/moderatör muafiyeti: bağlantı, imza). Şablonlar: include("rutbe", { rutbeAd: x.rutbe, rutbeId: x.rutbe_id }),
 // icerikHtml(metin, x.rutbe_id, x.yazar_rol).
 export const rutbeSutunlari = (tablo: string) =>
-  `${rutbeSql(tablo)} AS rutbe, ${rutbeIdSql(tablo)} AS rutbe_id, ${rolSql(tablo)} AS yazar_rol`;
+  `${rutbeSql(tablo)} AS rutbe, ${rutbeIdSql(tablo)} AS rutbe_id, ${rolSql(tablo)} AS yazar_rol, ${avatarSutunlari(tablo)}`;
+
+// Premium ayrıcalıkları açık mı (SQL ifadesi): süresi geçmemiş premium_bitis YA DA admin rolü.
+// Kullanıcı kararı (2026-11-20): kurucu/admin premium özelliklerini panelden kendine premium vermeden kullanabilir.
+// Moderatör muaf değil. Kural tek yerde dursun diye bütün sorgular bu ifadeyi kullanır (premium.ts › premiumMu SQL sonucunu okur).
+export const premiumSql = (tablo: string) =>
+  `(${tablo}.premium_bitis > NOW() OR ${tablo}.role_id = (SELECT id FROM roles WHERE name = 'admin'))`;
+
+// Avatar resmi her yerde görünsün diye (partials/avatar.ejs) kullanıcı gösteren her sorgu avatar_url + avatar_susu alır.
+// Ayrı bir yardımcı yazmak yerine rutbeSutunlari'na eklendi: o zaten her kullanıcı sorgusunda var, tek yerden değişir.
+// Süs YALNIZCA premium üyede gelir (sql/18): premium bitince seçim silinmez ama görünmez (yenilenirse geri gelir).
+export const avatarSutunlari = (tablo: string) =>
+  `${tablo}.avatar_url AS avatar_url, IF(${premiumSql(tablo)}, ${tablo}.avatar_susu, NULL) AS avatar_susu`;
+
+// Profil kartı/üst bölümü için tam görünüm sütunları (banner, efekt, renkler). Premium'a bağlı olanlar premium değilse NULL gelir.
+export const profilGorunumSutunlari = (tablo: string) =>
+  `${tablo}.avatar_url AS avatar_url, ${tablo}.banner_url AS banner_url, ${tablo}.banner_konum AS banner_konum, (${premiumSql(tablo)}) AS premium_aktif,
+   IF(${premiumSql(tablo)}, ${tablo}.avatar_susu, NULL) AS avatar_susu,
+   IF(${premiumSql(tablo)}, ${tablo}.profil_efekti, NULL) AS profil_efekti,
+   IF(${premiumSql(tablo)}, ${tablo}.profil_renk_ana, NULL) AS profil_renk_ana,
+   IF(${premiumSql(tablo)}, ${tablo}.profil_renk_vurgu, NULL) AS profil_renk_vurgu,
+   IF(${premiumSql(tablo)}, ${tablo}.profil_renk_gecis, 0) AS profil_renk_gecis`;
 
 // Bir mesajın oy toplamı (skor)
 export const skorSql = (postTablosu: string) =>
@@ -69,6 +90,35 @@ export async function puanEkle(
     throw hata;
   } finally {
     if (kendi) bag.release();
+  }
+}
+
+// Konu açma / cevap yazma puanı, günlük tavanla (site_settings.puan_gunluk_tavan; 0 = sınırsız). Neden: konu açıp silmek
+// ya da çok kısa cevap yığmak puan kasmanın en kolay yoludur; silince puan geri alınsa da arada rütbe/oy hakkı kazanılır.
+// Bugün kazanılan = bugünkü pozitif 'konu' + 'cevap' satırları ('silme' eksi satırları HESABA KATILMAZ: silerek tavan
+// açılıp yeniden kasılmasın). Verilecek miktar kalan hakka kırpılır (örn. tavan 6: 5 + 5 → 5 ve 1); hak bittiyse puan hiç yazılmaz,
+// içerik yine de yayınlanır (çağıran taraf bunu zaten ayrı yapar). Okuma + yazma tek transaction'da, kullanıcı satırı kilitliyken:
+// aynı kişinin eşzamanlı iki isteği aynı "kalan"ı görüp tavanı aşamasın. Yetkililer de aynı kurala tabidir.
+export async function tavanliPuanEkle(userId: number, miktar: number, sebep: "konu" | "cevap", ilgiliId: number) {
+  const tavan = (await puanKurallari()).gunlukTavan;
+  if (tavan === 0) return puanEkle(userId, miktar, sebep, ilgiliId);
+  const bag = await pool.getConnection();
+  try {
+    await bag.beginTransaction();
+    await bag.query("SELECT id FROM users WHERE id = ? FOR UPDATE", [userId]);
+    const [[bugun]]: any = await bag.query(
+      "SELECT COALESCE(SUM(miktar), 0) AS n FROM points_log WHERE user_id = ? AND sebep IN ('konu', 'cevap') AND miktar > 0 AND created_at >= CURDATE()",
+      [userId]);
+    const verilecek = Math.min(miktar, Math.max(0, tavan - Number(bugun.n)));
+    const p = await puanEkle(userId, verilecek, sebep, ilgiliId, bag); // 0 ise puanEkle hiçbir şey yazmaz
+    await bag.commit();
+    if (p.yeni !== p.eski) await rutbeKontrol(userId, p.eski, p.yeni);
+    return p;
+  } catch (hata) {
+    await bag.rollback();
+    throw hata;
+  } finally {
+    bag.release();
   }
 }
 
@@ -165,7 +215,7 @@ export async function rutbeKontrol(userId: number, eskiPuan: number, yeniPuan: n
   // yalnızca rütbe adı söylenir.
   const [[rol]]: any = await pool.query(
     "SELECT roles.name AS ad FROM users JOIN roles ON roles.id = users.role_id WHERE users.id = ?", [userId]);
-  const acilan = yetkiliMi(rol?.ad) ? [] : acilanlar(eski, yeni).map((a) => a.cumle);
+  const acilan = yetkiliMi(rol?.ad) ? [] : acilanlar(eski, yeni).filter((a) => !a.yakinda).map((a) => a.cumle);
   await bildirimGonder({
     alan: userId, yapan: null, tur: "rutbe",
     metin: `${yeni.name} oldun!${acilan.length ? " Artık " + acilan.join(", ") + "." : ""}`,

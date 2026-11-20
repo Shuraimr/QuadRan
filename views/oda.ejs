@@ -80,7 +80,7 @@
               <% if (o.devam) { %>
                 <span class="sohbet-yer"></span>
               <% } else { %>
-                <a class="avatar avatar-36" href="/profil/<%= m.yazar %>" aria-label="<%= m.yazar %> profili"><%= m.yazar[0] %></a>
+                <%- include("partials/avatar", { ad: m.yazar, url: m.avatar_url, sus: m.avatar_susu, sinif: "avatar-36", etiket: "a", href: "/profil/" + encodeURIComponent(m.yazar), ek: 'aria-label="' + m.yazar.replace(/"/g, "") + ' profili"', bos: true }) %>
               <% } %>
               <div class="sohbet-icerik">
                 <% if (!o.devam) { %>

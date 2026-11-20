@@ -342,7 +342,7 @@ svg { flex: none; }
 .banner { position: relative; height: 300px; border-radius: 24px; overflow: hidden; background: var(--ton) center / cover no-repeat; color: var(--ton-ustu); }
 .banner .kontur { opacity: .14; }
 .kimlik { position: relative; display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-top: -52px; padding-left: 32px; }
-.avatar-buyuk { width: 128px; height: 128px; border-radius: 32px; font-family: var(--baslik-tipi); font-size: 52px; outline: 6px solid var(--zemin); background-size: cover; background-position: center; }
+.avatar-buyuk { width: 128px; height: 128px; border-radius: 32px; font-family: var(--baslik-tipi); font-size: 52px; outline: 6px solid var(--zemin); }
 .kimlik-bilgi { flex: 1; min-width: 200px; display: grid; gap: 6px; padding-bottom: 4px; }
 .kimlik-bilgi h1 { font-family: var(--baslik-tipi); font-size: 36px; line-height: 1.1; }
 .kimlik .satir:last-child { padding-bottom: 8px; }

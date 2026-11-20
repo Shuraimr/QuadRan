@@ -1,0 +1,9 @@
+<%#
+  Avatar süsleri (Figma 33:4…35:579). avatar.ejs'in İÇİNDE çağrılır; süsün konumu avatarın genişliğine göre (cqw) olduğundan
+  her boyutta orantılı kalır. Veriler src/profil-gorunum.ts SUSLER'dan gelir (sabit metin, kullanıcıdan gelmez; bu yüzden SVG ham basılır).
+  Beklenen: sus (süs anahtarı ya da boş), tum (bool: önizleme için 6 süsü de çiz, seçili olmayanlar hidden)
+%><%
+  const hepsi_ = locals.tum ? Object.keys(SUSLER) : (locals.sus && SUSLER[locals.sus] ? [locals.sus] : []);
+  for (const ad_ of hepsi_) { %><span class="av-sus-grup" data-sus="<%= ad_ %>" aria-hidden="true"<%- locals.tum && ad_ !== locals.sus ? " hidden" : "" %>><%
+    for (const o_ of SUSLER[ad_]) { %><span class="av-sus-oge<%= o_.arka ? ' arka' : '' %><%= o_.ayna ? ' ayna' : '' %><%= o_.nabiz ? ' nabiz' : '' %>" style="--x:<%= o_.x %>;--y:<%= o_.y %>;--w:<%= o_.w %>;--h:<%= o_.h %>;--dx:<%= o_.dx %>;--dy:<%= o_.dy %>;--r0:<%= o_.r0 %>;--r1:<%= o_.r1 %><%= o_.kok ? ';--kok:' + o_.kok : '' %><%= o_.parilti ? ';--parilti:' + o_.parilti : '' %>"><%- SVG[o_.svg].svg %></span><% }
+  %></span><% } %>

@@ -12,7 +12,7 @@ import MySQLStoreFactory from "express-mysql-session";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
 import { pool } from "./db.ts";
-import { rutbeSutunlari, banliSql, bildir, geriAdres, puanEkle } from "./yardimci.ts";
+import { rutbeSutunlari, banliSql, bildir, geriAdres, puanEkle, premiumSql } from "./yardimci.ts";
 import { ayarlar } from "./ayarlar.ts";
 import { rutbeler, rutbeBul, acilanlar, oncekiRutbe, yetkiliMi } from "./rutbe.ts";
 import { okunmamisOdaVar } from "./odalar.ts";
@@ -71,6 +71,18 @@ export const oturum = session({
 // kaydeder ve çerezi gönderir; misafir formu gönderdiğinde belirteç yerinde durur.
 // (Girişte oturum kimliği yenilendiği için eski belirteç gider; bir sonraki sayfa yenisini üretir.)
 // ---------------------------------------------------------------------------
+// Çok parçalı (dosya yükleyen) POST adresleri: csrf kontrolü bunlarda multer'dan sonra yapılır (yukleme.ts)
+export const COKLU_PARCALI_ADRESLER = new Set(["/ayarlar/avatar", "/ayarlar/banner"]);
+
+// Gelen belirteç oturumdakiyle aynı mı? timingSafeEqual aynı uzunlukta olmayı ister; karşılaştırma süresi kaç karakterin tuttuğunu ele vermez.
+export function csrfEsit(req: Request, gelenHam: unknown): boolean {
+  const beklenen = req.session.csrf;
+  const gelen = typeof gelenHam === "string" ? gelenHam : "";
+  const a = Buffer.from(beklenen ?? "");
+  const b = Buffer.from(gelen);
+  return !!beklenen && a.length === b.length && timingSafeEqual(a, b);
+}
+
 export function csrfKoru(req: Request, res: Response, next: NextFunction) {
   // Dikkat: res.locals'a "getter" koymak işe yaramaz. Express sayfayı çizerken res.locals'ı kopyalar,
   // kopyalama getter'ı çağırır ve formu olmayan sayfada bile belirteç (dolayısıyla oturum) üretilirdi.
@@ -86,12 +98,13 @@ export function csrfKoru(req: Request, res: Response, next: NextFunction) {
   // Okuma istekleri (GET/HEAD) veri değiştirmez, kontrol gerekmez
   if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") return next();
 
-  const beklenen = req.session.csrf;
-  const gelen = typeof req.body?._csrf === "string" ? req.body._csrf : "";
-  const a = Buffer.from(beklenen ?? "");
-  const b = Buffer.from(gelen);
-  // timingSafeEqual aynı uzunlukta olmayı ister; karşılaştırma süresi, kaç karakterin tuttuğunu ele vermez
-  if (beklenen && a.length === b.length && timingSafeEqual(a, b)) return next();
+  // Dosya yükleme formları (multipart) urlencoded gövde gibi çözülmez: _csrf alanı ancak multer gövdeyi okuyunca ortaya çıkar.
+  // Bu yüzden YALNIZCA aşağıdaki sabit adresler için kontrol, multer'dan SONRA yüklemeKatmani'ndaki csrfDogrula'ya ertelenir
+  // (src/yukleme.ts). Başka bir adrese multipart POST gelirse gövde boş kalır ve aşağıdaki normal kontrolde 403 olur:
+  // koruma hiçbir yerde kapatılmış değildir, yalnızca doğrulama zamanı değişir.
+  if (req.is("multipart/form-data") && COKLU_PARCALI_ADRESLER.has(req.path)) return next();
+
+  if (csrfEsit(req, req.body?._csrf)) return next();
 
   // 403: tarayıcı 403 yanıtındaki Location başlığını izlemez; bu yüzden küçük bir sayfa
   // toast'u oturuma yazıp kullanıcıyı 0 saniyede geldiği sayfaya geri yollar.
@@ -154,7 +167,7 @@ async function rutbeKutlamasi(req: Request, res: Response, k: any) {
   const r = (await rutbeler()).find((x) => x.id === kutlama);
   if (!r) return;
   // Yönetici/moderatör zaten her ayrıcalığa sahip (bildirimdeki kuralla aynı): yalnızca "<Rütbe> oldun!"
-  const acilan = yetkiliMi(k.rol) ? [] : acilanlar(oncekiRutbe(r), r).map((a) => a.cumle);
+  const acilan = yetkiliMi(k.rol) ? [] : acilanlar(oncekiRutbe(r), r).filter((a) => !a.yakinda).map((a) => a.cumle);
   res.locals.bildirim = {
     tur: "basari", rutbe: { renk: r.renk, simge: r.simge },
     metin: `${r.name} oldun!${acilan.length ? " Artık " + acilan.join(", ") + "." : ""}`,
@@ -193,6 +206,8 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
 
   const [satirlar]: any = await pool.query(
     `SELECT users.id, users.username, users.points, users.tema, users.vurgu, users.menu_sagda,
+            users.premium_bitis, ${premiumSql("users")} AS premium_aktif, users.profil_efekti, users.profil_renk_ana, users.profil_renk_vurgu, users.profil_renk_gecis,
+            users.banner_url, users.avatar_hareketli, users.banner_hareketli,
             users.kompakt, users.az_animasyon, users.kutlama_rutbe_id, users.last_seen_at, users.banned_at, users.deleted_at, users.oturum_surumu,
             ${banliSql("users")} AS banli,
             roles.name AS rol,

@@ -80,7 +80,7 @@
         <% for (const k of mjListe) { %>
           <% const aktif = mjAcik && mjAcik.kullanici === k.kullanici; %>
           <a class="mesaj-satir <%= aktif ? 'aktif' : '' %> <%= k.okunmamis > 0 ? 'okunmamis' : '' %>" href="/mesajlar/<%= k.kullanici %>" <% if (aktif) { %>aria-current="page"<% } %>>
-            <span class="avatar avatar-48"><%= k.kullanici[0] %></span>
+            <%- include("partials/avatar", { ad: k.kullanici, url: k.avatar_url, sus: k.avatar_susu, sinif: "avatar-48", bos: true }) %>
             <span class="mesaj-satir-govde">
               <span class="mesaj-satir-ust">
                 <strong><%= k.kullanici %></strong>
@@ -115,7 +115,7 @@
         <a class="ikon-dugme mesaj-geri" href="/mesajlar" aria-label="Konuşma listesine dön"><%- include("partials/ikon", { ad: "cevap", boyut: 20 }) %></a>
         <%# Profile giden TEK bağlantı: avatar ve ad birlikte; durum satırı da bağlantının içinde, ikinci bağlantı yok %>
         <a class="mesaj-ust-kimlik" href="/profil/<%= mjAcik.kullanici %>">
-          <span class="avatar avatar-48"><%= mjAcik.kullanici[0] %></span>
+          <%- include("partials/avatar", { ad: mjAcik.kullanici, url: mjAcik.avatar_url, sus: mjAcik.avatar_susu, sinif: "avatar-48", bos: true }) %>
           <span class="mesaj-ust-bilgi">
             <strong><%= mjAcik.kullanici %></strong>
             <% if (mjAcik.cevrimici) { %>
