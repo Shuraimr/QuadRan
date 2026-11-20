@@ -5,5 +5,5 @@
 %><%
   const hepsi_ = locals.tum ? Object.keys(SUSLER) : (locals.sus && SUSLER[locals.sus] ? [locals.sus] : []);
   for (const ad_ of hepsi_) { %><span class="av-sus-grup" data-sus="<%= ad_ %>" aria-hidden="true"<%- locals.tum && ad_ !== locals.sus ? " hidden" : "" %>><%
-    for (const o_ of SUSLER[ad_]) { %><span class="av-sus-oge<%= o_.arka ? ' arka' : '' %><%= o_.ayna ? ' ayna' : '' %><%= o_.nabiz ? ' nabiz' : '' %>" style="--x:<%= o_.x %>;--y:<%= o_.y %>;--w:<%= o_.w %>;--h:<%= o_.h %>;--dx:<%= o_.dx %>;--dy:<%= o_.dy %>;--r0:<%= o_.r0 %>;--r1:<%= o_.r1 %><%= o_.kok ? ';--kok:' + o_.kok : '' %><%= o_.parilti ? ';--parilti:' + o_.parilti : '' %>"><%- SVG[o_.svg].svg %></span><% }
+    for (const o_ of SUSLER[ad_]) { %><span class="av-sus-oge<%= o_.arka ? ' arka' : '' %><%= o_.ayna ? ' ayna' : '' %><%= o_.nabiz ? ' nabiz' : '' %><%= o_.don ? ' don' : '' %>" style="--x:<%= o_.x %>;--y:<%= o_.y %>;--w:<%= o_.w %>;--h:<%= o_.h %>;--dx:<%= o_.dx %>;--dy:<%= o_.dy %>;--r0:<%= o_.r0 %>;--r1:<%= o_.r1 %><%= o_.kok ? ';--kok:' + o_.kok : '' %><%= o_.parilti ? ';--parilti:' + o_.parilti : '' %>"><%- SVG[o_.svg].svg %></span><% }
   %></span><% } %>

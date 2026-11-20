@@ -76,6 +76,13 @@
 *, *::before, *::after { box-sizing: border-box; }
 html { color-scheme: dark; }
 [data-tema="acik"] { color-scheme: light; }
+/* Dokunulan bağlantı/resim/düğmenin üstünde telefon tarayıcısının çizdiği anlık mavi kutu kapalı (kullanıcı isteği):
+   basılma geri bildirimi zaten :active ve dalga efektiyle veriliyor. Klavye odak çerçevesi (:focus-visible) DURUR, erişilebilirlik için. */
+html { -webkit-tap-highlight-color: transparent; }
+/* Resim, avatar ve düğmeye çift tıklayınca/uzun basınca mavi metin seçimi olmasın; resim sürüklenince hayalet kopya çıkmasın.
+   Yazılar (konu, mesaj) seçilebilir kalır. */
+img, svg, button, .buton, .avatar, .cip, .etiket { -webkit-user-select: none; user-select: none; }
+img { -webkit-user-drag: none; }
 body {
   margin: 0;
   background: var(--zemin);

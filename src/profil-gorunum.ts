@@ -7,16 +7,26 @@
 
 export const EFEKT_ADLARI: Record<string, string> = {
   cadilar: "Cadılar Bayramı", melek: "Melek", seytan: "Şeytan", kar: "Kar fırtınası", sakura: "Sakura", atesbocegi: "Ateş böcekleri",
+  ejderha: "Ejderha",
 };
 export const SUS_ADLARI: Record<string, string> = {
   cadi_sapkasi: "Cadı şapkası", hale_kanat: "Hale ve kanat", boynuz_kuyruk: "Boynuz ve kuyruk", bere: "Kış bere", kiraz: "Kiraz çiçeği", fener: "Fener",
+  ejderha: "Ejderha",
 };
 // Efektin kartta varsayılan renkleri (Figma). Kişi kendi rengini seçmediyse efektin kendi renkleri DEĞİL, sitenin tokenları kullanılır;
 // bunlar yalnızca efekt seçici kutucuklarındaki küçük renkli önizleme için.
 export const EFEKT_RENKLERI: Record<string, [string, string]> = {
   cadilar: ["#4b2a6b", "#1b1026"], melek: ["#8fa3e8", "#3b4675"], seytan: ["#7a0f14", "#1a0606"],
   kar: ["#2d4a7a", "#0e1a2e"], sakura: ["#e79bb4", "#3a2433"], atesbocegi: ["#1f3b2e", "#0a1410"],
+  ejderha: ["#3a3122", "#121010"],
 };
+
+// Ejderha (Figma "12 · Premium: Ejderha süsü ve efekti"): ayrıntılı illüstrasyon olduğu için SVG değil, şeffaf WebP görseldir
+// (Figma'nın görsel üretme aracıyla üretildi, arka planı şeffaflaştırıldı; 560px = en büyük avatarda bile 2x keskin).
+// Aynı dosya hem avatar süsünde (döner) hem efektin banner'ındaki soluk gölgede kullanılır, tarayıcı bir kez indirir.
+const EJDERHA = "/img/susler/ejderha.webp";
+// Uğurlu bulut (Doğu süslemelerindeki kıvrımlı "xiangyun"); renk parametresi yalnızca bu dosyadaki sabitlerden gelir
+const bulut = (renk: string) => `<svg width="150" height="45" viewBox="-14 -4 160 44"><g fill="none" stroke="${renk}" stroke-width="1.6" stroke-linecap="round"><path d="M0 30 H120 M8 30 C2 18 14 6 26 12 C28 2 44 -2 52 8 C58 -4 78 -2 80 12 C92 6 104 14 100 26"/><path d="M26 12 C30 18 40 18 40 12 C40 7 34 6 33 10 M52 8 C54 16 66 18 68 10 C69 4 62 2 61 7 M80 12 C82 20 92 22 94 16"/><path d="M120 30 C130 30 136 24 132 18 C129 14 124 17 126 21 M0 30 C-8 30 -12 24 -8 20 C-5 17 -1 20 -3 23"/></g></svg>`;
 
 export const efektGecerli = (s: unknown): s is string => typeof s === "string" && s in EFEKT_ADLARI;
 export const susGecerli = (s: unknown): s is string => typeof s === "string" && s in SUS_ADLARI;
@@ -53,6 +63,11 @@ export const SVG: Record<string, { w: number; h: number; svg: string; tam?: bool
   cicek: { w: 30, h: 30, svg: `<svg width="30" height="30" viewBox="0 0 30 30"><g fill="#ffc2d6"><circle cx="15" cy="7" r="7"/><circle cx="23" cy="13" r="7"/><circle cx="20" cy="23" r="7"/><circle cx="10" cy="23" r="7"/><circle cx="7" cy="13" r="7"/></g><circle cx="15" cy="15" r="4" fill="#ff7aa2"/></svg>` },
   bocek: { w: 8, h: 8, svg: `<svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" fill="#e9ff8a"/></svg>` },
   ay: { w: 56, h: 56, svg: `<svg width="56" height="56" viewBox="0 0 56 56"><path d="M40 4 A26 26 0 1 0 52 40 A20 20 0 1 1 40 4Z" fill="#f6f1c7"/></svg>` },
+  ejderha_halka: { w: 560, h: 560, svg: `<img src="${EJDERHA}" alt="" width="560" height="560" decoding="async">` },
+  ejderha_golge: { w: 420, h: 420, svg: `<img src="${EJDERHA}" alt="" width="420" height="420" decoding="async">` },
+  bulut: { w: 150, h: 45, svg: bulut("#f1ece0") },
+  bulut_altin: { w: 150, h: 45, svg: bulut("#d9b45a") },
+  altin: { w: 6, h: 6, svg: `<svg width="6" height="6" viewBox="0 0 6 6"><circle cx="3" cy="3" r="2.5" fill="#ffd27a"/></svg>` },
   fener: { w: 26, h: 38, svg: `<svg width="26" height="38" viewBox="0 0 26 38"><path d="M13 0 V6" stroke="#5a4a2a" stroke-width="2"/><rect x="5" y="6" width="16" height="4" rx="1" fill="#5a4a2a"/><rect x="4" y="10" width="18" height="22" rx="5" fill="#ffd36b"/><rect x="5" y="32" width="16" height="4" rx="1" fill="#5a4a2a"/></svg>` },
 };
 
@@ -128,6 +143,17 @@ export const EFEKTLER: Record<string, Efekt> = {
     on: [[40, 300], [90, 250], [150, 330], [220, 280], [260, 200], [180, 120], [60, 140], [240, 390], [120, 410], [270, 60]].map(([x, y], i) =>
       g("bocek", x, y, x + (i % 2 ? -21 : 21), y - [30, 40, 50, 35, 45, 30, 50, 40, 35, 45][i], 0, 0, [0, 1, 2, 3, 1, 2, 3, 0, 2, 1][i], { parilti: "#d4ff3a" })),
   },
+  // Banner'ın içinden soluk, büyük ejderha yavaşça süzülür; kartın alt/üst kenarında bulutlar kayar, altın kıvılcımlar yükselip söner
+  ejderha: {
+    arka: [s("ejderha_golge", 40, -170, 70, -160, -40, -34, { op: .3 })],
+    on: [
+      s("bulut", -50, 396, -20, 396, 0, 0, { op: .55 }),
+      s("bulut_altin", 168, 412, 140, 412, 0, 0, { op: .5, faz: 2 }),
+      s("bulut", 186, 6, 160, 6, 0, 0, { op: .4, faz: 1 }),
+      ...[30, 95, 150, 210, 260, 120, 230, 60].map((x, i) =>
+        g("altin", x, 430, x + [12, -12, 8, -10, 12, -8, 10, -12][i], [240, 200, 280, 220, 260, 300, 190, 270][i], 0, 0, [0, 1, 2, 3, 0, 2, 3, 1][i], { parilti: "#ffc94a", op: .9 })),
+    ],
+  },
 };
 
 // Avatar süsleri. Konumlar Figma'da "avatar çerçevesi"ne (100px; avatar 88px + 6px halka, kartta x=12,y=54) göre kart koordinatıdır;
@@ -139,6 +165,7 @@ const bt = (svg: keyof typeof SVG) => ({ w: f(SVG[svg].w / 0.88), h: f(SVG[svg].
 export type Sus = {
   svg: keyof typeof SVG; x: number; y: number; w: number; h: number; dx: number; dy: number; r0: number; r1: number;
   ayna?: boolean; arka?: boolean; parilti?: string; nabiz?: boolean; kok?: string;
+  don?: boolean; // avatarın merkezi çevresinde sürekli döner (sallanmak yerine); ejderha halkası
 };
 const sus = (svg: keyof typeof SVG, X: number, Y: number, dY: number, r0: number, r1: number, ek: Partial<Sus> = {}): Sus =>
   ({ svg, ...A(X, Y), ...bt(svg), dx: 0, dy: f(dY / 0.88), r0, r1, ...ek });
@@ -157,4 +184,7 @@ export const SUSLER: Record<string, Sus[]> = {
   bere: [sus("bere", 16, 32, -2, -3, 3)],
   kiraz: [sus("cicek", 82, 52, 0, 0, 20)],
   fener: [sus("fener", 104, 40, 0, -10, 10, { parilti: "#ffc94a", kok: "50% 0%" })],
+  // Halka avatarın 2,05 katı; ortası boş olduğundan avatar görünür kalır. Küçük avatarlarda (≤48px) CSS halkayı 1,6 kata indirir,
+  // komşu yazının üstüne taşmasın (efektler.css "Ejderha halkası").
+  ejderha: [{ svg: "ejderha_halka", x: -52.5, y: -52.5, w: 205, h: 205, dx: 0, dy: 0, r0: 0, r1: 0, don: true }],
 };

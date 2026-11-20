@@ -30,6 +30,26 @@ a.avatar, button.avatar { cursor: pointer; }
 .avatar-oynat .av-sus-oge, .avatar:hover .av-sus-oge { animation: av-sallan 1.8s var(--egri-cikis) infinite alternate; }
 .avatar-oynat .av-sus-oge.nabiz { animation: av-sallan 1.8s var(--egri-cikis) infinite alternate, av-nabiz 1.4s ease-in-out infinite alternate; }
 .avatar:not(.avatar-oynat):hover .av-sus-oge { animation-iteration-count: 1; animation-direction: normal; }
+/* Ejderha halkası (görsel süs): sallanmaz, avatarın merkezi çevresinde döner. Büyük boyutta 12 sn'de bir tur, sürekli;
+   listelerde durağan, üzerine gelince 4 sn'de bir tur atıp durur. Azaltılmış harekette quadran.css bütün animasyonları kapatır. */
+.av-sus-oge img { display: block; width: 100%; height: 100%; }
+/* Ölçü burada (satır içi --x/--w değil): satır içi stil kapsayıcı sorgusundaki küçük boyutu ezerdi */
+.av-sus-oge.don { transform: none; left: -52.5cqw; top: -52.5cqw; width: 205cqw; height: 205cqw; }
+@keyframes av-don { to { transform: rotate(360deg); } }
+.avatar-oynat .av-sus-oge.don { animation: av-don 12s linear infinite; }
+.avatar:not(.avatar-oynat):hover .av-sus-oge.don { animation: av-don 4s var(--egri-cikis) 1; }
+/* Küçük avatarda (yorum, liste) halka 1,6 kata iner: ortası avatarın kenarlarına biner ama komşu yazının üstüne taşmaz */
+@container (max-width: 48px) { .av-sus-oge.don { left: -25cqw; top: -25cqw; width: 150cqw; height: 150cqw; } }
+/* ...ve küçük avatar halkanın taştığı 1/4'lük pay kadar kenar boşluğu alır, yanındaki isim/yazı halkanın altında kalmaz */
+.avatar:has(.av-sus-oge.don):not(.avatar-buyuk, .avatar-kart, .avatar-ust) { margin-inline: 8px; }
+.avatar.avatar-48:has(.av-sus-oge.don):not(.avatar-ust) { margin: 12px; }
+/* Profil başlığında halka avatarın %52'si kadar dışarı taşar: isim ve sol kenar ona yer açar (üst üste binmez) */
+.kimlik:has(.av-sus-oge.don) { padding-left: 76px; gap: 72px; margin-bottom: 52px; }
+/* Telefonda isim avatarın altına iner: boşluğu bütün başlık değil yalnızca avatar alır (isim ve düğmeler sola hizalı kalır) */
+@media (max-width: 800px) {
+  .kimlik:has(.av-sus-oge.don) { padding-left: 16px; gap: 12px; margin-bottom: 0; }
+  .kimlik > .avatar:has(.av-sus-oge.don) { margin: 0 46px 34px 30px; }
+}
 
 /* ---------- Efekt parçacıkları ---------- */
 .ef-katman { position: absolute; inset: 0; overflow: hidden; pointer-events: none; container-type: size; }
@@ -67,7 +87,8 @@ a.avatar, button.avatar { cursor: pointer; }
 .ef-sabit.nabiz { animation: ef-sabit 1.8s ease-in-out infinite alternate, ef-nabiz 1.4s ease-in-out infinite alternate; }
 /* Sekme gizliyken ya da ekran dışındayken tarayıcı zaten durdurur; ek olarak mini önizlemeler yalnızca üzerine gelince oynar */
 .ef-mini .ef-p { animation-play-state: paused; }
-.ef-mini .ef-p svg { scale: .5; transform-origin: 0 0; }
+.ef-mini .ef-p svg, .ef-mini .ef-p img { scale: .5; transform-origin: 0 0; }
+.ef-p img { display: block; max-width: none; }
 .efekt-kutu:hover .ef-mini .ef-p, .efekt-kutu:has(input:checked) .ef-mini .ef-p { animation-play-state: running; }
 
 /* ---------- Profil kartı (.pk) ---------- */
@@ -91,6 +112,9 @@ a.avatar, button.avatar { cursor: pointer; }
 .pk-ad a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .pk-bio { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--yazi-2); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .pk-metin .baglanti { color: var(--pk-vurgu, var(--vurgu)); }
+/* Ejderha halkası avatarın %52'si kadar taşar (88px → 46px): avatar ve metin içeri kayar, halka kart kenarında kesilmez, isme binmez */
+.pk:has(.av-sus-oge.don) .pk-avatar { left: 46px; }
+.pk:has(.av-sus-oge.don) .pk-metin { padding: 98px 22px 18px 46px; }
 
 /* ---------- Profil sayfasının üst bölümü ---------- */
 .profil-ust { position: relative; }
