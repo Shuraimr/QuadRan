@@ -8,9 +8,17 @@
   arama    true ise açıklamanın altında arama kutusu (GET /ara, alan q)
   saniye   429: sunucudan gelen kalan süre; quadran.js data-geri-sayim ile geriye sayar, JS yoksa düz metin kalır
   eylemler [ { href, etiket, tur: "tonal" | "cerceveli" | "birincil" } ]
+  kod      (isteğe bağlı) 404/500...: arkada büyük, yalnızca kenar çizgisiyle çizilmiş rakam + "Sayfa yok · 404" çipi.
+           Neden: sayfaya karakter verir ama renk yığmaz (gradyan/görsel yok); kod da destek isterken söylenebilsin diye görünür.
+  etiket   kodun yanındaki kısa ad ("Sayfa yok")
+  kategoriler (isteğe bağlı, 404) [ { id, name } ]: "Belki şuralara bakarsın" çipleri; kayıp kişiye çıkış yolu
 %>
 <section class="durum-govde" aria-labelledby="durum-baslik">
-  <span class="durum-ikon"><%- include("ikon", { ad: ikon, boyut: 24 }) %></span>
+  <div class="durum-sahne<%= locals.kod ? '' : ' durum-sahne-kodsuz' %>">
+    <% if (locals.kod) { %><span class="durum-kod" aria-hidden="true"><%= kod %></span><% } %>
+    <span class="durum-ikon"><%- include("ikon", { ad: ikon, boyut: 26 }) %></span>
+  </div>
+  <% if (locals.kod && locals.etiket) { %><p class="durum-cip"><%= etiket %> · <span><%= kod %></span></p><% } %>
   <h1 class="durum-baslik" id="durum-baslik"><%= baslik %></h1>
   <p class="durum-metin"><%= metin %></p>
   <% if (locals.saniye) { %>
@@ -21,6 +29,12 @@
     <form class="durum-arama" method="get" action="/ara" role="search">
       <label class="alan"><span>Ara</span><input type="search" name="q" placeholder="Konu, kullanıcı ya da kategori ara" autocomplete="off"></label>
     </form>
+  <% } %>
+  <% if (locals.kategoriler && kategoriler.length) { %>
+    <nav class="durum-oneri" aria-label="Kategoriler">
+      <p>Belki şuralara bakarsın</p>
+      <div><% for (const c of kategoriler.slice(0, 6)) { %><a href="/?kategori=<%= c.id %>"><span aria-hidden="true">#</span><%= c.name %></a><% } %></div>
+    </nav>
   <% } %>
   <% if (locals.eylemler && eylemler.length) { %>
     <div class="durum-eylemler">

@@ -2,7 +2,7 @@
    Neden bu kadar dar? Sayfaları önbelleğe alırsak kişi eski içerik görür (silinmiş konu, eski puan). Bu yüzden başka HİÇBİR ŞEY
    önbelleğe alınmaz: gezinme isteği normal ağdan gider; yalnızca AĞ HATASI olursa hazır çevrimdışı sayfası gösterilir.
    Çevrimdışı sayfası kendi başına yetmeli: stil sayfanın içinde, betiği /js/cevrimdisi.js; ikisi de burada önbellekte tutulur. */
-var SURUM = "quadran-cevrimdisi-v1";
+var SURUM = "quadran-cevrimdisi-v2"; /* çevrimdışı sayfası değişince artır: eski önbellek silinir */
 var DOSYALAR = ["/cevrimdisi", "/js/cevrimdisi.js"];
 
 self.addEventListener("install", function (olay) {

@@ -598,7 +598,37 @@
 .durum-sayfa { display: grid; place-items: center; min-height: calc(100vh - 160px); padding: 32px 24px; }
 .orta-sayfa .durum-govde { position: relative; }
 .durum-govde { display: grid; justify-items: center; gap: 12px; width: 100%; max-width: 420px; text-align: center; }
-.durum-ikon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); color: var(--yazi-2); }
+/* Sahne: arkada yalnızca kenar çizgisiyle çizilmiş büyük kod (404), önünde ton renkli ikon kutusu. Kutunun zemin renginde kalın
+   çerçevesi rakamı "keser": tek renk ve gradyansız ama karakterli. Kodsuz kullanımda (çevrimdışı vb.) yalnızca kutu kalır. */
+.durum-sahne { position: relative; display: grid; place-items: center; width: 100%; height: 136px; margin-bottom: 4px; }
+.durum-sahne-kodsuz { height: auto; }
+.durum-kod {
+  font-family: var(--baslik-tipi); font-weight: 700; font-size: 132px; line-height: 1; letter-spacing: -0.05em;
+  color: transparent; -webkit-text-stroke: 1.5px var(--kenar); font-variant-numeric: tabular-nums; user-select: none;
+  transform: translateY(-14px);
+}
+@supports not (-webkit-text-stroke: 1px black) { .durum-kod { color: var(--yuzey-2); } }
+.durum-ikon {
+  display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px;
+  background: var(--ton); color: var(--ton-ustu); box-shadow: 0 0 0 6px var(--zemin);
+}
+.durum-sahne:not(.durum-sahne-kodsuz) .durum-ikon { position: absolute; left: 50%; bottom: 0; margin-left: -32px; }
+.durum-cip { margin: 0; padding: 4px 10px; border-radius: 8px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); font-size: 12px; font-weight: 600; color: var(--yazi-2); }
+.durum-cip span { font-variant-numeric: tabular-nums; color: var(--yazi); }
+/* Giriş: sahne hafifçe yerine oturur, metin arkasından gelir; "Animasyonları azalt"ta süreler 0 olduğundan doğrudan son hâl */
+.durum-govde > * { animation: durum-gir var(--sure-yavas) var(--egri-cikis) both; }
+.durum-govde > :nth-child(2) { animation-delay: 40ms; }
+.durum-govde > :nth-child(n+3) { animation-delay: 80ms; }
+@keyframes durum-gir { from { opacity: 0; transform: translateY(8px); } }
+.durum-sahne .durum-ikon { animation: durum-ikon-gir var(--sure-yavas) var(--egri-yay) both 60ms; }
+@keyframes durum-ikon-gir { from { opacity: 0; transform: scale(.8); } }
+/* 404 önerileri: kategori çipleri (# ad), sitedeki kenar menü diliyle */
+.durum-oneri { display: grid; justify-items: center; gap: 8px; width: 100%; margin-top: 8px; }
+.durum-oneri p { margin: 0; font-size: 13px; color: var(--yazi-2); }
+.durum-oneri div { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.durum-oneri a { display: inline-flex; align-items: center; gap: 2px; min-height: 36px; padding: 0 12px; border-radius: 10px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); color: var(--yazi); font-size: 14px; font-weight: 500; transition: background var(--sure-hizli) var(--egri-cikis); }
+.durum-oneri a span { color: var(--yazi-2); }
+.durum-oneri a:hover { background: var(--yuzey-3); }
 .durum-baslik { margin: 4px 0 0; font-family: var(--baslik-tipi); font-weight: 700; font-size: 24px; line-height: 1.25; }
 .durum-metin { margin: 0; font-size: 15px; line-height: 1.5; color: var(--yazi-2); }
 .durum-sayim { margin: 0; font-size: 14px; color: var(--yazi-2); font-variant-numeric: tabular-nums; }
@@ -610,6 +640,9 @@
   .durum-sayfa { min-height: calc(100vh - 220px); }
   .durum-eylemler { width: 100%; }
   .durum-eylemler .buton { flex: 1 1 140px; height: 44px; }
+  .durum-sahne { height: 112px; }
+  .durum-kod { font-size: 104px; transform: translateY(-12px); }
+  .durum-oneri a { min-height: 44px; }
 }
 
 /* Boş durum: durum sayfasının kart içindeki küçük kardeşi (partials/bos-durum.ejs) */

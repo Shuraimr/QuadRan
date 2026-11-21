@@ -10,27 +10,29 @@
 <%
   const AKISA = { href: "/", etiket: "Akışa dön", tur: "tonal" };
   const DURUMLAR = {
-    404: { ikon: "pusula", baslik: "Bu sayfa bulunamadı", metin: "Adres değişmiş ya da sayfa kaldırılmış olabilir. Aradığın şeyi aşağıdan bulabilirsin.", arama: true, eylemler: [{ href: "/", etiket: "Akışa dön", tur: "cerceveli" }] },
-    403: { ikon: "kilit", baslik: "Bu sayfaya erişimin yok", metin: "Bu bölüm yalnızca yetkili hesaplara açık.", eylemler: [AKISA] },
-    429: { ikon: "kumsaati", baslik: "Biraz yavaşla", metin: "Kısa sürede çok fazla istek geldi. Az sonra kaldığın yerden devam edebilirsin.",
+    404: { etiket: "Sayfa yok", ikon: "pusula", baslik: "Bu sayfa bulunamadı", metin: "Adres değişmiş ya da sayfa kaldırılmış olabilir. Aradığın şeyi aşağıdan bulabilirsin.", arama: true, eylemler: [{ href: "/", etiket: "Akışa dön", tur: "cerceveli" }] },
+    403: { etiket: "Yetki yok", ikon: "kilit", baslik: "Bu sayfaya erişimin yok", metin: "Bu bölüm yalnızca yetkili hesaplara açık.", eylemler: [AKISA] },
+    429: { etiket: "Çok fazla istek", ikon: "kumsaati", baslik: "Biraz yavaşla", metin: "Kısa sürede çok fazla istek geldi. Az sonra kaldığın yerden devam edebilirsin.",
            eylemler: [{ href: locals.yenileAdresi || "/", etiket: "Şimdi tekrar dene", tur: "birincil", geriSayimBitti: true }, AKISA] },
-    500: { ikon: "uyari", baslik: "Bir şeyler ters gitti", metin: "Sayfa yüklenemedi. Sorun bizde; birkaç saniye sonra tekrar dene.", eylemler: [{ href: locals.yenileAdresi || "/", etiket: "Sayfayı yenile", tur: "birincil" }, AKISA] },
-    503: { ikon: "anahtar", baslik: "Kısa bir bakımdayız", metin: "Site güncelleniyor.", eylemler: [{ href: "/giris", etiket: "Yetkili girişi", tur: "cerceveli" }] },
+    500: { etiket: "Sunucu hatası", ikon: "uyari", baslik: "Bir şeyler ters gitti", metin: "Sayfa yüklenemedi. Sorun bizde; birkaç saniye sonra tekrar dene.", eylemler: [{ href: locals.yenileAdresi || "/", etiket: "Sayfayı yenile", tur: "birincil" }, AKISA] },
+    503: { etiket: "Bakım", ikon: "anahtar", baslik: "Kısa bir bakımdayız", metin: "Site güncelleniyor.", eylemler: [{ href: "/giris", etiket: "Yetkili girişi", tur: "cerceveli" }] },
   };
   const d = Object.assign({}, DURUMLAR[kod] || DURUMLAR[500]);
   if (locals.metin) d.metin = kod === 503 ? "Site güncelleniyor. " + metin : metin;
   const menusuz = kod === 503 || !!locals.sade;
+  // 404'te kayıp kişiye kategoriler önerilir (ortak veriler hazırsa; menüsüz/hata sayfasında yok)
+  const veri_ = Object.assign({}, d, { kod, saniye: locals.saniye, kategoriler: kod === 404 && !menusuz ? (locals.menuKategoriler || []) : [] });
 %>
 <%- include("partials/bas", { sade: menusuz, baslik: d.baslik }) %>
 <% if (menusuz) { %>
   <div class="orta-sayfa">
     <a class="logo" href="/"><span class="logo-isaret">Q</span><span class="logo-yazi">QuadRan</span></a>
-    <%- include("partials/durum-icerik", Object.assign({}, d, { saniye: locals.saniye })) %>
+    <%- include("partials/durum-icerik", veri_) %>
   </div>
 <% } else { %>
   <%- include("partials/ust-cubuk") %>
   <main class="durum-sayfa">
-    <%- include("partials/durum-icerik", Object.assign({}, d, { saniye: locals.saniye })) %>
+    <%- include("partials/durum-icerik", veri_) %>
   </main>
 <% } %>
 <%- include("partials/son", { sade: menusuz }) %>

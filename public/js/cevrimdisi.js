@@ -9,7 +9,7 @@
   function yaz() {
     if (!son) return;
     var sn = Math.round((Date.now() - zaman) / 1000);
-    son.textContent = sn < 10 ? "Son deneme: az önce" : sn < 60 ? "Son deneme: " + sn + " sn önce" : "Son deneme: " + Math.floor(sn / 60) + " dk önce";
+    son.textContent = "Bağlantı bekleniyor · son deneme " + (sn < 10 ? "az önce" : sn < 60 ? sn + " sn önce" : Math.floor(sn / 60) + " dk önce");
   }
   function dene() {
     zaman = Date.now(); yaz();

@@ -7,17 +7,27 @@
   <!-- Bu sayfa service worker tarafından önbellekte tutulur ve çevrimdışıyken gösterilir; sunucu CSS'ine ulaşamayacağı için
        stil burada satır içi (CSP satır içi stile izin verir). Renkler site token'larının aynısı; tema, tarayıcının açık/koyu tercihine bağlı. -->
   <style>
-    :root { --zemin: #121212; --yuzey-2: #1E1E21; --kenar-ince: #29292D; --yazi: #EDEDED; --yazi-2: #A3A3A8; --vurgu: #9DB4FF; --vurgu-ustu: #0A1433; }
-    @media (prefers-color-scheme: light) { :root { --zemin: #E9EEF5; --yuzey-2: #FFFFFF; --kenar-ince: #DAE1EA; --yazi: #0B1220; --yazi-2: #4A5568; --vurgu: #2E4BB8; --vurgu-ustu: #FFFFFF; } }
+    :root { --zemin: #121212; --yuzey-2: #1E1E21; --kenar-ince: #29292D; --yazi: #EDEDED; --yazi-2: #A3A3A8; --vurgu: #9DB4FF; --vurgu-ustu: #0A1433; --ton: #2A3A73; --ton-ustu: #D6DFFF; --bekliyor: #F2C14E; }
+    @media (prefers-color-scheme: light) { :root { --zemin: #E9EEF5; --yuzey-2: #FFFFFF; --kenar-ince: #DAE1EA; --yazi: #0B1220; --yazi-2: #4A5568; --vurgu: #2E4BB8; --vurgu-ustu: #FFFFFF; --ton: #DCE3FF; --ton-ustu: #13235E; --bekliyor: #9A6A00; } }
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; display: grid; grid-template-rows: 1fr auto; background: var(--zemin); color: var(--yazi); font-family: Inter, system-ui, sans-serif; }
     main { display: grid; place-items: center; padding: 32px 24px; }
     section { display: grid; justify-items: center; gap: 12px; max-width: 420px; text-align: center; }
-    .ikon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); color: var(--yazi-2); }
+    .ikon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: var(--ton); color: var(--ton-ustu); }
+    .cip { margin: 0; padding: 4px 10px; border-radius: 8px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); font-size: 12px; font-weight: 600; color: var(--yazi-2); }
+    /* Bekleme göstergesi: sarı (bekliyor durum rengi) nokta, sayfa kendini denedikçe nabız gibi atar; azaltılmış harekette durağan */
+    .bekle { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 0; padding: 8px 12px; border-radius: 12px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); font-size: 13px; color: var(--yazi-2); }
+    .nokta { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--bekliyor); }
+    .nokta::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--bekliyor); animation: nabiz 1.6s cubic-bezier(.2,0,0,1) infinite; }
+    @keyframes nabiz { from { transform: scale(1); opacity: .6; } to { transform: scale(2.8); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .nokta::after { animation: none; display: none; } }
+    section > * { animation: gir .32s cubic-bezier(.2,0,0,1) both; }
+    section > :nth-child(n+2) { animation-delay: 60ms; }
+    @keyframes gir { from { opacity: 0; transform: translateY(8px); } }
+    @media (prefers-reduced-motion: reduce) { section > * { animation: none; } }
     h1 { margin: 4px 0 0; font-family: "Space Grotesk", Inter, system-ui, sans-serif; font-size: 24px; line-height: 1.25; }
     p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--yazi-2); }
-    .son { font-size: 13px; }
-    footer { padding: 16px 24px calc(16px + env(safe-area-inset-bottom)); }
+        footer { padding: 16px 24px calc(16px + env(safe-area-inset-bottom)); }
     .buton { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 456px; height: 48px; margin: 0 auto; border-radius: 24px; background: var(--vurgu); color: var(--vurgu-ustu); font-size: 15px; font-weight: 600; text-decoration: none; }
     .buton:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 2px; }
   </style>
@@ -26,11 +36,12 @@
   <main>
     <section>
       <span class="ikon" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>
       </span>
+      <p class="cip">Çevrimdışı</p>
       <h1>İnternet bağlantın yok</h1>
-      <p>Bağlantı gelince sayfa kendiliğinden yenilenecek.</p>
-      <p class="son" id="son-deneme" role="status">Son deneme: az önce</p>
+      <p>QuadRan'a şu an ulaşılamıyor. Bağlantı gelince sayfa kendiliğinden yenilenecek.</p>
+      <p class="bekle"><span class="nokta" aria-hidden="true"></span><span id="son-deneme" role="status">Bağlantı bekleniyor · son deneme az önce</span></p>
     </section>
   </main>
   <footer><a class="buton" id="tekrar-dene" href="">Tekrar dene</a></footer>
