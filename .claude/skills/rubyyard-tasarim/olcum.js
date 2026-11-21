@@ -1,4 +1,4 @@
-/* QuadRan arayüz ölçümleri.
+/* rubyyard arayüz ölçümleri.
    Kullanım: yerleşik tarayıcıda oturum açık bir sayfadayken (örn. http://localhost:3000/) bu dosyanın içeriğini
    javascript_tool ile çalıştır, sonra istediğin ölçümü çağır:
      await ulasilabilirlik('/konu/1')          → hedef × ölçek tablosu + menülerde tekrar

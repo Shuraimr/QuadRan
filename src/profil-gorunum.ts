@@ -1,3 +1,10 @@
+// Profile appearance: effects, avatar decorations and colour validation (Figma "11 · Premium: profil efektleri ve renk").
+//
+// This file holds DATA only: which particle sits where, which decoration goes on which part of the avatar. Drawing is done by
+// views/partials/profil-efekt.ejs and avatar-sus.ejs, and motion by public/css/efektler.css (CSS @keyframes).
+// Positions are PIXELS relative to the 300×440 card in Figma (BACK-layer particles are scaled to the banner box, FRONT-layer ones to the whole card: user decision, the effect does not go behind the text); the template converts them to percentages, so the ratio is kept however much the card grows or shrinks.
+// The SVG strings are CONSTANT texts in this file (nothing from the user goes in), so the template can print them with <%- %>.
+//
 // Profil görünümü: efektler, avatar süsleri ve renk doğrulaması (Figma "11 · Premium: profil efektleri ve renk").
 //
 // Bu dosya yalnızca VERİ tutar: hangi parçacık nerede durur, hangi süs avatarın neresine konur. Çizimi
@@ -13,6 +20,8 @@ export const SUS_ADLARI: Record<string, string> = {
   cadi_sapkasi: "Cadı şapkası", hale_kanat: "Hale ve kanat", boynuz_kuyruk: "Boynuz ve kuyruk", bere: "Kış bere", kiraz: "Kiraz çiçeği", fener: "Fener",
   ejderha: "Ejderha",
 };
+// The effect's default colours on the card (Figma). If the person has not picked their own colour, the site's tokens are used, NOT the effect's own colours;
+// these are only for the small coloured preview in the effect picker tiles.
 // Efektin kartta varsayılan renkleri (Figma). Kişi kendi rengini seçmediyse efektin kendi renkleri DEĞİL, sitenin tokenları kullanılır;
 // bunlar yalnızca efekt seçici kutucuklarındaki küçük renkli önizleme için.
 export const EFEKT_RENKLERI: Record<string, [string, string]> = {
@@ -21,20 +30,27 @@ export const EFEKT_RENKLERI: Record<string, [string, string]> = {
   ejderha: ["#3a3122", "#121010"],
 };
 
+// Dragon (Figma "12 · Premium: Ejderha süsü ve efekti"): since it is a detailed illustration it is a transparent WebP image, not an SVG
+// (made with Figma's image generation tool, background made transparent; 560px = still 2x sharp even on the largest avatar).
+// The same file is used both for the avatar decoration (it rotates) and for the faint shadow in the effect's banner, so the browser downloads it once.
 // Ejderha (Figma "12 · Premium: Ejderha süsü ve efekti"): ayrıntılı illüstrasyon olduğu için SVG değil, şeffaf WebP görseldir
 // (Figma'nın görsel üretme aracıyla üretildi, arka planı şeffaflaştırıldı; 560px = en büyük avatarda bile 2x keskin).
 // Aynı dosya hem avatar süsünde (döner) hem efektin banner'ındaki soluk gölgede kullanılır, tarayıcı bir kez indirir.
 const EJDERHA = "/img/susler/ejderha.webp";
+// Auspicious cloud (the curly "xiangyun" of Eastern ornaments); the colour parameter only comes from constants in this file
 // Uğurlu bulut (Doğu süslemelerindeki kıvrımlı "xiangyun"); renk parametresi yalnızca bu dosyadaki sabitlerden gelir
 const bulut = (renk: string) => `<svg width="150" height="45" viewBox="-14 -4 160 44"><g fill="none" stroke="${renk}" stroke-width="1.6" stroke-linecap="round"><path d="M0 30 H120 M8 30 C2 18 14 6 26 12 C28 2 44 -2 52 8 C58 -4 78 -2 80 12 C92 6 104 14 100 26"/><path d="M26 12 C30 18 40 18 40 12 C40 7 34 6 33 10 M52 8 C54 16 66 18 68 10 C69 4 62 2 61 7 M80 12 C82 20 92 22 94 16"/><path d="M120 30 C130 30 136 24 132 18 C129 14 124 17 126 21 M0 30 C-8 30 -12 24 -8 20 C-5 17 -1 20 -3 23"/></g></svg>`;
 
 export const efektGecerli = (s: unknown): s is string => typeof s === "string" && s in EFEKT_ADLARI;
 export const susGecerli = (s: unknown): s is string => typeof s === "string" && s in SUS_ADLARI;
+// The server accepts only #rrggbb (it is written into CSS, so no other format is allowed: things like url(), var() cannot get in)
 // Sunucu yalnızca #rrggbb kabul eder (CSS'e yazılacağı için başka hiçbir biçime izin yok: url(), var() gibi şeyler giremez)
 export const RENK = /^#[0-9a-f]{6}$/i;
 export const renkGecerli = (s: unknown): s is string => typeof s === "string" && RENK.test(s);
 
 // ---------------------------------------------------------------------------
+// SVG parts. The {ID} placeholder is replaced with a random suffix in the template for every drawing (the card can appear twice on the same page;
+// if the same id appears twice the gradient binds to the wrong element).
 // SVG parçaları. {ID} yer tutucusu şablonda her çizimde rastgele bir sonekle değişir (aynı sayfada kart iki kez olabilir,
 // aynı id iki kez olursa gradyan yanlış öğeye bağlanır).
 // ---------------------------------------------------------------------------
@@ -71,6 +87,11 @@ export const SVG: Record<string, { w: number; h: number; svg: string; tam?: bool
   fener: { w: 26, h: 38, svg: `<svg width="26" height="38" viewBox="0 0 26 38"><path d="M13 0 V6" stroke="#5a4a2a" stroke-width="2"/><rect x="5" y="6" width="16" height="4" rx="1" fill="#5a4a2a"/><rect x="4" y="10" width="18" height="22" rx="5" fill="#ffd36b"/><rect x="5" y="32" width="16" height="4" rx="1" fill="#5a4a2a"/></svg>` },
 };
 
+// A particle:
+//  tur: "gez"   = travels between (x0,y0) → (x1,y1), rotation r0 → r1, opacity 0→1→1→0 (3.6 s loop)
+//       "sabit" = swings back and forth between x0,y0 and x1,y1 (oscillation), constant opacity; if nabiz: true the opacity also pulses .55↔1
+//  faz (0–3): shifts the animation in 0.9 s steps (negative animation-delay) so the particles do not all start at once
+//  op: peak opacity · blur: px blur · parilti: glow colour (drop-shadow)
 // Bir parçacık:
 //  tur: "gez"   = (x0,y0) → (x1,y1) arası gider, dönüş r0 → r1, opaklık 0→1→1→0 (3,6 sn döngü)
 //       "sabit" = x0,y0 ile x1,y1 arasında gidip gelir (salınım), opaklık sabit; nabiz: true ise opaklık da .55↔1 gidip gelir
@@ -143,6 +164,7 @@ export const EFEKTLER: Record<string, Efekt> = {
     on: [[40, 300], [90, 250], [150, 330], [220, 280], [260, 200], [180, 120], [60, 140], [240, 390], [120, 410], [270, 60]].map(([x, y], i) =>
       g("bocek", x, y, x + (i % 2 ? -21 : 21), y - [30, 40, 50, 35, 45, 30, 50, 40, 35, 45][i], 0, 0, [0, 1, 2, 3, 1, 2, 3, 0, 2, 1][i], { parilti: "#d4ff3a" })),
   },
+  // A faint, large dragon drifts slowly through the banner; clouds slide along the card's top/bottom edge, golden sparks rise and fade
   // Banner'ın içinden soluk, büyük ejderha yavaşça süzülür; kartın alt/üst kenarında bulutlar kayar, altın kıvılcımlar yükselip söner
   ejderha: {
     arka: [s("ejderha_golge", 40, -170, 70, -160, -40, -34, { op: .3 })],
@@ -156,6 +178,9 @@ export const EFEKTLER: Record<string, Efekt> = {
   },
 };
 
+// Avatar decorations. Positions are card coordinates relative to the Figma "avatar frame" (100px; avatar 88px + 6px ring, on the card at x=12,y=54);
+// here they are recomputed relative to the top-left of the AVATAR IMAGE (88px), so that 88 = 100 units: x = (X-18)/0.88, y = (Y-60)/0.88.
+// The template writes this as `cqw` (a percentage of the avatar's width); the decoration stays proportional at every avatar size (24px list, 88px card, 128px profile).
 // Avatar süsleri. Konumlar Figma'da "avatar çerçevesi"ne (100px; avatar 88px + 6px halka, kartta x=12,y=54) göre kart koordinatıdır;
 // burada AVATAR RESMİNİN (88px) sol-üstüne göre, 88 = 100 birim olacak biçimde yeniden hesaplanmıştır: x = (X-18)/0.88, y = (Y-60)/0.88.
 // Şablon bunu `cqw` (avatarın genişliği yüzdesi) olarak yazar; süs her avatar boyutunda (24px liste, 88px kart, 128px profil) orantılı kalır.
@@ -165,7 +190,9 @@ const bt = (svg: keyof typeof SVG) => ({ w: f(SVG[svg].w / 0.88), h: f(SVG[svg].
 export type Sus = {
   svg: keyof typeof SVG; x: number; y: number; w: number; h: number; dx: number; dy: number; r0: number; r1: number;
   ayna?: boolean; arka?: boolean; parilti?: string; nabiz?: boolean; kok?: string;
-  don?: boolean; // avatarın merkezi çevresinde sürekli döner (sallanmak yerine); ejderha halkası
+  // rotates continuously around the avatar's centre (instead of swaying); the dragon ring
+  // avatarın merkezi çevresinde sürekli döner (sallanmak yerine); ejderha halkası
+  don?: boolean;
 };
 const sus = (svg: keyof typeof SVG, X: number, Y: number, dY: number, r0: number, r1: number, ek: Partial<Sus> = {}): Sus =>
   ({ svg, ...A(X, Y), ...bt(svg), dx: 0, dy: f(dY / 0.88), r0, r1, ...ek });
@@ -184,6 +211,8 @@ export const SUSLER: Record<string, Sus[]> = {
   bere: [sus("bere", 16, 32, -2, -3, 3)],
   kiraz: [sus("cicek", 82, 52, 0, 0, 20)],
   fener: [sus("fener", 104, 40, 0, -10, 10, { parilti: "#ffc94a", kok: "50% 0%" })],
+  // The ring is 2.05 times the avatar; since its middle is empty the avatar stays visible. On small avatars (≤48px) CSS shrinks the ring to 1.6x,
+  // so it does not spill over the neighbouring text (efektler.css "Ejderha halkası").
   // Halka avatarın 2,05 katı; ortası boş olduğundan avatar görünür kalır. Küçük avatarlarda (≤48px) CSS halkayı 1,6 kata indirir,
   // komşu yazının üstüne taşmasın (efektler.css "Ejderha halkası").
   ejderha: [{ svg: "ejderha_halka", x: -52.5, y: -52.5, w: 205, h: 205, dx: 0, dy: 0, r0: 0, r1: 0, don: true }],

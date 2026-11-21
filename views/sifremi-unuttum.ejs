@@ -1,3 +1,9 @@
+<%# Forgot password: /sifremi-unuttum
+   Expected data (all optional):
+   gonderildi  bool     if true the success state shows. The SAME message is shown whether or not the address is registered
+   hata        string   e.g. "Geçerli bir e-posta adresi yaz."
+   degerler    { email }   to keep the form filled after an error
+   Form: POST /sifremi-unuttum  field: email %>
 <%#
   Şifremi unuttum: /sifremi-unuttum
   Beklenen veriler (hepsi isteğe bağlı):
@@ -10,7 +16,7 @@
 <% const sfD = locals.degerler || {}; %>
 <div class="orta-sayfa">
   <%- include("partials/kontur") %>
-  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <a class="logo" href="/"><span class="logo-isaret"><img src="/img/marka/rakun-96.webp" alt="" width="32" height="32"></span>rubyyard</a>
   <% if (locals.gonderildi) { %>
     <div class="kart form-karti sifre-basari" role="status">
       <span class="sifre-ikon"><%- include("partials/ikon", { ad: "mektup", boyut: 24 }) %></span>

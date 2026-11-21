@@ -1,4 +1,10 @@
 <%#
+  Account menu (opens from the avatar, a popover). Drawn only for a logged-in user.
+  Expected data:
+  kullanici     { username, rutbe, points, rol }
+  bekleyenSikayet  number of pending reports for staff (if greater than 0, a badge next to Management)
+  okunmamisBildirim  if greater than 0, (on phones) a count on the Notifications row
+  statik        if true an open box instead of a popover (only for the preview page)
   Hesap menüsü (avatardan açılır, popover). Yalnızca giriş yapmış kullanıcıya çizilir.
   Beklenen veriler:
   kullanici     { username, rutbe, points, rol }
@@ -15,11 +21,15 @@
       <div class="ikincil kucuk"><%= k_.rutbe || "Çaylak" %> · <%= k_.points ?? 0 %> puan</div>
     </div>
   </div>
-  <%# Telefonda bu menü alt menüdeki Profil'den açılan hesap sayfasıdır: Yakut bölümü ve Bildirimler YALNIZCA orada durur
+  <%# On phones this menu is the account page opened from Profile in the bottom menu: the Ruby section and Notifications live ONLY there
+      (on tablet/desktop ruby is in the left menu/rail and notifications are on the bell; CSS hides them so the same thing is not in two places: .yalniz-telefon).
+      Messages were removed from here: DMs are Chat › DM at every scale.
+      Telefonda bu menü alt menüdeki Profil'den açılan hesap sayfasıdır: Yakut bölümü ve Bildirimler YALNIZCA orada durur
       (tablet/masaüstünde yakut sol menüde/rayda, bildirimler zilde; aynı şey iki yerde olmasın diye CSS gizler: .yalniz-telefon).
       Mesajlar buradan kalktı: DM'ler her ölçekte Sohbet › DM. %>
   <div class="yalniz-telefon avatar-menu-yakut"><%- include("yakut-bolumu", { tur: "hesap" }) %></div>
-  <%# Sayfaya gider (açılır panel değil): panel bu menünün üstüne ikinci bir katman olarak biniyordu %>
+  <%# It goes to a page (not an expandable panel): the panel used to sit on top of this menu as a second layer
+      Sayfaya gider (açılır panel değil): panel bu menünün üstüne ikinci bir katman olarak biniyordu %>
   <a class="acilir-oge yalniz-telefon avatar-menu-bildirim" href="/bildirimler"><%- include("ikon", { ad: "zil", boyut: 20 }) %><span class="acilir-ad">Bildirimler</span>
     <% if ((locals.okunmamisBildirim || 0) > 0) { %><span class="acilir-rozet" aria-label="<%= locals.okunmamisBildirim %> okunmamış bildirim"><%= locals.okunmamisBildirim > 99 ? "99+" : locals.okunmamisBildirim %></span><% } %>
   </a>

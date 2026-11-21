@@ -1,3 +1,6 @@
+// Private rooms (sql/12_odalar.sql): the shared logic of invite-only group chats.
+// The routes are in src/rotalar/odalar.ts; here live the queries and rules used by them, by the /sohbet hub (iletisim.ts) and by oturum.ts.
+// The rule lives in one place so it does not drift apart in two.
 // Özel odalar (sql/12_odalar.sql): davetle girilen grup sohbetlerinin ortak mantığı.
 // Route'lar src/rotalar/odalar.ts'te; burada hem onların hem /sohbet merkezinin (iletisim.ts) ve oturum.ts'in
 // kullandığı sorgular ve kurallar durur. Kural bir yerde dursun, iki yerde ayrışmasın.
@@ -9,10 +12,13 @@ import { rutbeler, kilitBilgisi } from "./rutbe.ts";
 import { cevrimiciSql } from "./gizlilik.ts";
 
 export type OdaRol = "sahip" | "yonetici" | "uye";
+// Managers and the owner manage the room (invite, link, removal, deleting messages, name/description)
 // Yönetici ve sahip odayı yönetir (davet, bağlantı, çıkarma, mesaj silme, ad/açıklama)
 export const yonetir = (rol: OdaRol | undefined | null) => rol === "sahip" || rol === "yonetici";
 
 // ---------------------------------------------------------------------------
+// Invite link code: 8 characters, readable form K7Q2-XM9P. Easily confused letters (I, O, 0, 1, L) are not in the alphabet.
+// `randomInt` gives a cryptographically secure random number (Math.random is predictable, not suitable for an invitation).
 // Davet bağlantısı kodu: 8 karakter, okunur biçim K7Q2-XM9P. Karıştırılan harfler (I, O, 0, 1, L) alfabede yok.
 // randomInt kriptografik olarak güvenli rastgele sayı verir (Math.random tahmin edilebilir, davetiye için uygun değil).
 // ---------------------------------------------------------------------------
@@ -22,6 +28,7 @@ export function kodUret(): string {
   for (let i = 0; i < 8; i++) k += KOD_ALFABE[randomInt(KOD_ALFABE.length)];
   return k.slice(0, 4) + "-" + k.slice(4);
 }
+// Turns the code from the address into the rule (it may be typed in lower case, without the dash); null if the format is broken
 // Adresten gelen kodu kurala çevirir (küçük harf, tiresiz yazılmış olabilir); biçim bozuksa null
 export function kodDuzelt(ham: string): string | null {
   const t = ham.toLocaleUpperCase("en").replace(/[^A-Z0-9]/g, "");
@@ -29,6 +36,9 @@ export function kodDuzelt(ham: string): string | null {
 }
 
 // ---------------------------------------------------------------------------
+// Room-creation rule: the rank's "oda_ac" privilege (src/rutbe.ts, set in the panel's Ranks table) + the limit of rooms owned.
+// Admins and moderators are exempt from the rank requirement (the limit applies to everyone).
+// kilit (lock): the rank that first unlocks the privilege and the remaining points (for the lock card partials/kilit.ejs).
 // Oda açma kuralı: rütbenin "oda_ac" ayrıcalığı (src/rutbe.ts, panelde Rütbeler tablosundan ayarlanır) + sahip olunan
 // oda sınırı. Yöneticiler ve moderatörler rütbe şartından muaftır (sınır herkese uygulanır).
 // kilit: ayrıcalığı ilk açan rütbe ve kalan puan (kilit kartı partials/kilit.ejs için).
@@ -42,7 +52,7 @@ export type OlusturmaDurumu = {
 
 export async function olusturmaDurumu(kullanici: { id: number; points: number; rol: string }): Promise<OlusturmaDurumu> {
   const { oda } = await ayarlar();
-  await rutbeler(); // önbellek taze olsun
+  await rutbeler(); // make sure the cache is fresh · önbellek taze olsun
   const [[s]]: any = await pool.query("SELECT COUNT(*) AS n FROM rooms WHERE sahip_id = ? AND deleted_at IS NULL", [kullanici.id]);
   const kilit = kilitBilgisi(kullanici, "oda_ac");
   const rutbeYeter = kilit.acik;
@@ -51,17 +61,21 @@ export async function olusturmaDurumu(kullanici: { id: number; points: number; r
   return { izinli: rutbeYeter && !sinirDolu, rutbeYeter, sinirDolu, kilit, sahip, sinir: oda.kisiSiniri };
 }
 
+// System line ("ayse added ahmet to the room"): written to room_messages with tur='sistem', the text is ready-made.
 // Sistem satırı ("ayse odaya ahmet’i ekledi"): room_messages'a tur='sistem' olarak yazılır, metin hazırdır.
 export async function sistemMesaji(odaId: number, kullaniciId: number, metin: string): Promise<number> {
   const [sonuc]: any = await pool.query("INSERT INTO room_messages (room_id, user_id, tur, content) VALUES (?, ?, 'sistem', ?)", [odaId, kullaniciId, metin.slice(0, 2000)]);
   return sonuc.insertId;
 }
 
+// "Is there a block?" in both directions: I blocked them or they blocked me. Invite and search filter these out.
 // "Engel var mı?" iki yönde: ben onu ya da o beni engellemiş. Davet ve arama bunu eler.
 export const engelSql = (a: string, b: string) =>
   `EXISTS (SELECT 1 FROM user_blocks ub WHERE (ub.blocker_id = ${a} AND ub.blocked_id = ${b}) OR (ub.blocker_id = ${b} AND ub.blocked_id = ${a}))`;
 
 // ---------------------------------------------------------------------------
+// Unread dot: is there an unread message in any room that is not muted? (oturum.ts asks on every request)
+// Unread = a message that is not mine, not deleted, not a system line, not from someone I blocked, and greater than son_okunan_id.
 // Okunmamış nokta: sessize alınmamış herhangi bir odada okunmamış mesaj var mı? (oturum.ts her istekte sorar)
 // Okunmamış = benim olmayan, silinmemiş, sistem olmayan ve engellediğim kişiden gelmeyen, son_okunan_id'den büyük mesaj.
 // ---------------------------------------------------------------------------
@@ -80,6 +94,7 @@ export async function okunmamisOdaVar(benId: number): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
+// The left list of the /sohbet hub: pending invites, the last message of the general chat, my rooms.
 // /sohbet merkezinin sol listesi: bekleyen davetler, genel sohbetin son mesajı, benim odalarım.
 // ---------------------------------------------------------------------------
 export type OdaSatiri = {
@@ -105,6 +120,7 @@ export async function hubVerisi(kullanici: { id: number; points: number; rol: st
   );
   for (const o of odalar) {
     o.okunmamis = Number(o.okunmamis); o.sessiz = !!o.sessiz; o.kapali = !!o.kapali;
+    // Preview is "name: text"; a system line is already a full sentence; a message from someone I blocked is not summarised
     // Önizleme "ad: metin"; sistem satırı zaten tam cümle; engellediğim kişinin mesajı özetlenmez
     o.son_metin = !o.son_icerik ? null : o.son_engelli ? "Engellediğin kişinin mesajı"
       : kisalt(o.son_tur === "sistem" ? o.son_icerik : `${o.son_yazar}: ${o.son_icerik}`, 80);
@@ -121,6 +137,8 @@ export async function hubVerisi(kullanici: { id: number; points: number; rol: st
     `SELECT c.content, c.created_at, u.username FROM chat_messages c JOIN users u ON u.id = c.user_id
       WHERE c.deleted_at IS NULL ORDER BY c.id DESC LIMIT 1`
   );
+  // Chat › All/DM: private-message conversations are in the same list too (user decision 2026-11-21: DMs are inside Chat, no separate menu).
+  // Last message per counterpart + the unread count sent to me; the newest 30 conversations are enough (the full list is in /mesajlar).
   // Sohbet › Hepsi/DM: özel mesaj konuşmaları da aynı listede (kullanıcı kararı 2026-11-21: DM'ler Sohbet'in içinde, ayrı menü yok).
   // Karşı taraf başına son mesaj + bana gelen okunmamış sayısı; en yeni 30 konuşma yeter (tam liste /mesajlar'da).
   const [dmler]: any = await pool.query(
@@ -148,6 +166,7 @@ export async function hubVerisi(kullanici: { id: number; points: number; rol: st
 }
 
 // ---------------------------------------------------------------------------
+// Page data of a room. If you are not a member, null (we do not even admit it exists: 404).
 // Bir odanın sayfa verisi. Üye değilsen null (varlığını da söylemiyoruz: 404).
 // ---------------------------------------------------------------------------
 export async function uyelik(odaId: number, benId: number) {
@@ -164,6 +183,7 @@ export async function uyelik(odaId: number, benId: number) {
 }
 
 export async function odaDetayi(oda: NonNullable<Awaited<ReturnType<typeof uyelik>>>, benId: number) {
+  // Mark as read first: so this room's count in the left list and the dot in the menu come out up to date
   // Önce okundu işaretle: soldaki listede bu odanın sayısı ve menüdeki nokta güncel çıksın
   await pool.query(
     "UPDATE room_members SET son_okunan_id = (SELECT COALESCE(MAX(id), 0) FROM room_messages WHERE room_id = ?) WHERE room_id = ? AND user_id = ?",
@@ -194,6 +214,7 @@ export async function odaDetayi(oda: NonNullable<Awaited<ReturnType<typeof uyeli
 
   const detay: Record<string, any> = { mesajlar, uyeler, cevrimiciSayisi: uyeler.filter((u: any) => u.cevrimici).length, baglantilar: [], bekleyenDavetler: [] };
   if (yonetir(oda.rol)) {
+    // Active = not cancelled, not expired, use limit not reached
     // Etkin = iptal edilmemiş, süresi dolmamış, kullanım sınırı dolmamış
     const [baglantilar]: any = await pool.query(
       `SELECT l.id, l.kod, l.son_kullanma, l.kullanim_siniri, l.kullanim, l.created_at, u.username AS olusturan
@@ -214,6 +235,8 @@ export async function odaDetayi(oda: NonNullable<Awaited<ReturnType<typeof uyeli
   return detay;
 }
 
+// People who can be invited: myself, deleted accounts, members, people with a pending invite and people with a block
+// between us (in either direction) do not appear. At most 8 results.
 // Davet edilebilecek kişiler: kendim, silinmiş hesaplar, üyeler, bekleyen davetlisi olanlar ve aramızda engel
 // bulunanlar (iki yönde de) çıkmaz. En çok 8 sonuç.
 export async function davetAra(benId: number, odaId: number, q: string) {

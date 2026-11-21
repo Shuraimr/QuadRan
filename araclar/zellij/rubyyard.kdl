@@ -1,4 +1,5 @@
-// QuadRan zellij düzeni: araclar/konsol.sh açar (nix kabuğunun içinde, proje klasöründe).
+// rubyyard zellij layout: opened by araclar/konsol.sh (inside the nix shell, in the project folder).
+// rubyyard zellij düzeni: araclar/konsol.sh açar (nix kabuğunun içinde, proje klasöründe).
 //
 // ┌──────────────────────────┬───────────────────────┐
 // │ Sunucu :3000 (npm dev)   │ Veritabanı (mycli)    │
@@ -7,6 +8,8 @@
 // ├──────────────────────────┴───────────────────────┤
 // │ Kabuk (git, npm run ornek, tsc...)               │
 // └──────────────────────────────────────────────────┘
+// The second tab, "Denetim" (Check): the type check (re-runs with Enter) and the Adminer/Docker status.
+// Command panes are not removed when they exit: Enter re-runs them, Ctrl+C stops them.
 // İkinci sekme "Denetim": tip kontrolü (Enter ile yeniden çalışır) ve Adminer/Docker durumu.
 // Komut panelleri kapanınca silinmez: Enter ile yeniden çalıştırılır, Ctrl+C ile durur.
 layout {
@@ -20,17 +23,20 @@ layout {
         }
     }
 
-    tab name="QuadRan" focus=true {
+    tab name="rubyyard" focus=true {
         pane split_direction="vertical" size="72%" {
             pane name="Sunucu :3000" size="58%" command="bash" {
+                // If 3000 is already taken (npm run dev is open in another terminal), a second copy crashes with EADDRINUSE:
+                // ask first, and let the user press Enter to continue once they close the old one.
                 // 3000 zaten doluysa (başka bir terminalde npm run dev açık) ikinci kopya EADDRINUSE ile çöker:
                 // önce sor, kullanıcı eskisini kapatınca Enter'la devam etsin.
                 args "-c" "while curl -s -o /dev/null http://127.0.0.1:3000; do echo ':3000 başka bir yerde açık. Onu kapatıp Enter a bas (Ctrl+C: vazgeç).'; read _; done; exec npm run dev"
             }
             pane split_direction="horizontal" {
                 pane name="Veritabanı (mycli)" size="60%" command="bash" {
+                    // The password is not put on the command line (it would show up in ps): it is read from .env and passed via MYSQL_PWD.
                     // Şifre komut satırına yazılmaz (ps'te görünürdü): .env'den okunup MYSQL_PWD ile verilir.
-                    args "-c" "set -a; . ./.env; set +a; export MYSQL_PWD=\"$MYSQL_ROOT_PASSWORD\"; exec mycli -h 127.0.0.1 -P 3306 -u root quadran"
+                    args "-c" "set -a; . ./.env; set +a; export MYSQL_PWD=\"$MYSQL_ROOT_PASSWORD\"; exec mycli -h 127.0.0.1 -P 3306 -u root rubyyard"
                 }
                 pane name="MySQL günlüğü" command="docker" {
                     args "compose" "logs" "-f" "--tail" "40" "db"
@@ -38,14 +44,16 @@ layout {
             }
         }
         pane name="Kabuk" focus=true command="bash" {
-            // Kullanıcının kendi kabuğu (fish vb.): konsol.sh nix'e girmeden önce QUADRAN_KABUK'a yazar.
-            args "-c" "exec \"${QUADRAN_KABUK:-bash}\""
+            // The user's own shell (fish etc.): konsol.sh writes it to RUBYYARD_KABUK before entering nix.
+            // Kullanıcının kendi kabuğu (fish vb.): konsol.sh nix'e girmeden önce RUBYYARD_KABUK'a yazar.
+            args "-c" "exec \"${RUBYYARD_KABUK:-bash}\""
         }
     }
 
     tab name="Denetim" {
         pane split_direction="vertical" {
             pane name="Tip kontrolü" command="bash" start_suspended=true {
+                // bash -c so the shell expands the src/*.ts glob (zellij passes arguments through as they are)
                 // src/*.ts yıldızını kabuk genişletsin diye bash -c (zellij argümanları olduğu gibi geçirir)
                 args "-c" "npx tsc --noEmit --allowImportingTsExtensions --module nodenext --target esnext --skipLibCheck --strict false src/*.ts src/rotalar/*.ts && echo 'Tip kontrolü temiz.'"
             }

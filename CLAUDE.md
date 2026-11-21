@@ -1,4 +1,4 @@
-# QuadRan — Claude için proje rehberi
+# rubyyard — Claude için proje rehberi
 
 Türkçe forum sitesi: konular, oy, rütbe/rozet, genel sohbet, özel mesaj, bildirim, şikâyet ve gelişmiş yönetim paneli.
 Ayrıntılı route / tablo / yetki listesi: `docs/AKTARIM.md` (önce oraya bak, değişince güncelle). Kullanıcı tanıtımı: `README.md`.
@@ -6,14 +6,14 @@ Ayrıntılı route / tablo / yetki listesi: `docs/AKTARIM.md` (önce oraya bak, 
 ## Teknoloji ve çalıştırma
 
 - Node.js 22, TypeScript'i **doğrudan** çalıştırır (type stripping): `enum`, `namespace`, parametre özellikleri YOK; importlar `.ts` uzantılı.
-- Geliştirme kabuğu: `flake.nix` (Node 22, mysql istemcisi, mycli, zellij, ffmpeg, gh, jq; DB Docker'da kalır; `./araclar/konsol.sh` = zellij'de sunucu + mycli + MySQL günlüğü + kabuk, düzen `araclar/zellij/quadran.kdl`). Araç gerekince `nix develop -c <komut>` (ör. ffmpeg ile örnek video üretmek); sistemde olmayan aracı başka yoldan kurma, flake'e ekle.
-- Express 5 · EJS · mysql2 (ORM yok, **saf SQL**) · MySQL 8.4 (Docker, konteyner `quadran-db`) · Adminer :8080
-- Düz CSS (`public/css`) ve tek bağımlılıksız betik (`public/js/quadran.js`). Derleme adımı yok.
+- Geliştirme kabuğu: `flake.nix` (Node 22, mysql istemcisi, mycli, zellij, ffmpeg, gh, jq; DB Docker'da kalır; `./araclar/konsol.sh` = zellij'de sunucu + mycli + MySQL günlüğü + kabuk, düzen `araclar/zellij/rubyyard.kdl`). Araç gerekince `nix develop -c <komut>` (ör. ffmpeg ile örnek video üretmek); sistemde olmayan aracı başka yoldan kurma, flake'e ekle.
+- Express 5 · EJS · mysql2 (ORM yok, **saf SQL**) · MySQL 8.4 (Docker, konteyner `rubyyard-db`) · Adminer :8080
+- Düz CSS (`public/css`) ve tek bağımlılıksız betik (`public/js/rubyyard.js`). Derleme adımı yok.
 - `npm run dev` → :3000 (`--watch`; kullanıcının kendi sunucusu genelde açıktır, **kapatma**). `npm start` = yayın modu (`/onizleme` kapalı).
 - Test için kendi kopyanı aç: `PORT=30xx node --env-file=.env src/server.ts` (server.ts PORT okur), işin bitince kapat. Yalnızca kendi açtığın süreçleri öldür.
 - Tip kontrolü: `npx tsc --noEmit --allowImportingTsExtensions --module nodenext --target esnext --skipLibCheck --strict false src/*.ts src/rotalar/*.ts`
-- SQL çalıştır: `docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < dosya.sql`
-  (tek sorgu: `docker exec quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran -e "..."'`)
+- SQL çalıştır: `docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < dosya.sql`
+  (tek sorgu: `docker exec rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard -e "..."'`)
 
 ## Yapı
 
@@ -41,9 +41,9 @@ sql/01..24           sırayla uygulanan şema + seed + değişiklikler (Docker i
 
 ## Kodlama kuralları
 
-- Kod yorumları **Türkçe** ve "neden"i anlatır: proje sahibi öğrenci, kodu okuyup öğreniyor.
+- Kod yorumları **İngilizce + Türkçe** (önce İngilizce, sonra aynı anlamda Türkçe) ve "neden"i anlatır: proje sahibi öğrenci, kodu okuyup öğreniyor; GitHub'daki yabancı okurlar da anlasın (kullanıcı kararı 2026-11-21). Arayüz metinleri Türkçe; ileride İngilizce arayüz desteği gelecek.
 - Kullanıcıdan gelen her değer SQL'e **`?` yer tutucusuyla**; metin birleştirme yalnızca koddaki sabit parçalar için.
-- Şablonlarda satır içi `<script>` ve `onclick`/`onsubmit` YOK (CSP engeller): davranış `quadran.js`'te, onay sorusu formda `data-onay`.
+- Şablonlarda satır içi `<script>` ve `onclick`/`onsubmit` YOK (CSP engeller): davranış `rubyyard.js`'te, onay sorusu formda `data-onay`.
 - Her POST formunda `<input type="hidden" name="_csrf" value="<%= locals.csrf %>">`. Kullanıcı içeriği `<%= %>` ile basılır.
 - Yeni tablo/sütun → yeni numaralı `sql/NN_ad.sql` (canlı DB'ye de uygula, AKTARIM.md'ye yaz). Eski SQL dosyalarını değiştirme.
 - **Yeni npm paketi eklemeden önce kullanıcıya sor.**
@@ -52,11 +52,11 @@ sql/01..24           sırayla uygulanan şema + seed + değişiklikler (Docker i
 
 ## Arayüz kuralları (kullanıcının açık talepleri)
 
-Bir arayüz işinin tamamı (bilgi mimarisi → Figma → onay → kodlama → ölçerek doğrulama → yayın) için **`quadran-tasarim` skill'ini** kullan (`.claude/skills/quadran-tasarim/`: süreç, standart kontrol listesi, `olcum.js` ölçüm betikleri, `figma.md` yardımcı kod ve tuzaklar).
+Bir arayüz işinin tamamı (bilgi mimarisi → Figma → onay → kodlama → ölçerek doğrulama → yayın) için **`rubyyard-tasarim` skill'ini** kullan (`.claude/skills/rubyyard-tasarim/`: süreç, standart kontrol listesi, `olcum.js` ölçüm betikleri, `figma.md` yardımcı kod ve tuzaklar).
 
 - **Önce düşün, sonra tasarla, sonra kodla:** yeni ekran/özellik önce Figma'da (bilgi mimarisi → tasarım) çizilir, onaylanınca kodlanır.
 - **Arayüz kendini tekrarlamaz:** aynı ekran genişliğinde aynı eylem/hedef kalıcı arayüzde (üst çubuk, sol menü/ray, alt menü, hesap menüsü) iki kez durmaz.
-- **Hiçbir şey üst üste binmez:** ekranın altına sabitlenen her çubuk `data-alt-cubuk` taşır; quadran.js yüksekliğini `--alt-yer` olarak ölçer, bildirim çubuğu (toast) onun üstünde durur.
+- **Hiçbir şey üst üste binmez:** ekranın altına sabitlenen her çubuk `data-alt-cubuk` taşır; rubyyard.js yüksekliğini `--alt-yer` olarak ölçer, bildirim çubuğu (toast) onun üstünde durur.
 - **Her ölçekte eşit ulaşım** (telefon ≤800, tablet 801–1180, masaüstü >1180):
   | | Telefon | Tablet | Masaüstü |
   |---|---|---|---|
@@ -69,7 +69,7 @@ Bir arayüz işinin tamamı (bilgi mimarisi → Figma → onay → kodlama → �
   | Yakut / mağaza | Profil sayfasındaki Yakut bölümü | sol rayda yakut + bakiye | sol menüde Yakut bölümü |
   | Profil, Yönetim, Çıkış | alt menü Profil → hesap menüsü | hesap menüsü | hesap menüsü |
   | Ayarlar | hesap menüsü | sol ray | sol menü |
-- Yeni `<select>` yazmak serbest: quadran.js hepsini "seçici"ye çevirir (`data-yerel` ile kapatılır). JS'siz çalışmalı (aşamalı geliştirme).
+- Yeni `<select>` yazmak serbest: rubyyard.js hepsini "seçici"ye çevirir (`data-yerel` ile kapatılır). JS'siz çalışmalı (aşamalı geliştirme).
 - Renkler/süreler yalnızca CSS değişkenleriyle (`--zemin`, `--yuzey-1..3`, `--vurgu`, `--ton`, `--sure-*`, `--egri-*`, `--hareket`). Koyu/açık/sistem tema ve "Animasyonları azalt" (`[data-az-animasyon]`) her yeni stilde çalışmalı.
 - Telefonda üst çubukta YALNIZCA logo (kaydırınca ortada 12px köşeli yüzen logo levhası); eylem yok (kullanıcı kararı 2026-11-21).
 - Telefonda dokunma hedefleri ≥44px, yatay taşma yok. Durum renkleri: bekliyor sarı, işlendi yeşil, reddedildi gri, uzaklaştırıldı kırmızı.
@@ -80,7 +80,7 @@ Bir arayüz işinin tamamı (bilgi mimarisi → Figma → onay → kodlama → �
 2. Yerleşik tarayıcıda 375 / 1075 / 1440 genişlikte bak: yatay taşma yok, tekrar yok, toast/çubuk çakışması yok, konsol hatasız.
 3. Test verisini temizle, seed durumunu geri getir.
 4. Alt ajan kullandıysan raporuna güvenme, sonucu kendin doğrula.
-5. **Bağımsız eleştiri (zorunlu):** her aşamanın sonunda `elestirmen` alt ajanı (`.claude/agents/elestirmen.md`, ölçütler `.claude/skills/quadran-tasarim/elestiri.md`) işi puanlar. **8.0 altı** → revizyon listesi kullanıcıya olduğu gibi sunulur, kullanıcı onaylarsa uygulanır ve eleştiri tekrarlanır. Eleştirmene kendi savunmanı yazma. Sonuçlar `docs/elestiri-kaydi.md`'ye.
+5. **Bağımsız eleştiri (zorunlu):** her aşamanın sonunda `elestirmen` alt ajanı (`.claude/agents/elestirmen.md`, ölçütler `.claude/skills/rubyyard-tasarim/elestiri.md`) işi puanlar. **8.0 altı** → revizyon listesi kullanıcıya olduğu gibi sunulur, kullanıcı onaylarsa uygulanır ve eleştiri tekrarlanır. Eleştirmene kendi savunmanı yazma. Sonuçlar `docs/elestiri-kaydi.md`'ye.
 
 ## Test kullanıcıları (seed)
 
@@ -117,6 +117,8 @@ Silmeden önce `SELECT` ile bak: test sırasında kullanıcı :3000'de seed kull
 
 - Kullanıcı istediğinde: `main`'e commit (Türkçe mesaj), `git push`, gerekiyorsa `package.json` sürümü + README'deki sürüm satırı + `git tag -a vX.Y.Z` + `gh release create` (Türkçe not, DB güncelleme komutu dahil).
 - `.env` asla commit'lenmez. Son sürüm: v0.7.0.
+- Ad: **rubyyard** (eski adı QuadRan, 2026-11-21'de değişti; ad hep küçük harf). GitHub'da README.md İngilizce, README.tr.md Türkçe: ikisini birlikte güncelle.
+- Marka (ad, rakun maskot, logo; `docs/marka`, `docs/tasarim-kaynak/logo`, `public/img/marka`) AGPL DIŞINDA, tüm hakları saklı (`docs/marka/LICENSE.md`). Marka kılavuzu `docs/marka/README.md`.
 - Lisans: **AGPL-3.0-or-later** (`LICENSE`). Kullanıcının kararı: ücretli üyelik satılabilir ama proje asla kapalı kaynak olamaz. Yeni bağımlılık eklerken AGPL ile uyumlu lisansı olduğunu kontrol et (MIT, BSD, ISC, Apache-2.0, LGPL uyumlu; kapalı/ticari lisanslı paket ekleme).
 
 ## Yol haritası (kullanıcının belirlediği sıra)
@@ -194,7 +196,7 @@ Silmeden önce `SELECT` ile bak: test sırasında kullanıcı :3000'de seed kull
       telefonda üst çubuk eylemleri tek kapsülde, aşağı kaydırınca **yüzen kapsül + logo ortada**; akış filtresi parametre yığını değil
       ihtiyaç: "Öne çıkan · Yeni · Takip" + tek "Kategori" düğmesi (alttan sayfa), "En iyi" Keşfet › Sıralama'da; yorumlara **fotoğraf,
       video, GitHub ve YouTube** ekleri (bağlantılar kendiliğinden kart); kullanıcı içeriğindeki **dış bağlantılar önce onay penceresi**
-      ("QuadRan'dan ayrılıyorsun"); telefonda bütün dokunma hedefleri ≥44px; üye kartı alttan sayfa + Kapat + sürükle-kapat.
+      ("rubyyard'dan ayrılıyorsun"); telefonda bütün dokunma hedefleri ≥44px; üye kartı alttan sayfa + Kapat + sürükle-kapat.
       **Onaylandı (2026-11-21), kodlanıyor.** **NSFW (+18) kararları:** yükleyen eki "+18" işaretler; herkes şikâyet edebilir; moderatör
       eki +18 işaretler/kaldırır. Otomatik algılama YOK (kullanıcı seçimi: yalnızca işaret + şikâyet; nsfwjs gibi paket eklenmedi).
       Ayarlar › Görünüm: "+18 içerik" = Gizle / Bulanık (varsayılan) / Göster; misafire her zaman gizli. Avatar ve banner +18 OLAMAZ

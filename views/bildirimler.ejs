@@ -1,4 +1,16 @@
 <%#
+  Notifications: /bildirimler  (notifications: planned table)
+  Expected data:
+  filtre       "hepsi" | "okunmamis"   (GET /bildirimler?filtre=okunmamis)
+  okunmamis_sayisi  number            count of unread notifications (read_at IS NULL)
+  bildirimler  [ { id, tur, kisi, metin, link, created_at, read_at } ]  sorted newest to oldest
+      tur   "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon" | "duyuru"
+            (the planned notifications table has no tur column: it must be added or derived from link)
+      kisi  username of whoever did the action, or null. If present the avatar letter is shown, otherwise an icon by type
+      metin plain text (planned table: metin), link is the address to go to on click (planned table: link)
+      read_at  unread if null
+  Grouping is done in the template: Today, This week (last 7 days), Older.
+  Form: POST /bildirimler/okundu  ("Mark all as read")
   Bildirimler: /bildirimler  (notifications: planlanan tablo)
   Beklenen veriler:
   filtre       "hepsi" | "okunmamis"   (GET /bildirimler?filtre=okunmamis)

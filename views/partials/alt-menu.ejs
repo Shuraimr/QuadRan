@@ -1,4 +1,12 @@
 <%#
+  Mobile bottom menu (shown at 800px width at most, in CSS).
+  Expected data (all optional):
+  aktifMenu          "akis" | "kesfet" | "konu-ac" | "sohbet" | "giris" | "profil" ("akis" if missing)
+  kullanici          { username } if logged in
+  okunmamisOda       if true, a small dot on Chat (unread room message)
+  okunmamisBildirim  if greater than 0, a small dot in the accent color on Profile (notifications live on the Profile page)
+  okunmamisMesaj     if greater than 0, a count on Chat (DMs are Chat › DM)
+  statik             if true, shown without being fixed (only for the preview page)
   Mobil alt menü (en çok 800px genişlikte görünür, CSS'te).
   Beklenen veriler (hepsi isteğe bağlı):
   aktifMenu          "akis" | "kesfet" | "konu-ac" | "sohbet" | "giris" | "profil" (yoksa "akis")
@@ -9,12 +17,14 @@
   statik             true ise sabit olmadan gösterilir (yalnızca önizleme sayfası için)
 %>
 <% const aktifMenu_ = locals.aktifMenu || "akis";
+   /* Categories and Sort open from the Explore page on phones (2 taps); Search is there too. Notifications are on the Profile page (account menu). */
    /* Kategoriler ve Sıralama telefonda Keşfet sayfasından açılır (2 dokunuş); Ara da orada. Bildirimler Profil sayfasında (hesap menüsü). */
    const ogeler_ = locals.kullanici ? [
      { id: "akis", ad: "Akış", href: "/", ikon: "ev" },
      { id: "kesfet", ad: "Keşfet", href: "/kesfet", ikon: "pusula" },
      { id: "konu-ac", ad: "Konu aç", href: "/konu/yeni", ikon: "kalem" },
      { id: "sohbet", ad: "Sohbet", href: "/sohbet", ikon: "sohbet" },
+     /* Profile opens the account menu (My profile, Settings, Admin, Log out): these menus are nowhere else on phones */
      /* Profil hesap menüsünü açar (Profilim, Ayarlar, Yönetim, Çıkış): bu menüler telefonda başka yerde yok */
      { id: "profil", ad: "Profil", href: "/profil/" + locals.kullanici.username, ikon: "kisi", hesapMenusu: true }
    ] : [
@@ -26,7 +36,8 @@
 <nav class="alt-menu<%= locals.statik ? ' katman-statik' : '' %>" aria-label="Alt gezinti"<%- locals.statik ? "" : " data-alt-cubuk" %>>
   <% for (const o of ogeler_) { %>
     <% if (o.hesapMenusu) { %>
-    <%# Bildirimler bu sayfanın içinde: okunmamış bildirim varsa Profil'in üstünde kişinin seçtiği vurgu renginde (--vurgu) küçük nokta %>
+    <%# Notifications are inside this page: if there are unread ones, a small dot in the user's chosen accent color (--vurgu) sits on top of Profile
+       Bildirimler bu sayfanın içinde: okunmamış bildirim varsa Profil'in üstünde kişinin seçtiği vurgu renginde (--vurgu) küçük nokta %>
     <% const bn_ = locals.okunmamisBildirim || 0; %>
     <button class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" type="button" popovertarget="avatar-menusu" aria-label="Hesap menüsü<%= bn_ > 0 ? ' (' + bn_ + ' okunmamış bildirim)' : '' %>">
       <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %><% if (bn_ > 0) { %><span class="menu-nokta menu-nokta-vurgu" aria-hidden="true"></span><% } %></span>
@@ -36,7 +47,8 @@
     <a class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" href="<%= o.href %>"<%- o.arama ? ' data-arama-ac' : '' %><%- aktifMenu_ === o.id ? ' aria-current="page"' : '' %>>
       <span class="menu-hap">
         <%- include("ikon", { ad: o.ikon, boyut: 24 }) %>
-        <%# Sohbet: okunmamış DM sayısı rozet (DM'ler Sohbet'in içinde); yalnızca oda mesajı varsa küçük nokta %>
+        <%# Chat: unread DM count as a badge (DMs live inside Chat); a small dot only if there is a room message
+           Sohbet: okunmamış DM sayısı rozet (DM'ler Sohbet'in içinde); yalnızca oda mesajı varsa küçük nokta %>
         <% if (o.id === "sohbet" && (locals.okunmamisMesaj || 0) > 0) { %><span class="menu-sayi" role="img" aria-label="<%= locals.okunmamisMesaj %> okunmamış özel mesaj"><%= locals.okunmamisMesaj > 99 ? "99+" : locals.okunmamisMesaj %></span><% } else if (o.id === "sohbet" && locals.okunmamisOda) { %><span class="menu-nokta" role="img" aria-label="Okunmamış oda mesajı var"></span><% } %>
         <% if (o.nokta) { %><span class="menu-nokta" role="img" aria-label="Okunmamış bildirim var"></span><% } %>
       </span>

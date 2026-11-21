@@ -1,3 +1,5 @@
+// Admin panel: Forum (Topics, Posts, Categories), Chat, and the Ranks/Badges tabs of Points and rewards.
+// Topics/Posts/Chat: moderator + admin. Categories and Points and rewards: admin only (gated with `sadeceAdmin`).
 // Yönetim paneli: Forum (Konular, Mesajlar, Kategoriler), Sohbet ve Puan ve ödüller'in Rütbeler/Rozetler sekmeleri.
 // Konular/Mesajlar/Sohbet: moderatör + admin. Kategoriler ve Puan ve ödüller: yalnızca admin (sadeceAdmin ile kapılı).
 import express from "express";
@@ -18,6 +20,7 @@ const DURUMLAR = ["aktif", "silinmis", "hepsi"] as const;
 // ---------------------------------------------------------------------------
 // Liste: /yonetim/icerik?tur=konu|mesaj|sohbet&q=&kategori=&durum=&yazar=&sayfa=
 // ---------------------------------------------------------------------------
+// The three lists go through the same code; only the table and the address change.
 // Üç liste aynı koddan geçer; yalnızca tablo ve adres değişir.
 //   /yonetim/forum (konular) · /yonetim/forum/mesajlar · /yonetim/sohbet
 const LISTELER = { konu: "/yonetim/forum", mesaj: "/yonetim/forum/mesajlar", sohbet: "/yonetim/sohbet" } as const;
@@ -31,6 +34,7 @@ async function icerikListesi(tur: (typeof TURLER)[number], req: express.Request,
   const durum = secim(req.query.durum, DURUMLAR, "aktif");
   const kategori = sayi(req.query.kategori);
 
+  // Fixed parts by table: names and columns come from code, user values go through ?
   // Tabloya göre sabit parçalar: ad ve sütunlar koddan, kullanıcı değerleri ? ile
   const tablo = tur === "konu" ? "topics" : tur === "mesaj" ? "posts" : "chat_messages";
   const kosullar: string[] = ["1 = 1"];
@@ -81,6 +85,7 @@ async function icerikListesi(tur: (typeof TURLER)[number], req: express.Request,
 
 // ---------------------------------------------------------------------------
 // Toplu işlem: POST /yonetim/icerik/toplu  alanlar: tur, eylem, id (çoklu), kategori
+// Each item gets its own audit-log entry. A moderator cannot touch an admin's content (it is skipped).
 // Her öğe için ayrı işlem kaydı yazılır. Moderatör, yöneticinin içeriğine dokunamaz (atlanır).
 // ---------------------------------------------------------------------------
 const EYLEMLER: Record<string, readonly string[]> = {
@@ -100,6 +105,7 @@ yonetimIcerik.post("/yonetim/toplu", async (req, res) => {
   if (!EYLEMLER[tur].includes(eylem)) { bildir(req, "hata", "Geçerli bir işlem seç."); return res.redirect(geri); }
   if (!idler.length) { bildir(req, "hata", "Hiçbir öğe seçilmedi."); return res.redirect(geri); }
 
+  // Bulk delete is dangerous: a reason is required (it goes to the audit log and the author's notification) + a confirmation step
   // Toplu silme tehlikelidir: sebep zorunlu (işlem kaydına ve yazarın bildirimine gider) + onay adımı
   if (eylem === "sil") {
     if (sebep.length < 3 || sebep.length > 200) { bildir(req, "hata", "Silmek için 3 ile 200 karakter arasında bir sebep yazmalısın."); return res.redirect(geri); }
@@ -115,6 +121,7 @@ yonetimIcerik.post("/yonetim/toplu", async (req, res) => {
     kategoriAdi = kat[0].name;
   }
 
+  // Authors' roles: for a moderator, admin content has to be filtered out
   // Yazarların rolleri: moderatör için yönetici içeriğini ayıklamak gerekir
   const tablo = tur === "konu" ? "topics" : tur === "mesaj" ? "posts" : "chat_messages";
   const [yazarlar]: any = await pool.query(
@@ -141,6 +148,7 @@ yonetimIcerik.post("/yonetim/toplu", async (req, res) => {
       basarili = tur === "konu" ? await konuyuGeriAl(id) : tur === "mesaj" ? await mesajiGeriAl(id) : await sohbetMesajiGeriAl(id);
       kayit = "icerik.geri_al";
     } else {
+      // Topics only: the column name comes from a fixed table, values go through ?
       // Yalnızca konular: sütun adı sabit tablodan, değerler ? ile
       const ISLEM: Record<string, [string, string]> = {
         sabitle: ["pinned_at = NOW()", "konu.sabitle"], sabit_kaldir: ["pinned_at = NULL", "konu.sabit_kaldir"],
@@ -171,7 +179,9 @@ yonetimIcerik.post("/yonetim/toplu", async (req, res) => {
 // Kategoriler
 // ---------------------------------------------------------------------------
 const KATEGORILER = "/yonetim/forum/kategoriler";
-yonetimIcerik.use(KATEGORILER, sadeceAdmin); // kategori yapısını yalnızca admin değiştirir (GET ve POST)
+// only the admin can change the category structure (GET and POST)
+// kategori yapısını yalnızca admin değiştirir (GET ve POST)
+yonetimIcerik.use(KATEGORILER, sadeceAdmin);
 
 function kategoriAlanlari(body: any): { hata?: string; ad: string; aciklama: string | null; sira: number } {
   const ad = metin(body.name);
@@ -219,6 +229,7 @@ yonetimIcerik.post(KATEGORILER + "/:id/duzenle", async (req, res, next) => {
   res.redirect(KATEGORILER);
 });
 
+// Delete: a category that has topics (including deleted ones: FK RESTRICT) is not deleted; the topics are first moved to another category.
 // Silme: konusu olan kategori (silinmiş konular dahil: FK RESTRICT) silinmez; önce konular başka kategoriye taşınır.
 yonetimIcerik.post(KATEGORILER + "/:id/sil", async (req, res, next) => {
   const id = sayi(req.params.id);
@@ -235,6 +246,7 @@ yonetimIcerik.post(KATEGORILER + "/:id/sil", async (req, res, next) => {
   res.redirect(KATEGORILER);
 });
 
+// Move all topics of a category (including deleted ones) to another category
 // Bir kategorinin bütün konularını (silinmişler dahil) başka kategoriye taşı
 yonetimIcerik.post(KATEGORILER + "/:id/tasi", async (req, res, next) => {
   const id = sayi(req.params.id);
@@ -251,6 +263,10 @@ yonetimIcerik.post(KATEGORILER + "/:id/tasi", async (req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
+// Ranks (sql/13): name, minimum points, colour, icon and privileges (open room, links, image, video, signature, daily votes).
+// The "base" rank with min_points = 0 must always remain: so even the user with the fewest points gets a rank
+// (`rutbeBul` picks the highest threshold; with no threshold the user would be left without a rank).
+// The table is a single form (everything is saved together); field names are <field>_<rank no> (e.g. min_points_3, oda_ac_3).
 // Rütbeler (sql/13): ad, en az puan, renk, simge ve ayrıcalıklar (oda aç, bağlantı, görsel, video, imza, günlük oy).
 // min_points = 0 olan "taban" rütbe her zaman kalmalı: puanı en düşük kullanıcı bile bir rütbe alsın
 // (rutbeBul en yüksek eşiği seçer, eşik yoksa rütbesiz kalırdı).
@@ -285,9 +301,11 @@ yonetimIcerik.get(RUTBELER, async (req, res) => {
   });
 });
 
+// New rank: its privileges are copied from the rank just below the threshold (a higher rank keeps everything the lower one has, then it is tuned in the panel)
 // Yeni rütbe: ayrıcalıkları, eşiğin hemen altındaki rütbeden kopyalanır (üst rütbe alttakinin hepsini korur, sonra panelde ayarlanır)
 yonetimIcerik.post(RUTBELER, async (req, res) => {
   const ad = metin(req.body.name), ham = metin(req.body.min_points), puan = Number(ham);
+  // If the colour/icon is invalid we do not silently fall back to the default (same behaviour as Save): the user must know their choice was not accepted
   // Renk/simge geçersizse sessizce varsayılana düşmeyiz (Kaydet ile aynı davranış): kullanıcı ne seçtiğinin kabul edilmediğini bilmeli
   const renk = req.body.renk, simge = req.body.simge;
   const hata = adHatasi(ad) ?? esikHatasi(ham, puan)
@@ -307,6 +325,7 @@ yonetimIcerik.post(RUTBELER, async (req, res) => {
   res.redirect(RUTBELER);
 });
 
+// Save the table: all ranks are validated together; if there is a single error, none is written
 // Tabloyu kaydet: bütün rütbeler birlikte doğrulanır; tek hata varsa hiçbiri yazılmaz
 yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
   const [eskiler]: any = await pool.query("SELECT id, name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy, aylik_yakut FROM ranks ORDER BY min_points");
@@ -318,7 +337,7 @@ yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
     const puan = Number(ham);
     const renk = req.body["renk_" + e.id], simge = req.body["simge_" + e.id];
     const oyHam = metin(req.body["gunluk_oy_" + e.id]);
-    const oy = oyHam === "" ? null : Number(oyHam); // boş = sınırsız
+    const oy = oyHam === "" ? null : Number(oyHam); // empty = unlimited · boş = sınırsız
     hata = hata ?? adHatasi(ad) ?? esikHatasi(ham, puan);
     if (!hata && e.min_points === 0 && puan !== 0) hata = "Taban rütbenin (0 puan) eşiği değiştirilemez; adını değiştirebilirsin.";
     if (!hata && e.min_points !== 0 && puan === 0) hata = "0 puanlık eşik yalnızca taban rütbeye ait.";
@@ -327,7 +346,9 @@ yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
     const yakutHam = metin(req.body["aylik_yakut_" + e.id]), yakutSayi = Number(yakutHam);
     if (!hata && (yakutHam === "" || !Number.isInteger(yakutSayi) || yakutSayi < 0 || yakutSayi > 100_000)) hata = "Aylık yakut 0 ile 100.000 arasında tam sayı olmalı.";
     const yeni: any = { id: e.id, name: ad, min_points: puan, renk, simge, gunluk_oy: oy, aylik_yakut: yakutSayi };
-    for (const b of BAYRAKLAR) yeni[b] = req.body[b + "_" + e.id] ? 1 : 0; // işaretli onay kutusu gönderilir, işaretsiz gönderilmez
+    // a checked checkbox is submitted, an unchecked one is not
+    // işaretli onay kutusu gönderilir, işaretsiz gönderilmez
+    for (const b of BAYRAKLAR) yeni[b] = req.body[b + "_" + e.id] ? 1 : 0;
     yeniler.push(yeni);
   }
   if (!hata) {
@@ -340,6 +361,7 @@ yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
   const bag = await pool.getConnection();
   try {
     await bag.beginTransaction();
+    // If two ranks swap names/thresholds the UNIQUE rule collides in the intermediate step: so they are first moved to temporary names
     // İki rütbe adlarını/eşiklerini takas ederse UNIQUE kuralı ara adımda çakışır: önce geçici adlara alınırlar
     for (const y of yeniler) await bag.query("UPDATE ranks SET name = CONCAT('~', id), min_points = 4000000000 + id WHERE id = ?", [y.id]);
     for (const y of yeniler) {
@@ -356,6 +378,7 @@ yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
     bag.release();
   }
   rutbeOnbellekTemizle();
+  // Audit log: only the changed ranks and fields
   // İşlem kaydı: yalnızca değişen rütbeler ve alanlar
   const degisenler: Record<string, unknown> = {};
   for (const y of yeniler) {
@@ -367,6 +390,7 @@ yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
     }
     if (Object.keys(fark).length) degisenler[e.name] = fark;
   }
+  // If nothing changed, no row is written to the audit log (no log noise)
   // Hiçbir şey değişmediyse işlem kaydına satır yazılmaz (kayıt gürültüsü olmasın)
   if (Object.keys(degisenler).length) await denetim(req, res, "rutbe.duzenle", "rutbe", null, { degisenler });
   bildir(req, "basari", Object.keys(degisenler).length ? "Rütbeler kaydedildi." : "Değişiklik yok.");
@@ -388,6 +412,9 @@ yonetimIcerik.post(RUTBELER + "/:id/sil", async (req, res, next) => {
 
 // ---------------------------------------------------------------------------
 // Rozet tanımları + elle rozet verme.
+// Badge definitions + manual badge awarding.
+// Badges that code awards by name (like `rozetVer("İlk Konu")`) cannot be deleted or renamed: if the name changes
+// the badge is never awarded again, it silently breaks.
 // Kodun adıyla verdiği rozetler (rozetVer("İlk Konu") gibi) silinemez ve yeniden adlandırılamaz: ad değişirse
 // rozet artık hiç verilmez, sessizce bozulur.
 // ---------------------------------------------------------------------------
@@ -423,6 +450,7 @@ yonetimIcerik.post(ROZETLER, async (req, res) => {
   res.redirect(ROZETLER);
 });
 
+// Manual badge awarding: /ver does not strictly have to be defined BEFORE the "/:id/..." routes (different pattern), but it sits here for readability
 // Elle rozet verme: /ver, "/:id/..." yollarından ÖNCE tanımlı olmalı değil (farklı kalıp) ama okunabilirlik için burada
 yonetimIcerik.post(ROZETLER + "/ver", async (req, res) => {
   const adi = metin(req.body.kullanici);
@@ -463,6 +491,7 @@ yonetimIcerik.post(ROZETLER + "/:id/sil", async (req, res, next) => {
   const [eski]: any = await pool.query("SELECT name FROM badges WHERE id = ?", [id]);
   if (!eski[0]) return next();
   if (KODDAKI_ROZETLER.includes(eski[0].name)) { bildir(req, "hata", "Bu rozet kodda kullanılıyor, silinemez."); return res.redirect(ROZETLER); }
+  // user_badges rows are deleted along with it via ON DELETE CASCADE
   // user_badges satırları ON DELETE CASCADE ile birlikte silinir
   await pool.query("DELETE FROM badges WHERE id = ?", [id]);
   await denetim(req, res, "rozet.sil", "rozet", id, { ad: eski[0].name });
@@ -471,6 +500,8 @@ yonetimIcerik.post(ROZETLER + "/:id/sil", async (req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
+// Title store (sql/22): add, edit name/price/order, active/passive. NO DELETE: a title has owners (they paid yakut);
+// if removal is wanted it is made "passive": not shown in the store, kept by owners but not displayed (while passive) (yardimci.ts › `unvanSql`).
 // Unvan mağazası (sql/22): ekle, ad/fiyat/sıra düzenle, aktif/pasif. SİLME YOK: unvanın sahipleri var (yakut ödemişler);
 // kaldırmak istenirse "pasif" yapılır: mağazada görünmez, sahiplerde kalır ama (pasifken) gösterilmez (yardimci.ts › unvanSql).
 // ---------------------------------------------------------------------------
@@ -521,6 +552,7 @@ yonetimIcerik.post(UNVANLAR + "/:id/duzenle", async (req, res, next) => {
     if (var_[0]) hata = "Bu adda başka bir unvan zaten var.";
   }
   if (hata) { bildir(req, "hata", hata); return res.redirect(UNVANLAR); }
+  // The active flag comes from the checkbox (if unchecked the field is not sent at all); the server counts only "1" as active
   // Aktiflik onay kutusundan gelir (işaretli değilse alan hiç gönderilmez); sunucu yalnızca "1"i aktif sayar
   const aktif = req.body.aktif === "1" ? 1 : 0;
   await pool.query("UPDATE unvanlar SET ad = ?, fiyat = ?, sira = ?, aktif = ? WHERE id = ?", [a.ad, a.fiyat, a.sira, aktif, id]);

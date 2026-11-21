@@ -1,7 +1,9 @@
-<%# Beklenen: hedef { id (post id), skor, benim_oyum (1, -1 ya da 0/null) } %>
+<%# Expected: hedef { id (post id), skor, benim_oyum (1, -1 or 0/null) }
+    Beklenen: hedef { id (post id), skor, benim_oyum (1, -1 ya da 0/null) } %>
 <% const o = hedef.benim_oyum || 0; %>
 <% if (!locals.kullanici) { %>
-  <%# Misafir oy veremez: form yerine giriş bağlantısı. Form olsaydı CSRF belirteci için her misafire boşuna oturum açılırdı. %>
+  <%# A guest cannot vote: a login link instead of the form. With a form, a session would be opened for every guest for nothing, just for the CSRF token.
+      Misafir oy veremez: form yerine giriş bağlantısı. Form olsaydı CSRF belirteci için her misafire boşuna oturum açılırdı. %>
   <% const girisAdresi = "/giris?don=" + encodeURIComponent(locals.adres || "/"); %>
   <div class="oy-misafir">
     <a class="ikon-dugme" href="<%= girisAdresi %>" aria-label="Oy vermek için giriş yap"><%- include("ikon", { ad: "yukari", boyut: 18 }) %></a>

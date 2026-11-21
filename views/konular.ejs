@@ -1,19 +1,24 @@
 <%- include("partials/bas") %>
   <%- include("partials/ust-cubuk") %>
-  <%# ?akis=takip seçiliyken kategori ve sıralama bağlantıları da bunu korur (giriş yoksa takipAkisi hep false) %>
+  <%# With ?akis=takip selected, the category and sort links keep it (without a login takipAkisi is always false)
+     ?akis=takip seçiliyken kategori ve sıralama bağlantıları da bunu korur (giriş yoksa takipAkisi hep false) %>
   <% const akisEki = locals.takipAkisi ? "&akis=takip" : ""; %>
 
   <div class="govde govde-akis">
     <main class="sutun">
       <%
+        // Feed control is a SINGLE row: segment (Top · New · Following) + Category button. The selected category is kept in every link.
+        // Top ("Öne çıkan") = popular sort; Following ("Takip") = topics from people I follow, newest first (src/rotalar/forum.ts).
         // Akış kontrolü TEK satır: segment (Öne çıkan · Yeni · Takip) + Kategori düğmesi. Seçili kategori her bağlantıda korunur.
         // Öne çıkan = popüler sıralama; Takip = takip ettiklerimin konuları, yeni sırasıyla (src/rotalar/forum.ts).
         const katEki_ = locals.kategoriId ? "&kategori=" + kategoriId : "";
         const takipMi_ = !!locals.takipAkisi;
         const kip_ = takipMi_ ? "takip" : (locals.sirala === "populer" ? "populer" : "yeni");
+        // If a guest taps Following they go to login, then return to the same feed after logging in
         // Misafir Takip'e dokunursa girişe gider, girişten sonra aynı akışa döner
         const takipAdresi_ = locals.kullanici ? "/?akis=takip" + katEki_ : "/giris?don=" + encodeURIComponent("/?akis=takip" + katEki_);
         const sekmeler_ = [["populer", "Öne çıkan", "/?sirala=populer" + katEki_], ["yeni", "Yeni", "/?sirala=yeni" + katEki_], ["takip", "Takip", takipAdresi_]];
+        // Category rows keep the current mode (following or sort)
         // Kategori satırları mevcut kipi korur (takip ya da sıralama)
         const kipEki_ = takipMi_ ? "&akis=takip" : "&sirala=" + (locals.sirala || "yeni");
         const seciliKat_ = locals.kategoriId ? kategoriler.find((c) => c.id === kategoriId) : null;
@@ -27,7 +32,8 @@
             </a>
           <% } %>
         </div>
-        <%# JS'siz: /kategoriler sayfasına gider. JS varsa quadran.js aynı listeyi (#kategori-secici) açar. Masaüstünde gizli: sol menüde kategoriler zaten var (tekrar olmasın). %>
+        <%# Without JS: goes to the /kategoriler page. With JS, rubyyard.js opens the same list (#kategori-secici). Hidden on desktop: the left menu already has the categories (no duplicates).
+           JS'siz: /kategoriler sayfasına gider. JS varsa rubyyard.js aynı listeyi (#kategori-secici) açar. Masaüstünde gizli: sol menüde kategoriler zaten var (tekrar olmasın). %>
         <a class="kategori-dugmesi<%= seciliKat_ ? ' secili' : '' %>" href="/kategoriler" data-kategori-ac aria-haspopup="dialog" aria-label="Kategori<%= seciliKat_ ? ': ' + seciliKat_.name : '' %>">
           <span class="kategori-dugmesi-ad"><%= seciliKat_ ? seciliKat_.name : "Kategori" %></span>
           <%- include("partials/ikon", { ad: "asagi-ok", boyut: 16 }) %>
@@ -73,8 +79,8 @@
     <aside class="sutun sag-panel">
       <% if (!locals.kullanici) { %>
       <section class="kart panel katil">
-        <span class="logo-isaret">Q</span>
-        <h3>QuadRan'a katıl</h3>
+        <span class="logo-isaret"><img src="/img/marka/rakun-96.webp" alt="" width="32" height="32"></span>
+        <h3>rubyyard'a katıl</h3>
         <p>Oy ver, yorum yaz, rütbeni yükselt. Topluluğun standartlarını birlikte belirleyelim.</p>
         <a class="buton buton-birincil buton-genis" href="/kayit">Kayıt ol</a>
         <a class="buton buton-cerceveli buton-genis" href="/giris">Giriş yap</a>

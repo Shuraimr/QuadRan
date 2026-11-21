@@ -1,4 +1,17 @@
 <%#
+  General chat: /sohbet   (chat_messages table; no live updates, new messages arrive when the page is refreshed)
+  Expected data:
+  mesajlar    [ { id, yazar, rutbe, content, created_at } ]   sorted OLDEST TO NEWEST (like the last 50 messages);
+              yazar = users.username (joined via chat_messages.user_id), rutbe is computed from points
+  cevrimici   [ { username } ]   users active in the last few minutes (no counterpart in the table: needs
+              session or last-seen information, optional for now)
+  hata        string (optional)   e.g. "Mesaj boş olamaz."
+  if locals.kullanici { username } exists, the writing box; otherwise a locked box and a /giris?don=/sohbet link
+  Form: POST /sohbet  field: content
+  Report: a flag button on every message by others (POST /sikayet, field sohbet_id); deleted messages are not in the list
+  hub         chat hub data for members (partials/sohbet-liste.ejs); if missing (guest) the old layout: feed + Online/Rules side column
+  genelAcik   (bool) whether the conversation view is open on phones (?genel=1); otherwise the list shows first on phones
+  panelAcik   if "yeni", the "Create room" window opens (the no-JS /oda/yeni page)
   Genel sohbet: /sohbet   (chat_messages tablosu; canlı güncelleme yok, sayfa yenilenince yeni mesajlar gelir)
   Beklenen veriler:
   mesajlar    [ { id, yazar, rutbe, content, created_at } ]   ESKİDEN YENİYE sıralı (son 50 mesaj gibi);
@@ -24,6 +37,7 @@
     "Spam, reklam ve kişisel bilgi paylaşımı yasak.",
     "Sorun görürsen bir moderatöre haber ver."
   ];
+  // Group consecutive messages: the same person and less than 10 minutes apart
   // Art arda gelen mesajları grupla: aynı kişi ve aralarında 10 dakikadan az
   const shOgeler = [];
   let shSon = null;

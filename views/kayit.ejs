@@ -1,4 +1,10 @@
 <%#
+  Expected data (optional):
+  kapali   if true (registration was closed in the admin panel), a "registration is closed" box is drawn instead of the form
+  hatalar  { username, email, password, kurallar }   field name -> error message
+  degerler { username, email }
+%>
+<%#
   Beklenen veriler (isteğe bağlı):
   kapali   true ise (yönetim panelinde kayıt kapatılmış) form yerine "kayıtlar kapalı" kutusu çizilir
   hatalar  { username, email, password, kurallar }   alan adı -> hata mesajı
@@ -8,7 +14,7 @@
 <% const h = locals.hatalar || {}; const d = locals.degerler || {}; %>
 <div class="orta-sayfa">
   <%- include("partials/kontur") %>
-  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <a class="logo" href="/"><span class="logo-isaret"><img src="/img/marka/rakun-96.webp" alt="" width="32" height="32"></span>rubyyard</a>
   <% if (locals.kapali) { %>
   <div class="kart form-karti">
     <div><h1>Kayıtlar kapalı</h1><p class="ikincil kucuk">Şu anda yeni hesap açılmıyor. Daha sonra tekrar dene.</p></div>

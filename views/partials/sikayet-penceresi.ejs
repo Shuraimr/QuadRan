@@ -1,3 +1,18 @@
+<%# Report dialog. There is only one on the page; JS writes the data- fields of the "Report" links into it.
+   Link format: <a href="/sikayet?post_id=7" data-sikayet-ac data-post-id="7" data-yazar="ayse">  (works as a plain link without JS)
+   data-yazar: author of the reported message/person; for the "also block <name>" box in the dialog. If not given the box is hidden.
+   Expected data (all optional):
+   post_id  id of the message to write into the hidden field when the dialog first opens
+   hedef_kullanici  name of the reported person in a user report (instead of post_id; the name "kullanici" is reserved for the signed-in person)
+   yazar    name in the block box (comes from the server for the no-JS /sikayet page and the dialog on the profile)
+   User report link: <a href="/sikayet?kullanici=ayse" data-sikayet-ac data-kullanici="ayse" data-yazar="ayse">
+   General chat message: <a href="/sikayet?sohbet_id=3" data-sikayet-ac data-sohbet-id="3" data-baslik="Bu sohbet mesajını şikâyet et">
+   Room message (room members only): <a href="/sikayet?oda_mesaj_id=9" data-sikayet-ac data-oda-mesaj-id="9" data-baslik="Bu oda mesajını şikâyet et"> ("Off topic" can be chosen: data-hedef "sohbet")
+   Private message (recipient only): <a href="/sikayet?mesaj_id=5" data-sikayet-ac data-mesaj-id="5" data-baslik="Bu özel mesajı şikâyet et">
+   sohbet_id, mesaj_id  id to write into the matching hidden field when the dialog first opens (without JS the /sikayet page fills them)
+   statik   if true, an open box instead of <dialog> (only for the /sikayet page and the preview)
+   Reasons: app.locals.sikayetSebepleri (src/sikayet.ts). "Off topic" appears only for topic/chat messages:
+   the dialog's data-hedef value (konu | sohbet | ozel | kullanici) tells the CSS about this. %>
 <%#
   Şikâyet penceresi. Sayfada bir tane olur; "Şikâyet et" bağlantılarındaki data- alanlarını JS buraya yazar.
   Bağlantı biçimi: <a href="/sikayet?post_id=7" data-sikayet-ac data-post-id="7" data-yazar="ayse">  (JS yoksa bağlantı olarak çalışır)

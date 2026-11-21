@@ -1,3 +1,25 @@
+<%# Moderation report queue: /moderasyon?durum=bekliyor|islendi|reddedildi|hepsi   (moderator and admin only)
+   Expected data:
+   durum      "bekliyor" | "islendi" | "reddedildi" | "hepsi"   selected filter (defaults to bekliyor = pending)
+   ozet       { bekleyen, bugun_islenen, toplam }               counts from the reports table
+   sikayetler [ {
+       id, durum, sebep, aciklama, created_at,          reports: sebep, aciklama, durum, created_at
+       bildiren,                                        reports.reporter_id -> users.username
+       ayni_post_sayisi,                                how many reports the same target has (this one included)
+       tur,                                             reports.hedef_tur: "konu_mesaji" | "kullanici" | "sohbet_mesaji" | "ozel_mesaj" | "oda_mesaji"
+       hedef: {                                         src/sikayet.ts hedefOnizleme()
+         yazar, rutbe, banli, icerik, tarih, silindi,   the reported person (in a user report, the person themselves) and the content
+         link,                                          address of the content ("" = private message, no address)
+         konu: { id, title },                           only konu_mesaji
+         alici, baglam: [ { gonderen, icerik, hedef, silindi, tarih } ]   only ozel_mesaj: the reported message and its surroundings
+       }
+   } ]
+   locals.kullanici { username, rol }  if rol is not "admin" or "moderator", an access-denied message is shown
+   Forms (all POST, no fields, the id is in the URL):
+     /moderasyon/<id>/sil     deletes the content (topic/chat/private message; deleted_at) and marks the report "islendi" (processed)
+     /moderasyon/<id>/uyar    warns the author and marks the report "islendi"
+     /moderasyon/<id>/reddet  closes the report ("reddedildi" = rejected)
+     /moderasyon/<id>/uzaklastir  suspends the reported person (the main action in a user report) %>
 <%#
   Moderasyon şikâyet kuyruğu: /moderasyon?durum=bekliyor|islendi|reddedildi|hepsi   (yalnızca moderator ve admin)
   Beklenen veriler:
@@ -99,9 +121,10 @@
                 <% if (s.tur === "sohbet_mesaji") { %><span class="cip-cerceveli">Genel sohbet</span><% } %>
                 <% if (s.tur === "ozel_mesaj") { %><span class="cip-cerceveli">Özel mesaj → <%= h.alici %></span><% } %>
                 <% if (s.tur === "oda_mesaji") { %><span class="cip-cerceveli">Oda: <%= h.oda %></span><% } %>
-                <%# Zaman ayraçsız (gonderi-karti.ejs ile aynı neden): satır kırılınca başta tek "·" kalmasın %><span class="zaman"><%= zaman(h.tarih) %></span>
+                <%# No time separator (same reason as gonderi-karti.ejs): so a lone "·" is not left at the start when the line wraps · Zaman ayraçsız (gonderi-karti.ejs ile aynı neden): satır kırılınca başta tek "·" kalmasın %><span class="zaman"><%= zaman(h.tarih) %></span>
               </div>
               <% if (s.tur === "ozel_mesaj" || s.tur === "oda_mesaji") { %>
+                <%# PRIVACY: only the reported part of a private message and a few messages around it are shown, not the whole conversation %>
                 <%# GİZLİLİK: özel mesajın yalnızca şikâyet edilen kısmı ve çevresindeki birkaç mesaj gösterilir, konuşmanın tamamı değil %>
                 <div class="moderasyon-baglam" aria-label="Konuşmanın şikâyet edilen mesaj çevresi">
                   <% for (const b of h.baglam) { %>

@@ -1,10 +1,17 @@
 <%#
+  Comment attachments (sql/23, Figma 15): photo grid / single photo / video + the +18 mark. Expected: mesaj { id, ekler [ { tur, adres, genislik, yukseklik, nsfw } ] }.
+  +18 display follows the person's preference (res.locals.nsfwTercih; undefined for guests = hide):
+    gizle  → attachments are not rendered at all (not even the file address is in the page), a box instead
+    bulanik → attachments are blurred, "+18 · Show" on top. Works without JS: hidden checkbox + label; once checked the blur is removed (CSS :checked)
+    goster → normal, small "+18" chip in the corner
+  The full-screen viewer lives in rubyyard.js (data-ek-gor); without JS the photo link opens the file.
+
   Yorum ekleri (sql/23, Figma 15): fotoğraf ızgarası / tek fotoğraf / video + +18 işareti. Beklenen: mesaj { id, ekler [ { tur, adres, genislik, yukseklik, nsfw } ] }.
   +18 görünümü kişinin tercihine göre (res.locals.nsfwTercih; misafirde tanımsız = gizle):
     gizle  → ekler hiç çizilmez (dosya adresi bile sayfada yok), yerine kutu
     bulanik → ekler bulanık, üstte "+18 · Göster". JS'siz çalışır: gizli onay kutusu + label; işaretlenince bulanıklık kalkar (CSS :checked)
     goster → normal, köşede küçük "+18" çipi
-  Tam ekran görüntüleyici quadran.js'te (data-ek-gor); JS yoksa fotoğraf bağlantısı dosyayı açar.
+  Tam ekran görüntüleyici rubyyard.js'te (data-ek-gor); JS yoksa fotoğraf bağlantısı dosyayı açar.
 %><% const ekler_ = locals.mesaj && mesaj.ekler ? mesaj.ekler : [];
 if (ekler_.length) {
   const nsfw_ = !!ekler_[0].nsfw; const tercih_ = locals.nsfwTercih || "gizle";

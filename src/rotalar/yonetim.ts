@@ -1,3 +1,12 @@
+// Admin panel (/yonetim). For the information architecture (side menu) and the permission matrix, see the "Yönetim paneli" section of docs/AKTARIM.md.
+//
+//   Overview                 /yonetim                          moderator + admin
+//   Moderation               /yonetim/sikayetler, yaptirimlar, filtre   (filter: moderators can see it, admins edit it)
+//   Site sections            /yonetim/forum, sohbet, uyeler, puan (admin only)
+//   Site                     /yonetim/duyurular, kayit-erisim (admin only), islem-kaydi (a moderator only sees their own actions)
+//
+// Two gates: the use() below checks "is this a moderator or an admin?"; sadeceAdmin (yonetim-ortak.ts) is the narrower gate.
+// Hiding a menu item is not enough, every admin-only route also carries sadeceAdmin.
 // Yönetim paneli (/yonetim). Bilgi mimarisi (kenar menü) ve yetki matrisi için docs/AKTARIM.md "Yönetim paneli" bölümüne bak.
 //
 //   Bakış                    /yonetim                          moderatör + admin
@@ -24,11 +33,13 @@ export const yonetim = express.Router();
 yonetim.use("/yonetim", girisGerekli("Yönetim paneli için giriş yapman gerekiyor."), async (req, res, next) => {
   const rol = res.locals.kullanici?.rol;
   if (!["admin", "moderator"].includes(rol)) return durumSayfasi(req, res, 403, { metin: "Yönetim paneli yalnızca moderatörlere ve yöneticilere açık." });
+  // Pending report count for the sidebar (oturum.ts already computed it for staff)
   // Kenar çubuğundaki bekleyen şikâyet sayısı (oturum.ts staff için zaten hesapladı)
   const bekleyen = res.locals.bekleyenSikayet ?? 0;
   res.locals.bekleyenSikayet = bekleyen;
   res.locals.menu = menuKur(rol, bekleyen);
   res.locals.kalanSure = kalanSure;
+  // yUrl("/yonetim/forum", {q:"", durum:"aktif"}, {sayfa: 2}) -> "/yonetim/forum?durum=aktif&sayfa=2" (empty values are dropped)
   // yUrl("/yonetim/forum", {q:"", durum:"aktif"}, {sayfa: 2}) -> "/yonetim/forum?durum=aktif&sayfa=2" (boş değerler atılır)
   res.locals.yUrl = (yol: string, qs: Record<string, unknown>, ek: Record<string, unknown> = {}) => {
     const girdi = Object.entries({ ...qs, ...ek }).filter(([, v]) => v !== "" && v !== null && v !== undefined);
@@ -39,6 +50,8 @@ yonetim.use("/yonetim", girisGerekli("Yönetim paneli için giriş yapman gereki
 });
 
 // ---------------------------------------------------------------------------
+// Old addresses (bookmarks, old links): redirected to the new ones with 301. The query string is kept. GET only:
+// a POST redirect would lose the data, and those forms already submit to the new addresses.
 // Eski adresler (yer imleri, eski bağlantılar): 301 ile yenisine. Sorgu dizgesi korunur. Yalnızca GET:
 // POST yönlendirmesi veriyi kaybettirir, o formlar zaten yeni adreslere gider.
 // ---------------------------------------------------------------------------
@@ -51,6 +64,7 @@ tasi("/yonetim/icerik/rutbeler", "/yonetim/puan/rutbeler");
 tasi("/yonetim/icerik/rozetler", "/yonetim/puan/rozetler");
 yonetim.get("/yonetim/kullanicilar/:id", (req, res) => res.redirect(301, `/yonetim/uyeler/${encodeURIComponent(req.params.id)}` + sorgu(req)));
 yonetim.get("/yonetim/icerik", (req, res) => {
+  // Old ?tur=konu|mesaj|sohbet goes to one of the new addresses (the tur parameter is now part of the path)
   // Eski ?tur=konu|mesaj|sohbet, yeni adreslerden birine gider (tur parametresi artık adreste)
   const tur = req.query.tur;
   const hedef = tur === "mesaj" ? "/yonetim/forum/mesajlar" : tur === "sohbet" ? "/yonetim/sohbet" : "/yonetim/forum";
@@ -65,10 +79,12 @@ yonetim.use(yonetimSikayet);
 yonetim.use(yonetimSite);
 
 // ---------------------------------------------------------------------------
+// Dashboard
 // Pano
 // ---------------------------------------------------------------------------
 const yerelTarih = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+// Daily counts for the last 30 days (days with no records count as 0). `tablo` is a constant name from the code.
 // Son 30 günün günlük sayısı (kayıt olmayan günler 0). tablo koddaki sabit bir ad.
 async function gunluk(tablo: "users" | "topics" | "posts", silinmisHaric: boolean) {
   const [satirlar]: any = await pool.query(
@@ -118,6 +134,7 @@ yonetim.get("/yonetim", async (req, res) => {
   );
   for (const b of bekleyenler) b.hedef = await hedefOnizleme(b.hedef_tur, b.hedef_id);
 
+  // A moderator only sees their own recent actions (same rule as the audit log), an admin sees all of them
   // Moderatör yalnızca kendi son işlemlerini görür (işlem kaydıyla aynı kural), admin hepsini
   const [sonIslemler]: any = await pool.query(
     `SELECT audit_log.id, audit_log.eylem, audit_log.hedef_tur, audit_log.hedef_id, audit_log.created_at, users.username AS aktor
@@ -136,6 +153,8 @@ yonetim.get("/yonetim", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Panel search (Ctrl+K and the box in the top bar): /yonetim/ara?q=
+// Groups: members (username; only admins can search by e-mail), topics (title), reports (#number).
 // Panel araması (Ctrl+K ve üst çubuktaki kutu): /yonetim/ara?q=
 // Gruplar: üyeler (kullanıcı adı; e-postayı yalnızca admin arar), konular (başlık), şikâyet (#numara).
 // ---------------------------------------------------------------------------
@@ -169,6 +188,8 @@ yonetim.get("/yonetim/ara", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Audit log: /yonetim/islem-kaydi?eylem=&aktor=&hedef_tur=&hedef_id=&bas=&son=&q=&sayfa=
+// An admin sees everything; a moderator sees ONLY the actions they performed (someone else's actions never enter the query).
 // İşlem kaydı: /yonetim/islem-kaydi?eylem=&aktor=&hedef_tur=&hedef_id=&bas=&son=&q=&sayfa=
 // Admin hepsini görür; moderatör YALNIZCA kendi yaptığı işlemleri görür (başkasının işlemi sorguya hiç girmez).
 // ---------------------------------------------------------------------------
@@ -203,6 +224,7 @@ yonetim.get("/yonetim/islem-kaydi", async (req, res) => {
             users.username AS aktor ${govde} WHERE ${nerede} ORDER BY audit_log.id DESC LIMIT ? OFFSET ?`,
     [...p, sf.boyut, sf.offset]
   );
+  // The filter options follow the same rule: a moderator only sees the actions they have used themselves
   // Süzgeç seçenekleri de aynı kurala uyar: moderatör yalnızca kendi kullandığı eylemleri görür
   const [eylemler]: any = await pool.query(`SELECT DISTINCT eylem FROM audit_log ${admin ? "" : "WHERE actor_id = ?"} ORDER BY eylem`, admin ? [] : [k.id]);
   const [turler]: any = await pool.query(`SELECT DISTINCT hedef_tur FROM audit_log WHERE hedef_tur IS NOT NULL ${admin ? "" : "AND actor_id = ?"} ORDER BY hedef_tur`, admin ? [] : [k.id]);

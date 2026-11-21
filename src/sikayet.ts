@@ -1,3 +1,9 @@
+// Shared logic of the report queue. /moderasyon (simple queue) and /yonetim/sikayetler (advanced queue)
+// use the same functions.
+//
+// Report model (sql/08_yonetim.sql): reports.hedef_tur says which column is filled.
+//   konu_mesaji -> post_id | kullanici -> reported_user_id | sohbet_mesaji -> chat_message_id | ozel_mesaj -> message_id
+//   oda_mesaji -> room_message_id (private room message, sql/12)
 // Şikâyet kuyruğunun ortak mantığı. /moderasyon (basit kuyruk) ve /yonetim/sikayetler (gelişmiş kuyruk)
 // aynı fonksiyonları kullanır.
 //
@@ -20,6 +26,10 @@ export const TUR_ETIKET: Record<string, string> = {
   oda_mesaji: "Oda mesajı",
 };
 export const TURLER = Object.keys(TUR_ETIKET);
+// Report reasons: reports.sebep stores the LABEL (no code), and the admin panel filters by the same label.
+// sadeceMesaj: "Off-topic" ("Konu dışı") makes no sense for a user or a private message; it only appears for topic/chat messages.
+// Old rows may hold labels no longer in the list (e.g. "Hakaret veya nefret söylemi"); the table reads them as they are,
+// and only the ones on this list are accepted for new reports.
 // Şikâyet sebepleri: reports.sebep'e ETİKET yazılır (kod yok), yönetim paneli de aynı etiketle süzer.
 // sadeceMesaj: "Konu dışı" bir kullanıcı ya da özel mesaj için anlamsız, yalnızca konu/sohbet mesajında çıkar.
 // Eski satırlarda "Hakaret veya nefret söylemi" gibi artık listede olmayan etiketler durabilir; tablo olduğu gibi okur,
@@ -39,6 +49,8 @@ export const SEBEP_LISTESI = [
 export const SEBEPLER = SEBEP_LISTESI.map((s) => s.ad);
 export const SEBEP_DIGER = "Başka bir sebep";
 
+// Validates the report form; returns the text to show the user if there is a problem, otherwise null.
+// hedefTur: the reports.hedef_tur value ("Konu dışı" is invalid for "kullanici" and "ozel_mesaj").
 // Şikâyet formunu doğrular; sorun varsa kullanıcıya gösterilecek metni, yoksa null döner.
 // hedefTur: reports.hedef_tur değeri ("kullanici" ve "ozel_mesaj" için "Konu dışı" geçersiz).
 export function sebepHatasi(sebep: string | null, aciklama: string | null, hedefTur: string): string | null {
@@ -57,11 +69,14 @@ export type Onizleme = {
   link: string;
   konu?: { id: number; title: string };
   alici?: string;
-  oda?: string; // yalnızca oda_mesaji: odanın adı
-  onceki?: { yazar: string; icerik: string } | null; // şikâyet edilenden hemen önceki mesaj (bağlam için; konu ve sohbet)
+  oda?: string; // only for oda_mesaji: the room's name · yalnızca oda_mesaji: odanın adı
+  // the message right before the reported one (for context; topic and chat)
+  // şikâyet edilenden hemen önceki mesaj (bağlam için; konu ve sohbet)
+  onceki?: { yazar: string; icerik: string } | null;
   baglam?: { id: number; gonderen: string; icerik: string; hedef: boolean; silindi: boolean; tarih: Date }[];
 };
 
+// Display info for a report target (message, user...). Returns null if not found.
 // Bir şikâyet hedefinin (mesaj, kullanıcı...) gösterim bilgisi. Bulunamazsa null.
 export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme | null> {
   const kisi = (t: string) => `${t}.id AS yazar_id, ${t}.username AS yazar, ${rutbeSutunlari(t)}, ${banliSql(t)} AS banli`;
@@ -71,6 +86,7 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
       `SELECT posts.id, posts.content, posts.created_at, posts.deleted_at, ${kisi("u")}, topics.id AS konu_id, topics.title AS konu_baslik
          FROM posts JOIN users u ON u.id = posts.user_id JOIN topics ON topics.id = posts.topic_id WHERE posts.id = ?`, [id])) as any;
     if (!satir) return null;
+    // Context: the previous (non-deleted) message in the same topic
     // Bağlam: aynı konudaki bir önceki (silinmemiş) mesaj
     const [[once]]: any = await pool.query(
       `SELECT posts.content, u.username FROM posts JOIN users u ON u.id = posts.user_id
@@ -109,6 +125,9 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
          FROM messages m JOIN users u ON u.id = m.sender_id JOIN users alici ON alici.id = m.receiver_id WHERE m.id = ?`, [id])) as any;
     if (!satir) return null;
 
+    // PRIVACY: private messages belong to the two people. The moderator sees not the whole conversation but only the reported
+    // message and a few around it (3 before, 2 after), so that the context is clear.
+    // To limit the conversation to that, we use a two-way match (A->B or B->A) and LIMIT.
     // GİZLİLİK: özel mesajlar iki kişiye aittir. Moderatör bütün konuşmayı değil, yalnızca şikâyet edilen
     // mesajı ve çevresindeki birkaç mesajı (öncesinden 3, sonrasından 2) görür; bağlam anlaşılsın diye.
     // Konuşmayı bu kadarıyla sınırlamak için iki yönlü eşleşme (A->B ya da B->A) ve LIMIT kullanıyoruz.
@@ -135,6 +154,8 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
       `SELECT m.id, m.content, m.created_at, m.deleted_at, m.room_id, r.ad AS oda, ${kisi("u")}
          FROM room_messages m JOIN users u ON u.id = m.user_id JOIN rooms r ON r.id = m.room_id WHERE m.id = ? AND m.tur = 'mesaj'`, [id])) as any;
     if (!satir) return null;
+    // PRIVACY (same principle as private messages): a room belongs only to its members. Staff cannot browse a room's messages; they only
+    // see the reported message and its surroundings (3 before, 2 after; system lines excluded).
     // GİZLİLİK (özel mesajla aynı ilke): oda yalnızca üyelerinindir. Yetkili odanın mesajlarını gezemez; yalnızca
     // şikâyet edilen mesajı ve çevresini (öncesinden 3, sonrasından 2 mesaj; sistem satırları hariç) görür.
     const [oncesi]: any = await pool.query(
@@ -156,9 +177,11 @@ export async function hedefOnizleme(tur: string, id: number): Promise<Onizleme |
   return null;
 }
 
+// Warning notification text (by target type)
 // Uyarı bildirimi metni (hedef türüne göre)
 function uyariBildirimi(o: Onizleme, sebep?: string) {
   const b = uyariBildirimiTaslak(o);
+  // The reason written in the panel is appended to the end of the warning; the notification is cut to 300 characters (yardimci.ts), so the reason goes at the end
   // Panelden yazılan gerekçe uyarının sonuna eklenir; bildirim 300 karaktere kesilir (yardimci.ts), o yüzden gerekçe sona
   return sebep ? { ...b, metin: `${b.metin} Sebep: ${sebep}` } : b;
 }
@@ -173,6 +196,8 @@ function uyariBildirimiTaslak(o: Onizleme) {
 
 export type SikayetEylemi = "sil" | "uyar" | "banla" | "reddet";
 
+// An action on a report TARGET: all pending reports against that target close together.
+// Return value: { ok, mesaj }. The audit log entry is written here too.
 // Bir şikâyet HEDEFİ üzerinde işlem: o hedefe gelen bekleyen bütün şikâyetler birlikte kapanır.
 // Dönen değer: { ok, mesaj }. İşlem kaydı da burada yazılır.
 export async function sikayetIslemi(
@@ -182,9 +207,12 @@ export async function sikayetIslemi(
   if (!HEDEF_SUTUN[tur]) return { ok: false, mesaj: "Geçersiz hedef türü." };
   const o = await hedefOnizleme(tur, hedefId);
   if (!o) return { ok: false, mesaj: "Şikâyet edilen öğe bulunamadı." };
+  // A moderator cannot handle reports about an admin's content or about themselves
   // Moderatör, yöneticinin içeriğini ya da kendisini ilgilendiren şikâyetleri işleyemez
   if (yetkili.rol !== "admin" && o.yazarRol === "admin") return { ok: false, mesaj: "Yöneticiler hakkındaki şikâyetleri yalnızca yöneticiler işler." };
 
+  // kullanici_id + yazar: the "Sanction history" screens link this action to the punished person via the JSON field
+  // (here the audit_log's hedef_id is the report target, not the person).
   // kullanici_id + yazar: "Yaptırım geçmişi" ekranları bu işlemi cezalandırılan kişiye JSON alanından bağlar
   // (audit_log'un hedef_id'si burada şikâyet hedefidir, kişi değil).
   const sebep = secenek.sebep || undefined;
@@ -196,6 +224,7 @@ export async function sikayetIslemi(
       : tur === "sohbet_mesaji" ? await sohbetMesajiSil(hedefId, yetkili.id, sebep)
       : tur === "oda_mesaji" ? await odaMesajiSil(hedefId, yetkili.id, sebep)
       : await ozelMesajiSil(hedefId, yetkili.id, sebep);
+    // If it is already deleted, only close the reports
     // Zaten silinmişse yalnızca şikâyetleri kapat
     if (!silinen) await sikayetleriKapat(tur, hedefId, "islendi", yetkili.id);
     await denetim(req, res, "sikayet.sil", tur, hedefId, { ...ayrinti, zaten_silinmisti: !silinen });
@@ -218,6 +247,7 @@ export async function sikayetIslemi(
     return { ok: true, mesaj: `${o.yazar} uzaklaştırıldı (${sonuc.etiket}), şikâyetler işlendi.` };
   }
 
+  // reject: all pending reports against the target become "rejected"
   // reddet: hedefe gelen bütün bekleyen şikâyetler "reddedildi"
   const n = await sikayetleriKapat(tur, hedefId, "reddedildi", yetkili.id);
   await denetim(req, res, "sikayet.reddet", tur, hedefId, { ...ayrinti, adet: n });

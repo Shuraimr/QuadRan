@@ -1,3 +1,4 @@
+// Account: login, sign-up, logout, forgot/reset password, settings, changing password and email, deleting the account.
 // Hesap: giriş, kayıt, çıkış, şifremi unuttum/sıfırlama, ayarlar, şifre ve e-posta değiştirme, hesabı silme.
 import express from "express";
 import { createHash, randomBytes } from "node:crypto";
@@ -13,6 +14,9 @@ import { efektGecerli, susGecerli, renkGecerli } from "../profil-gorunum.ts";
 
 export const hesap = express.Router();
 
+// Against session fixation attacks: the session id is renewed at login.
+// express-session uses callbacks; we wrap it in a Promise so we can await it.
+// (The session is saved automatically by express-session when the response is sent.)
 // Oturum sabitleme (session fixation) saldırısına karşı: girişte oturum kimliği yenilenir.
 // express-session geri çağırma (callback) kullanıyor; await edebilmek için Promise'e sarıyoruz.
 // (Oturum, yanıt gönderilirken express-session tarafından otomatik kaydedilir.)
@@ -20,11 +24,13 @@ const oturumuYenile = (req: express.Request) =>
   new Promise<void>((tamam, hata) => req.session.regenerate((e) => (e ? hata(e) : tamam())));
 
 const KULLANICI_ADI = /^[A-Za-z0-9_]{3,30}$/;
+// The /mesajlar/yeni page takes precedence over a profile conversation with this name (src/rotalar/iletisim.ts); so it must not be registrable
 // /mesajlar/yeni sayfası bu ada ait profil konuşmasının önüne geçer (src/rotalar/iletisim.ts); alınamasın
 const AYRILMIS_AD = ["yeni"];
 const EPOSTA = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ---------------------------------------------------------------------------
+// Login
 // Giriş
 // ---------------------------------------------------------------------------
 hesap.get("/giris", (req, res) => {
@@ -39,6 +45,8 @@ hesap.post("/giris", async (req, res) => {
   const sifre = typeof req.body.sifre === "string" ? req.body.sifre : "";
   const don = yerelAdres(req.body.don);
 
+  // Rate limit: after too many wrong attempts the person is made to wait for a while (against brute force).
+  // The account key is lowercase: so that "Ayse" and "ayse" count on the same counter.
   // Hız sınırı: çok fazla yanlış denemeden sonra bir süre bekletilir (kaba kuvvete karşı).
   // Hesap anahtarı küçük harfle: "Ayse" ve "ayse" aynı sayaca yazılsın.
   const ipAnahtari = req.ip ?? "?";
@@ -48,6 +56,7 @@ hesap.post("/giris", async (req, res) => {
     return res.status(429).render("giris", { hata: `Çok fazla yanlış deneme. ${bekle} dakika sonra tekrar dene.`, degerler: { kullanici_adi: kullaniciAdi }, don });
   }
 
+  // Login with username OR email
   // Kullanıcı adı YA DA e-posta ile giriş
   const [satirlar]: any = await pool.query(
     `SELECT id, username, password_hash, oturum_surumu, banned_at, banned_until, ban_reason, ${banliSql("users")} AS banli
@@ -56,6 +65,7 @@ hesap.post("/giris", async (req, res) => {
   );
   const k = satirlar[0];
 
+  // The SAME message whether the user does not exist or the password is wrong: so which usernames are registered does not leak
   // Kullanıcı yoksa da şifre yanlışsa da AYNI mesaj: hangi kullanıcı adlarının kayıtlı olduğu sızmasın
   if (!k || !(await sifreDogru(sifre, k.password_hash))) {
     girisIp.say(ipAnahtari);
@@ -63,6 +73,7 @@ hesap.post("/giris", async (req, res) => {
     return res.status(401).render("giris", { hata: "Kullanıcı adı ya da şifre yanlış.", degerler: { kullanici_adi: kullaniciAdi }, don });
   }
   if (k.banli) {
+    // For a timed ban the end date is written, for a permanent ban "süresiz" (indefinite); the reason is added if there is one
     // Süreli banda bitiş tarihi, kalıcı banda "süresiz" yazılır; sebep varsa eklenir
     const ne_zaman = k.banned_until
       ? ` (${new Date(k.banned_until).toLocaleString("tr-TR", { dateStyle: "long", timeStyle: "short" })} tarihine kadar)`
@@ -70,6 +81,7 @@ hesap.post("/giris", async (req, res) => {
     const sebep = k.ban_reason ? ` Sebep: ${k.ban_reason}` : "";
     return res.status(403).render("giris", { hata: `Bu hesap moderatörler tarafından uzaklaştırıldı${ne_zaman}.${sebep}`, degerler: { kullanici_adi: kullaniciAdi }, don });
   }
+  // If a timed ban has ended, clear the flag: login is free, and on the next request oturum.ts sees the same thing
   // Süreli ban bitmişse işareti temizle: giriş serbest, bir sonraki istekte oturum.ts de aynı şeyi görür
   if (k.banned_at) {
     await pool.query("UPDATE users SET banned_at = NULL, banned_until = NULL, ban_reason = NULL WHERE id = ?", [k.id]);
@@ -79,6 +91,7 @@ hesap.post("/giris", async (req, res) => {
   await oturumuYenile(req);
   req.session.userId = k.id;
   req.session.surum = k.oturum_surumu;
+  // "Remember me": a 30-day persistent cookie. If not selected it ends when the browser closes.
   // "Beni hatırla": 30 gün kalıcı çerez. Seçilmezse tarayıcı kapanınca biter.
   if (req.body.hatirla) req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
   bildir(req, "basari", `Hoş geldin, ${k.username}`);
@@ -86,15 +99,18 @@ hesap.post("/giris", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Sign-up
 // Kayıt
 // ---------------------------------------------------------------------------
 hesap.get("/kayit", async (req, res) => {
   if (res.locals.kullanici) return res.redirect("/");
+  // If sign-up was turned off from the admin panel, an info box is drawn instead of the form
   // Yönetim panelinden kayıt kapatıldıysa form yerine bilgi kutusu çizilir
   res.render("kayit", { kapali: !(await ayarlar()).kayitAcik });
 });
 
 hesap.post("/kayit", async (req, res) => {
+  // Hiding the form is not enough: a POST can be sent directly, so we reject it on the server too
   // Formu gizlemek yetmez: POST doğrudan gönderilebilir, bu yüzden sunucuda da reddediyoruz
   if (!(await ayarlar()).kayitAcik) return res.status(403).render("kayit", { kapali: true });
   const ipAnahtari = req.ip ?? "?";
@@ -107,6 +123,7 @@ hesap.post("/kayit", async (req, res) => {
   const password = typeof req.body.password === "string" ? req.body.password : "";
   const hatalar: Record<string, string> = {};
 
+  // The browser's required/pattern rules can be bypassed; they are ALWAYS re-checked on the server.
   // Tarayıcıdaki required/pattern kuralları atlatılabilir; sunucuda HER ZAMAN yeniden kontrol edilir.
   if (!KULLANICI_ADI.test(username)) hatalar.username = "3-30 karakter; harf, rakam ve alt çizgi kullanılabilir";
   else if (AYRILMIS_AD.includes(username.toLowerCase())) hatalar.username = "Bu ad ayrılmış, başka bir ad seç";
@@ -127,8 +144,9 @@ hesap.post("/kayit", async (req, res) => {
     return res.status(400).render("kayit", { hatalar, degerler: { username, email } });
   }
 
-  kayitIp.say(ipAnahtari); // yalnızca gerçekten açılan hesaplar sayılır
+  kayitIp.say(ipAnahtari); // only accounts that are really created count · yalnızca gerçekten açılan hesaplar sayılır
   const hash = await sifreHashle(password);
+  // The role of new members is "uye" (member). Instead of hard-coding role_id as 3 we look it up by name.
   // Yeni üyelerin rolü "uye". role_id'yi sabit 3 yazmak yerine adından buluyoruz.
   const [sonuc]: any = await pool.query(
     "INSERT INTO users (username, email, password_hash, role_id) SELECT ?, ?, ?, id FROM roles WHERE name = 'uye'",
@@ -142,16 +160,23 @@ hesap.post("/kayit", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Logout: POST (if it were GET another site could log you out with <img src="/cikis">)
 // Çıkış: POST (GET olsaydı başka bir site <img src="/cikis"> ile seni çıkartabilirdi)
 // ---------------------------------------------------------------------------
 hesap.post("/cikis", (req, res) => {
   req.session.destroy(() => {
-    res.clearCookie("quadran.sid");
+    res.clearCookie("rubyyard.sid");
     res.redirect("/");
   });
 });
 
 // ---------------------------------------------------------------------------
+// Forgot password + reset
+//
+// Flow: type the email -> a random token is generated -> the link (with the token) goes to the user
+//       -> the person who opens the link types the new password.
+// We do not store the token in plain text in the database, only its sha256 digest (explained in sql/07_hesap.sql).
+//
 // Şifremi unuttum + sıfırlama
 //
 // Akış: e-posta yaz -> rastgele belirteç üretilir -> bağlantı (belirteçli) kullanıcıya gider
@@ -178,18 +203,21 @@ hesap.post("/sifremi-unuttum", async (req, res) => {
 
   const [satirlar]: any = await pool.query("SELECT id FROM users WHERE email = ? AND deleted_at IS NULL", [email]);
   if (satirlar[0]) {
-    const belirtec = randomBytes(32).toString("hex"); // 32 rastgele bayt = tahmin edilemez
+    const belirtec = randomBytes(32).toString("hex"); // 32 random bytes = unguessable · 32 rastgele bayt = tahmin edilemez
     await pool.query(
       "INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))",
       [satirlar[0].id, belirteciOzetle(belirtec)]
     );
+    // TODO: when SMTP is added, an email will be sent instead of this line. For now we write the link to the server console.
     // TODO: SMTP eklenince bu satır yerine e-posta gönderilecek. Şimdilik bağlantıyı sunucu konsoluna yazıyoruz.
     console.log(`[şifre sıfırlama] ${email} için bağlantı: http://localhost:3000/sifre-sifirla/${belirtec}`);
   }
+  // The SAME result whether registered or not: so which addresses are registered cannot be learned
   // Kayıtlı olsa da olmasa da AYNI sonuç: hangi adreslerin kayıtlı olduğu öğrenilemesin
   res.redirect("/sifremi-unuttum?gonderildi=1");
 });
 
+// Is the token valid? Its digest must be found, unused and not expired. Returns the owner's id.
 // Belirteç geçerli mi? Özeti bulunmalı, kullanılmamış ve süresi dolmamış olmalı. Sahibin id'sini döner.
 async function belirtecKullanicisi(belirtec: string): Promise<number | null> {
   if (!/^[0-9a-f]{64}$/.test(belirtec)) return null;
@@ -222,12 +250,15 @@ hesap.post("/sifre-sifirla/:token", async (req, res) => {
   if (hata) return res.status(400).render("sifre-sifirla", { token, hata });
 
   const hash = await sifreHashle(yeni);
+  // The two writes must happen together: if the password changed but the token stayed open the link could be reused.
   // İki yazma birlikte olmalı: şifre değişip belirteç açık kalırsa bağlantı tekrar kullanılabilirdi.
   const baglanti = await pool.getConnection();
   try {
     await baglanti.beginTransaction();
+    // oturum_surumu + 1: all open sessions of this account (e.g. the one belonging to whoever stole the password) are dropped
     // oturum_surumu + 1: bu hesabın açık bütün oturumları (örn. şifreyi çalan kişininki) düşer
     await baglanti.query("UPDATE users SET password_hash = ?, oturum_surumu = oturum_surumu + 1 WHERE id = ?", [hash, userId]);
+    // All open tokens of this user (including the used one) are closed: links in old emails die
     // Bu kullanıcının bütün açık belirteçleri (kullanılan dahil) kapanır: eski e-postalardaki bağlantılar ölür
     await baglanti.query("UPDATE password_resets SET used_at = COALESCE(used_at, NOW()) WHERE user_id = ?", [userId]);
     await baglanti.commit();
@@ -237,6 +268,8 @@ hesap.post("/sifre-sifirla/:token", async (req, res) => {
   } finally {
     baglanti.release();
   }
+  // NOTE: the user's open sessions on other devices are not dropped. The sessions table has no user id column
+  // (the data is in a single text field), deleting by id is not easy. It could be added later.
   // NOT: kullanıcının başka cihazlardaki açık oturumları düşmüyor. sessions tablosunda user id sütunu yok
   // (veri tek metin alanında), id'ye göre silmek kolay değil. İleride eklenebilir.
   bildir(req, "basari", "Şifren değiştirildi. Yeni şifrenle giriş yapabilirsin.");
@@ -244,6 +277,7 @@ hesap.post("/sifre-sifirla/:token", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Settings
 // Ayarlar
 // ---------------------------------------------------------------------------
 async function ayarlariOku(userId: number) {
@@ -255,6 +289,7 @@ async function ayarlariOku(userId: number) {
   );
   const ayar = satirlar[0];
   ayar.cevrimici_goster = !!ayar.cevrimici_goster;
+  // The "Blocked" list in the Privacy section (deleted accounts are not shown)
   // Gizlilik bölümündeki "Engellenenler" listesi (silinmiş hesaplar gösterilmez)
   const [engelliler] = await pool.query(
     `SELECT users.username FROM user_blocks JOIN users ON users.id = user_blocks.blocked_id
@@ -262,6 +297,7 @@ async function ayarlariOku(userId: number) {
     [userId]
   );
   ayar.engelliler = engelliler;
+  // Showcase section (sql/21): the person's badges (in order earned; selected if vitrin_sira is filled) and topics that can be pinned (newest 50)
   // Vitrin bölümü (sql/21): kişinin rozetleri (kazanma sırasıyla; vitrin_sira doluysa seçili) ve sabitlenebilecek konuları (en yeni 50)
   [ayar.rozetler] = (await pool.query(
     `SELECT badges.id, badges.name, badges.description, user_badges.vitrin_sira
@@ -282,6 +318,8 @@ hesap.post("/ayarlar/profil", girisGerekli(), async (req, res) => {
   const bio = metin(req.body.bio);
   const konum = metin(req.body.konum);
   const webSitesi = metin(req.body.web_sitesi);
+  // Signature (rank privilege, at most 120 characters, single line). For someone without the privilege the signature field is not in the form at all;
+  // even if sent by hand (server-side validation) it is ignored and the existing signature is kept.
   // İmza (rütbe ayrıcalığı, en çok 120 karakter, tek satır). Ayrıcalığı olmayanın imza alanı formda hiç yoktur;
   // elle gönderilse bile (sunucu tarafı doğrulama) yok sayılır ve var olan imza korunur.
   const imzaIzni = izinli(k, "imza");
@@ -297,10 +335,11 @@ hesap.post("/ayarlar/profil", girisGerekli(), async (req, res) => {
     const yasak = await yasakliIfade(imza);
     if (yasak) hatalar.imza = `İmzada yasaklı bir ifade var: “${yasak}”`;
   }
+  // Website: only http(s). Schemes like "javascript:" would be drawn as a link on the profile (XSS), so the scheme check is mandatory.
   // Web sitesi: yalnızca http(s). "javascript:" gibi şemalar profilde bağlantı olarak çizilirdi (XSS), o yüzden şema denetimi şart.
   if (webSitesi) {
     let gecerli = false;
-    try { const u = new URL(webSitesi); gecerli = /^https?:$/.test(u.protocol) && !!u.hostname; } catch { /* geçersiz */ }
+    try { const u = new URL(webSitesi); gecerli = /^https?:$/.test(u.protocol) && !!u.hostname; } catch { /* invalid · geçersiz */ }
     if (webSitesi.length > 200) hatalar.web_sitesi = "En fazla 200 karakter";
     else if (!gecerli || !/^https?:\/\//i.test(webSitesi)) hatalar.web_sitesi = "http:// ya da https:// ile başlayan geçerli bir adres yaz";
   }
@@ -320,10 +359,12 @@ hesap.post("/ayarlar/profil", girisGerekli(), async (req, res) => {
   res.redirect("/ayarlar#profil");
 });
 
+// Showcase: at most 3 badges + a pinned topic. All of it is re-validated on the server (values in the form can be changed).
 // Vitrin: en çok 3 rozet + sabit konu. Hepsi sunucuda yeniden doğrulanır (formdaki değerler değiştirilebilir).
 hesap.post("/ayarlar/vitrin", girisGerekli(), async (req, res) => {
   const k = res.locals.kullanici;
   const geri = "/ayarlar#vitrin";
+  // A single checkbox arrives as a string, several as an array; convert to numbers and drop duplicates. Order = the order the person earned the badges (not the selection order).
   // Tek onay kutusu string, çoğu dizi gelir; sayıya çevirip yinelenenleri at. Sıra = kişinin rozetlerinin kazanma sırası (seçim sırası değil).
   const gelen = ([] as unknown[]).concat(req.body.rozet ?? []);
   const secilen = [...new Set(gelen.map((v) => Number(v)))];
@@ -333,6 +374,7 @@ hesap.post("/ayarlar/vitrin", girisGerekli(), async (req, res) => {
   const sahipOlunan: number[] = sahip.map((r: any) => r.badge_id);
   if (secilen.some((n) => !sahipOlunan.includes(n))) { bildir(req, "hata", "Yalnızca kazandığın rozetleri vitrine koyabilirsin."); return res.redirect(geri); }
 
+  // Pinned topic: empty = none; if filled it must be the person's own, non-deleted topic
   // Sabit konu: boş = yok; doluysa kişinin kendi ve silinmemiş konusu olmalı
   const ham = metin(req.body.sabit_konu_id);
   let sabitId: number | null = null;
@@ -344,6 +386,7 @@ hesap.post("/ayarlar/vitrin", girisGerekli(), async (req, res) => {
     if (!konu) { bildir(req, "hata", "Yalnızca kendi konularından birini sabitleyebilirsin."); return res.redirect(geri); }
   }
 
+  // First remove all from the showcase, then give 1..n to the selected ones in the order earned
   // Önce hepsini vitrinden çıkar, sonra seçilenlere kazanma sırasıyla 1..n ver
   await pool.query("UPDATE user_badges SET vitrin_sira = NULL WHERE user_id = ?", [k.id]);
   const sirali = sahipOlunan.filter((id) => secilen.includes(id));
@@ -356,11 +399,14 @@ hesap.post("/ayarlar/vitrin", girisGerekli(), async (req, res) => {
 });
 
 hesap.post("/ayarlar/gorunum", girisGerekli(), async (req, res) => {
+  // Only allowed values: if anything else arrives, fall back to the default
   // Yalnızca izin verilen değerler: başka bir şey gelirse varsayılana dön
   const tema = ["koyu", "acik", "sistem"].includes(req.body.tema) ? req.body.tema : "koyu";
   const vurgu = ["safir", "zumrut", "kehribar", "ametist", "yakut"].includes(req.body.vurgu) ? req.body.vurgu : "safir";
+  // +18 content display (sql/23): an invalid value falls back to the default (blurred), nothing else can be written to the ENUM
   // +18 içerik görünümü (sql/23): geçersiz değer varsayılana (bulanık) döner, ENUM'a başka bir şey yazılamaz
   const nsfw = ["gizle", "bulanik", "goster"].includes(req.body.nsfw_tercih) ? req.body.nsfw_tercih : "bulanik";
+  // An unchecked checkbox is not sent in the form at all; so we check "is it present"
   // İşaretlenmemiş checkbox formda hiç gönderilmez; bu yüzden "var mı" diye bakıyoruz
   await pool.query(
     "UPDATE users SET tema = ?, vurgu = ?, menu_sagda = ?, kompakt = ?, az_animasyon = ?, nsfw_tercih = ? WHERE id = ?",
@@ -371,6 +417,7 @@ hesap.post("/ayarlar/gorunum", girisGerekli(), async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Settings > Profile appearance (sql/18): avatar/banner upload (everyone) and effect, ornament, color (premium only)
 // Ayarlar › Profil görünümü (sql/18): avatar/banner yükleme (herkes) ve efekt, süs, renk (yalnızca premium)
 // ---------------------------------------------------------------------------
 const GORSEL_ADI: Record<GorselTuru, string> = { avatar: "Avatar", banner: "Banner" };
@@ -380,6 +427,7 @@ const BANNER_KONUMLARI = ["ust", "orta", "alt"];
 
 async function gorselYukle(req: express.Request, res: express.Response, tur: GorselTuru) {
   const k = res.locals.kullanici;
+  // The crop window (fetch) expects JSON: the error is shown in the window. The no-JS form returns as before with a toast + redirect.
   // Kırp penceresi (fetch) JSON bekler: hata pencerede gösterilir. JS'siz form eskisi gibi toast + yönlendirme ile döner.
   const json = jsonIstiyor(req);
   const hata = (ileti: string, kod = 400) => {
@@ -387,6 +435,7 @@ async function gorselYukle(req: express.Request, res: express.Response, tur: Gor
     bildir(req, "hata", ileti); return res.redirect(GERI);
   };
   if (!req.file) return hata("Yüklemek için bir resim seç (JPG, PNG, WebP ya da GIF, en fazla 8 MB).");
+  // Wide-screen alignment only makes sense for the banner; if not sent (no JS) the default is "orta" (center). An invalid value is rejected.
   // Geniş ekran yaslaması yalnızca banner'da anlamlı; gönderilmediyse (JS'siz) varsayılan "orta". Geçersiz değer reddedilir.
   const konum = tur === "banner" && req.body?.konum !== undefined ? String(req.body.konum) : "orta";
   if (!BANNER_KONUMLARI.includes(konum)) return hata("Geçersiz banner konumu.");
@@ -399,11 +448,12 @@ async function gorselYukle(req: express.Request, res: express.Response, tur: Gor
   } catch (e) {
     return hata(e instanceof GorselHatasi ? e.message : "Resim işlenemedi. Başka bir dosya dene.");
   }
+  // Column names come from constants in the code (tur is only "avatar" | "banner"), not from the user
   // Sütun adları koddaki sabit değerlerden gelir (tur yalnızca "avatar" | "banner"), kullanıcıdan değil
   const [[eski]]: any = await pool.query(`SELECT ${tur}_url AS adres FROM users WHERE id = ?`, [k.id]);
   await pool.query(`UPDATE users SET ${tur}_url = ?, ${tur}_hareketli = ? WHERE id = ?`, [sonuc.adres, sonuc.hareketli ? 1 : 0, k.id]);
   if (tur === "banner") await pool.query("UPDATE users SET banner_konum = ? WHERE id = ?", [konum, k.id]);
-  await dosyaSil(eski?.adres); // eski dosya yetim kalmasın
+  await dosyaSil(eski?.adres); // so the old file is not left orphaned · eski dosya yetim kalmasın
   if (sonuc.duraganYapildi) bildir(req, "basari", `Hareketli ${tur === "avatar" ? "avatar" : "banner"} premium üyelerde oynar; ilk kare kaydedildi.`);
   else bildir(req, "basari", `${GORSEL_ADI[tur]} güncellendi`);
   if (json) return res.json({ tamam: true, adres: GERI });
@@ -429,14 +479,17 @@ hesap.post("/ayarlar/profil-gorunumu", girisGerekli(), async (req, res) => {
   const varsayilan = !!req.body.varsayilana_don;
   const efekt = varsayilan ? "" : sec(req.body.efekt);
   const sus = varsayilan ? "" : sec(req.body.sus);
+  // If "Use my own colors" is off, the color fields (the color picker always sends a value) are ignored and NULL is written
   // "Kendi renklerimi kullan" kapalıysa renk alanları (renk seçici her zaman bir değer gönderir) yok sayılır ve NULL yazılır
   const renkKullan = !varsayilan && !!req.body.renk_kullan;
   const ana = renkKullan ? sec(req.body.renk_ana).toLowerCase() : "";
   const vurgu = renkKullan ? sec(req.body.renk_vurgu).toLowerCase() : "";
-  const gecis = renkKullan && req.body.renk_gecis === "gecis" ? 1 : 0; // varsayılan: düz
+  const gecis = renkKullan && req.body.renk_gecis === "gecis" ? 1 : 0; // default: flat · varsayılan: düz
+  // Server validation: only known effect/ornament names and #rrggbb (it is written into CSS, so no other format may get in)
   // Sunucu doğrulaması: yalnızca bilinen efekt/süs adları ve #rrggbb (CSS'e yazılacağı için başka hiçbir biçim girmez)
   if ((efekt && !efektGecerli(efekt)) || (sus && !susGecerli(sus))) { bildir(req, "hata", "Geçersiz efekt ya da süs seçimi."); return res.redirect(GERI); }
   if ((ana && !renkGecerli(ana)) || (vurgu && !renkGecerli(vurgu))) { bildir(req, "hata", "Renk #rrggbb biçiminde olmalı (örn. #4b2a6b)."); return res.redirect(GERI); }
+  // Premium check: a free person CANNOT select anything, can only clear (all empty)
   // Premium kontrolü: ücretsiz kişi bir şey SEÇEMEZ, yalnızca temizleyebilir (hepsi boş)
   if (!premiumMu(k) && (efekt || sus || ana || vurgu || gecis)) {
     bildir(req, "hata", "Efekt, süs ve renk seçimi premium üyelere özel. Premium şu an yönetici tarafından veriliyor.");
@@ -450,10 +503,13 @@ hesap.post("/ayarlar/profil-gorunumu", girisGerekli(), async (req, res) => {
   res.redirect(GERI);
 });
 
+// Privacy: direct message permission and online status. The Blocked list is in the same card, unblocking is POST /engel/:ad/kaldir.
 // Gizlilik: özel mesaj izni ve çevrimiçi durumu. Engellenenler listesi aynı kartta, engeli kaldırma POST /engel/:ad/kaldir.
 hesap.post("/ayarlar/gizlilik", girisGerekli(), async (req, res) => {
+  // Only allowed values: if anything else arrives, the default ("herkes" / everyone)
   // Yalnızca izin verilen değerler: başka bir şey gelirse varsayılan ("herkes")
   const dmIzni = req.body.dm_izni === "kimse" ? "kimse" : "herkes";
+  // An unchecked checkbox is not sent in the form at all
   // İşaretlenmemiş checkbox formda hiç gönderilmez
   await pool.query("UPDATE users SET dm_izni = ?, cevrimici_goster = ? WHERE id = ?", [dmIzni, !!req.body.cevrimici_goster, res.locals.kullanici.id]);
   bildir(req, "basari", "Gizlilik ayarların kaydedildi");
@@ -461,6 +517,8 @@ hesap.post("/ayarlar/gizlilik", girisGerekli(), async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Change password: /hesap/sifre (current password + new + repeat)
+// The current password is asked: so someone who takes over a session left open cannot lock the account away for good.
 // Şifre değiştir: /hesap/sifre (mevcut şifre + yeni + tekrar)
 // Mevcut şifre sorulur: açık bırakılmış bir oturumu ele geçiren kişi hesabı kalıcı olarak kapamasın.
 // ---------------------------------------------------------------------------
@@ -488,6 +546,8 @@ hesap.post("/hesap/sifre", girisGerekli(), async (req, res) => {
 
   if (Object.keys(hatalar).length) return res.status(400).render("hesap-sifre", { hatalar, aktifMenu: "ayarlar", ayarBolum: "hesap" });
 
+  // Increase the version: sessions on other devices are dropped. We carry this session to the new version and keep it open,
+  // and also renew the session id (so someone who captured the old id cannot continue).
   // Sürümü artır: başka cihazlardaki oturumlar düşer. Bu oturumu yeni sürüme taşıyıp açık tutuyoruz,
   // ve oturum kimliğini de yeniliyoruz (eski kimliği ele geçiren biri devam edemesin).
   await pool.query("UPDATE users SET password_hash = ?, oturum_surumu = oturum_surumu + 1 WHERE id = ?", [await sifreHashle(yeni), k.id]);
@@ -499,6 +559,7 @@ hesap.post("/hesap/sifre", girisGerekli(), async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Change email: /hesap/eposta (new email + current password)
 // E-posta değiştir: /hesap/eposta (yeni e-posta + mevcut şifre)
 // ---------------------------------------------------------------------------
 hesap.get("/hesap/eposta", girisGerekli("E-postanı değiştirmek için giriş yapman gerekiyor."), async (req, res) => {
@@ -529,21 +590,24 @@ hesap.post("/hesap/eposta", girisGerekli(), async (req, res) => {
   res.redirect("/ayarlar#hesap");
 });
 
+// Delete account: we do not delete the row (topics/messages are tied to it), we close it with deleted_at.
+// The username and email are changed so that the same name/address can register again.
 // Hesabı sil: satırı silmiyoruz (konular/mesajlar ona bağlı), deleted_at ile kapatıyoruz.
 // Kullanıcı adı ve e-posta değiştirilir ki aynı ad/adres tekrar kayıt olabilsin.
 hesap.post("/hesap/sil", girisGerekli(), async (req, res) => {
   const id = res.locals.kullanici.id;
   const [[dosyalar]]: any = await pool.query("SELECT avatar_url, banner_url FROM users WHERE id = ?", [id]);
   await pool.query(
-    `UPDATE users SET deleted_at = NOW(), username = CONCAT('silinmis_', id), email = CONCAT('silinmis_', id, '@quadran.invalid'),
+    `UPDATE users SET deleted_at = NOW(), username = CONCAT('silinmis_', id), email = CONCAT('silinmis_', id, '@rubyyard.invalid'),
             bio = NULL, avatar_url = NULL, banner_url = NULL, avatar_hareketli = 0, banner_hareketli = 0,
             profil_efekti = NULL, avatar_susu = NULL, profil_renk_ana = NULL, profil_renk_vurgu = NULL, profil_renk_gecis = 0, password_hash = '' WHERE id = ?`,
     [id]
   );
+  // Uploaded files are also deleted from disk (personal data)
   // Yüklenen dosyalar diskten de silinir (kişisel veri)
   await dosyaSil(dosyalar?.avatar_url); await dosyaSil(dosyalar?.banner_url);
   req.session.destroy(() => {
-    res.clearCookie("quadran.sid");
+    res.clearCookie("rubyyard.sid");
     res.redirect("/");
   });
 });

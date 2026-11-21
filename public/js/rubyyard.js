@@ -1,11 +1,15 @@
-/* QuadRan · küçük, bağımlılıksız betik. Hiçbir şey JS'e bağımlı değildir: bu dosya yoksa bağlantılar ve popover'lar yine çalışır. */
+/* rubyyard · a small, dependency-free script. Nothing depends on JS: without this file links and popovers still work. */
+/* rubyyard · küçük, bağımlılıksız betik. Hiçbir şey JS'e bağımlı değildir: bu dosya yoksa bağlantılar ve popover'lar yine çalışır. */
 (function () {
   "use strict";
   var d = document;
 
+  /* CSS "JS is present" flag: rules tied to the .js class (e.g. hiding the Filter button) apply only if the script runs */
   /* CSS "JS var" bayrağı: .js sınıfına bağlı kurallar (örn. Süz düğmesini gizleme) yalnızca betik çalışıyorsa geçerli olur */
   d.documentElement.classList.add("js");
 
+  /* Is motion reduced? OS preference or "Reduce animations" in Settings. Every animation JS waits for checks this first;
+     if reduced, the wait time becomes 0 (the CSS side does the same by zeroing the duration variables). */
   /* Hareket azaltılmış mı? İşletim sistemi tercihi ya da Ayarlar'daki "Animasyonları azalt". JS'in beklediği her animasyon önce buna bakar;
      azaltılmışsa bekleme süresi 0 olur (CSS tarafı aynı şeyi süre değişkenlerini sıfırlayarak yapar). */
   function hareketAzMi() {
@@ -19,6 +23,7 @@
   function ac(dlg) { if (acilabilir(dlg) && !dlg.open) dlg.showModal(); return acilabilir(dlg); }
   function kapat(dlg) { if (dlg && dlg.open && typeof dlg.close === "function") dlg.close(); }
 
+  /* Turkish accusative suffix: ayse -> ayse’yi, ahmet -> ahmet’i. (Same rule as `belirtme()` in src/gizlilik.ts.) */
   /* Türkçe belirtme hâli: ayse -> ayse’yi, ahmet -> ahmet’i. (src/gizlilik.ts belirtme() ile aynı kural.) */
   function belirtme(ad) {
     var k = ad.toLocaleLowerCase("tr"), sesli = "aeıioöuü", son = "";
@@ -27,6 +32,7 @@
     return ad + "’" + (sesli.indexOf(k[k.length - 1]) > -1 ? "y" : "") + ek;
   }
 
+  /* Report form: if "Başka bir sebep" (Another reason) is selected the note becomes required (the server demands the same too) */
   /* Şikâyet formu: "Başka bir sebep" seçiliyse not zorunlu olur (sunucu da aynısını ister) */
   function notZorunlu(form) {
     var diger = bul('input[name="sebep"][value="Başka bir sebep"]', form);
@@ -38,6 +44,7 @@
     if (f && e.target.name === "sebep") notZorunlu(f);
   });
 
+  /* ---------- Search window ---------- */
   /* ---------- Arama penceresi ---------- */
   function aramaAc() {
     var dlg = bul("#arama-penceresi");
@@ -60,12 +67,15 @@
       var dlg = bul("#sikayet-penceresi");
       if (acilabilir(dlg)) {
         e.preventDefault();
+        /* If the link is inside a ⋮ menu, the menu should not stay open (so it doesn't hang behind the window once it opens) */
         /* Bağlantı bir ⋮ menüsünün içindeyse menü açık kalmasın (pencere açılınca arkada asılı durmasın) */
         var acikMenu = sikayet.closest("[popover]");
-        if (acikMenu && acikMenu.hidePopover) { try { acikMenu.hidePopover(); } catch (x) { /* zaten kapalı */ } }
+        if (acikMenu && acikMenu.hidePopover) { try { acikMenu.hidePopover(); } catch (x) { /* already closed · zaten kapalı */ } }
         var form = bul("form", dlg);
         if (form) {
           form.reset();
+          /* The link gives its target through data- attributes: message (data-post-id), user (data-kullanici),
+             chat message (data-sohbet-id), private message (data-mesaj-id). All are written to a hidden field; unused ones are emptied. */
           /* Bağlantı hedefini data- alanlarıyla verir: mesaj (data-post-id), kullanıcı (data-kullanici),
              sohbet mesajı (data-sohbet-id), özel mesaj (data-mesaj-id). Hepsi gizli alana yazılır, kullanılmayanlar boşalır. */
           var alanlar = { post_id: "data-post-id", kullanici: "data-kullanici", sohbet_id: "data-sohbet-id", mesaj_id: "data-mesaj-id", oda_mesaj_id: "data-oda-mesaj-id" };
@@ -73,6 +83,7 @@
             var gizli = bul('input[name="' + ad + '"]', form);
             if (gizli) gizli.value = sikayet.getAttribute(alanlar[ad]) || "";
           });
+          /* Target type: CSS checks it to hide "Konu dışı" (Off-topic) for user and private-message reports */
           /* Hedef türü: CSS buna bakıp "Konu dışı"yı kullanıcı ve özel mesaj şikâyetinde gizler */
           dlg.setAttribute("data-hedef", sikayet.getAttribute("data-kullanici") ? "kullanici"
             : sikayet.getAttribute("data-sohbet-id") || sikayet.getAttribute("data-oda-mesaj-id") ? "sohbet" : sikayet.getAttribute("data-mesaj-id") ? "ozel" : "konu");
@@ -81,6 +92,7 @@
             baslik.textContent = sikayet.getAttribute("data-baslik") ||
               (sikayet.getAttribute("data-kullanici") ? "Bu kullanıcıyı şikâyet et" : "Bu mesajı şikâyet et");
           }
+          /* "Also block <name>" box: do not show it at all if no author was given */
           /* "<ad>’i de engelle" kutusu: yazar verilmediyse hiç gösterme */
           var yazar = sikayet.getAttribute("data-yazar") || "";
           var engelEtiket = bul(".sikayet-engel", form);
@@ -98,13 +110,14 @@
       return;
     }
 
+    /* Share: without JS it is a plain link (goes to the item's page). With JS, the share sheet or copying to the clipboard. */
     /* Paylaş: JS yoksa düz bağlantıdır (öğenin sayfasına gider). JS varsa paylaşım menüsü ya da panoya kopyalama. */
     var paylas = hedef.closest("[data-paylas]");
     if (paylas) {
       var adres = paylas.href;
       if (navigator.share) {
         e.preventDefault();
-        navigator.share({ title: paylas.getAttribute("data-baslik") || d.title, url: adres }).catch(function () { /* kullanıcı vazgeçti */ });
+        navigator.share({ title: paylas.getAttribute("data-baslik") || d.title, url: adres }).catch(function () { /* user cancelled · kullanıcı vazgeçti */ });
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
         e.preventDefault();
         navigator.clipboard.writeText(adres).then(function () {
@@ -119,16 +132,19 @@
     var kapatici = hedef.closest("[data-dialog-kapat]");
     if (kapatici) {
       var kdlg = kapatici.closest("dialog");
+      /* Without JS the Close link navigates back to the page; if the window can actually close, navigation is unnecessary */
       /* Kapat bağlantısı JS yokken sayfaya döner; pencere gerçekten kapanabiliyorsa gezinme gereksiz */
       if (kdlg && acilabilir(kdlg) && kapatici.tagName === "A") e.preventDefault();
       kapat(kdlg);
     }
   });
 
+  /* Keyboard shortcuts: Ctrl/Cmd+K search, Ctrl/Cmd+, settings */
   /* Klavye kısayolları: Ctrl/Cmd+K arama, Ctrl/Cmd+, ayarlar */
   d.addEventListener("keydown", function (e) {
     var tus = (e.key || "").toLowerCase();
     if ((e.ctrlKey || e.metaKey) && !e.altKey && tus === "k") {
+      /* In the admin panel Ctrl+K opens the panel's own search box (/yonetim/ara), not the site's search window */
       /* Yönetim panelinde Ctrl+K sitenin arama penceresini değil, panelin kendi arama kutusunu (/yonetim/ara) açar */
       var panelAra = bul("[data-yn-ara]");
       if (panelAra) { e.preventDefault(); panelAra.focus(); panelAra.select(); return; }
@@ -144,6 +160,7 @@
     }
   });
 
+  /* Arrow-key navigation in search results */
   /* Arama sonuçlarında ok tuşlarıyla gezinme */
   var aramaDlg = bul("#arama-penceresi");
   if (aramaDlg) {
@@ -162,6 +179,7 @@
     });
   }
 
+  /* Close the window when the backdrop is clicked (both where the press started and where it ended must be the backdrop) */
   /* Arka plana tıklayınca pencereyi kapat (basılan ve bırakılan yer ikisi de arka plan olmalı) */
   var basilan = null;
   d.addEventListener("mousedown", function (e) { basilan = e.target; });
@@ -170,6 +188,7 @@
     if (t && t.tagName === "DIALOG" && t.open && basilan === t) kapat(t);
   });
 
+  /* ---------- Position dropdown menus next to their trigger ---------- */
   /* ---------- Açılır menüleri tetikleyicinin yanına yerleştir ---------- */
   var sonTetik = null;
   d.addEventListener("click", function (e) {
@@ -190,6 +209,9 @@
     el.style.top = ust + "px";
   }, true);
 
+  /* ---------- Feed category picker (konular.ejs #kategori-secici) ----------
+     Without JS the button is a link to the /kategoriler page; if popover is supported it opens the same list.
+     On phones the list is a bottom sheet in CSS (we do not set a position); on tablets it sits under the button without overflowing the screen. */
   /* ---------- Akış kategori seçici (konular.ejs #kategori-secici) ----------
      Düğme JS'siz /kategoriler sayfasına giden bir bağlantıdır; popover destekleniyorsa aynı listeyi açar.
      Telefonda liste CSS'te alttan açılan sayfadır (konum vermeyiz); tablette düğmenin altında, ekrandan taşmayacak biçimde durur. */
@@ -207,12 +229,14 @@
     liste.style.top = (r.bottom + 6 + y > window.innerHeight - 8 ? Math.max(8, r.top - y - 6) : r.bottom + 6) + "px";
   });
 
+  /* ---------- Notification bars: hide after about 5 seconds ---------- */
   /* ---------- Bildirim çubukları: yaklaşık 5 saniye sonra gizle ---------- */
   hepsi("[data-otomatik-gizle]").forEach(function (cubuk) {
     var zamanlayici = null;
     function baslat() { zamanlayici = window.setTimeout(gizle, 5000); }
     function durdur() { if (zamanlayici) { window.clearTimeout(zamanlayici); zamanlayici = null; } }
     function gizle() {
+      /* First a CSS transition to the left (opacity + slide), then display:none when it ends. If motion is reduced, hide without waiting. */
       /* Önce CSS geçişiyle sol (opacity + kayma), geçiş bitince display:none. Hareket azsa beklemeden gizle. */
       cubuk.classList.add("gizleniyor");
       window.setTimeout(function () { cubuk.classList.add("gizli"); }, hareketAzMi() ? 0 : 220);
@@ -224,6 +248,9 @@
     baslat();
   });
 
+  /* ---------- Vote "pop" animation ----------
+     Voting reloads the page and the address ends with #mesaj-ID (#post-ID). If the previous page has the same path (i.e. we came back here from a vote
+     submission, not through a link from another page), the selected vote button does a small "pop". */
   /* ---------- Oy "pop" animasyonu ----------
      Oy verince sayfa yeniden yüklenir ve adres #mesaj-ID ile biter. Önceki sayfa aynı yolsa (yani buraya bir oy
      gönderiminden döndük, başka sayfadan bir bağlantıyla gelmedik) seçili oy düğmesi küçük bir "pop" yapar. */
@@ -242,6 +269,15 @@
   })();
 
   /* =====================================================================
+     Selector: a custom dropdown list replacing <select> (progressive enhancement)
+     Seçici: <select>'in yerine geçen özel açılır liste (aşamalı geliştirme)
+     - The real <select> stays in the DOM (invisible) and is what gets submitted; when a choice is made select.selectedIndex changes and
+       'input' + 'change' events are fired, so existing code never notices that anything changed.
+     - Without JS, or with data-yerel on the select, nothing happens: the native <select> works.
+     - The list opens inside the nearest dialog/popover (or in body if there is none), not next to the trigger, and is put in the browser's
+       "top layer" (popover="auto") when possible; so it appears above popovers such as the moderation menu.
+     ===================================================================== */
+  /* =====================================================================
      Seçici: <select>'in yerine geçen özel açılır liste (aşamalı geliştirme)
      ---------------------------------------------------------------------
      - Gerçek <select> DOM'da kalır (görünmez), forma o gönderilir; seçim yapılınca select.selectedIndex değişir ve
@@ -251,7 +287,7 @@
        tarayıcının "üst katmanına" (popover="auto") konur; böylece moderasyon menüsü gibi popover'ların da üstünde görünür.
      ===================================================================== */
   var seciciSayac = 0;
-  var acikSecici = null; /* aynı anda yalnızca biri açık: { kapat: fn } */
+  var acikSecici = null; /* only one can be open at a time: { kapat: fn } · aynı anda yalnızca biri açık: { kapat: fn } */
   var TIK_SVG = '<svg class="secici-tik" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
   var OK_SVG = '<svg class="secici-ok" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
   var POPOVER_VAR = typeof HTMLElement !== "undefined" && typeof HTMLElement.prototype.showPopover === "function";
@@ -260,6 +296,7 @@
     if (sel.getAttribute("aria-label")) return sel.getAttribute("aria-label");
     var metin = "";
     Array.prototype.forEach.call(sel.labels || [], function (lbl) {
+      /* The label may also contain the select and the selector; do not count their text */
       /* Etiketin içinde select ve seçici de olabilir; onların metnini sayma */
       var kopya = lbl.cloneNode(true);
       hepsi("select, .secici, .secici-liste", kopya).forEach(function (n) { n.remove(); });
@@ -275,6 +312,7 @@
 
     var tetik = d.createElement("button");
     tetik.type = "button";
+    /* The select's classes (e.g. yn-girdi) are passed on to the trigger too: size/width rules in the admin panel apply automatically */
     /* Select'in sınıfları (örn. yn-girdi) tetikleyiciye de geçer: yönetim panelindeki boyut/genişlik kuralları kendiliğinden uygulanır */
     tetik.className = ("secici " + sel.className).trim();
     tetik.setAttribute("role", "combobox");
@@ -294,7 +332,9 @@
     sel.setAttribute("aria-hidden", "true");
     sel.parentNode.insertBefore(tetik, sel.nextSibling);
 
-    var sonKapanis = 0; /* tarayıcı paneli tetikleyiciye tıklanınca kapatır; ardından gelen click yeniden açmasın diye zamanı tutulur */
+    /* the browser closes the panel when the trigger is clicked; the time is kept so the click that follows does not reopen it */
+    /* tarayıcı paneli tetikleyiciye tıklanınca kapatır; ardından gelen click yeniden açmasın diye zamanı tutulur */
+    var sonKapanis = 0;
     var panel = null, ogeler = [], aktif = -1, kapanis = null, arama = "", aramaZaman = null;
     var host = sel.closest("dialog, [popover]") || d.body;
 
@@ -356,6 +396,7 @@
       el.classList.add("aktif");
       tetik.setAttribute("aria-activedescendant", el.id);
       if (kaydir !== false) {
+        /* scrollIntoView may also scroll the page; adjust only the panel's own scroll */
         /* scrollIntoView sayfayı da kaydırabilir; yalnızca panelin kendi kaydırmasını ayarla */
         if (el.offsetTop < panel.scrollTop) panel.scrollTop = el.offsetTop - 6;
         else if (el.offsetTop + el.offsetHeight > panel.scrollTop + panel.clientHeight) panel.scrollTop = el.offsetTop + el.offsetHeight - panel.clientHeight + 6;
@@ -375,6 +416,7 @@
       panel.style.maxHeight = "320px";
       var h = panel.offsetHeight, w = panel.offsetWidth;
       var altBos = vh - r.bottom - bosluk - 4, ustBos = r.top - bosluk - 4;
+      /* If it does not fit below and there is more room above, open upward (flip) */
       /* Aşağıya sığmıyorsa ve yukarısı daha genişse yukarı aç (flip) */
       var yukari = h > altBos && ustBos > altBos;
       var kalan = yukari ? ustBos : altBos;
@@ -388,10 +430,11 @@
     function hostKapandi(e) { if (panel && e.newState === "closed" && e.target === host) bitir(); }
 
     function bitir() {
+      /* Remove the panel completely without waiting for the animation */
       /* Animasyon beklemeden paneli tamamen kaldır */
       window.clearTimeout(kapanis); kapanis = null;
       if (!panel) return;
-      if (POPOVER_VAR && panel.matches(":popover-open")) { try { panel.hidePopover(); } catch (e) { /* zaten kapalı */ } }
+      if (POPOVER_VAR && panel.matches(":popover-open")) { try { panel.hidePopover(); } catch (e) { /* already closed · zaten kapalı */ } }
       panel.remove();
       panel = null; ogeler = []; aktif = -1;
       tetik.removeAttribute("aria-activedescendant");
@@ -405,7 +448,7 @@
       window.removeEventListener("scroll", olayKonumla, true);
       d.removeEventListener("toggle", hostKapandi, true);
       if (acikSecici && acikSecici.tetik === tetik) acikSecici = null;
-      panel.classList.remove("acik"); /* CSS: çıkış geçişi (--sure-hizli) */
+      panel.classList.remove("acik"); /* CSS: exit transition (--sure-hizli) · CSS: çıkış geçişi (--sure-hizli) */
       kapanis = window.setTimeout(bitir, hareketAzMi() ? 0 : 140);
       if (odakVer) tetik.focus();
     }
@@ -413,13 +456,14 @@
     function ac() {
       if (tetik.disabled) return;
       if (acikSecici && acikSecici.tetik !== tetik) acikSecici.kapat(false);
-      if (panel) bitir(); /* kapanış animasyonu sürerken yeniden açılıyor */
+      if (panel) bitir(); /* reopening while the closing animation is still running · kapanış animasyonu sürerken yeniden açılıyor */
       panel = d.createElement("div");
       panel.className = "secici-liste";
       panel.id = kimlik + "-liste";
       panel.setAttribute("role", "listbox");
       panel.setAttribute("aria-label", tetik.getAttribute("aria-label") || etiketMetni(sel));
       ogeKur();
+      /* Mouse: focus stays on the trigger (aria-activedescendant requires this) */
       /* Fare: odak tetikleyicide kalsın (aria-activedescendant bunu gerektirir) */
       panel.addEventListener("mousedown", function (e) { e.preventDefault(); });
       panel.addEventListener("click", function (e) {
@@ -434,6 +478,8 @@
       });
       host.appendChild(panel);
       if (POPOVER_VAR) {
+        /* "auto" popover: Escape and an outside click close the innermost (this) panel first; an outer popover such as moderation stays open.
+           (with manual, Escape would close the outer menu too.) */
         /* "auto" popover: Escape ve dışarı tıklama önce en içteki (bu) paneli kapatır; moderasyon gibi dış popover açık kalır.
            (manual olsaydı Escape dış menüyü de kapatırdı.) */
         panel.setAttribute("popover", "auto");
@@ -446,7 +492,9 @@
       var i0 = sel.selectedIndex >= 0 && etkin(sel.selectedIndex) ? sel.selectedIndex : sonraki(-1, 1);
       aktif = -1;
       aktifYap(i0);
-      void panel.offsetWidth; /* başlangıç durumu çizilsin ki geçiş oynasın */
+      /* so that the initial state gets painted and the transition plays */
+      /* başlangıç durumu çizilsin ki geçiş oynasın */
+      void panel.offsetWidth;
       panel.classList.add("acik");
       acikSecici = { tetik: tetik, kapat: kapat };
       d.addEventListener("pointerdown", disBasma, true);
@@ -465,6 +513,7 @@
       gecerliYap();
       sel.dispatchEvent(new Event("input", { bubbles: true }));
       sel.dispatchEvent(new Event("change", { bubbles: true }));
+      /* Filter forms in the admin panel: submitted automatically when the selection changes */
       /* Yönetim panelindeki süzgeç formları: seçim değişince kendiliğinden gönderilir */
       var f = sel.form;
       if (f && f.classList.contains("yn-filtre")) { if (f.requestSubmit) f.requestSubmit(); else f.submit(); }
@@ -474,6 +523,7 @@
       window.clearTimeout(aramaZaman);
       arama += harf.toLocaleLowerCase("tr");
       aramaZaman = window.setTimeout(function () { arama = ""; }, 700);
+      /* Repeating the same letter such as "aaa": cycle through the items starting with that letter */
       /* "aaa" gibi aynı harf tekrarı: aynı harfle başlayanlar arasında sırayla dolaş */
       var ayni = arama.split("").every(function (c) { return c === arama[0]; });
       var aranan = ayni ? arama[0] : arama;
@@ -509,11 +559,14 @@
       else if (k === "Tab") { kapat(false); }
       else if (k.length === 1) { e.preventDefault(); yazAra(k); }
     });
+    /* When focus leaves the trigger (other than via Tab: e.g. the browser tab changed) the list should not stay open */
     /* Odak tetikleyiciden çıkınca (Tab dışında: örn. sekme değişti) liste açık kalmasın */
     tetik.addEventListener("blur", function () { window.setTimeout(function () { if (d.activeElement !== tetik && panel && !panel.contains(d.activeElement)) kapat(false); }, 0); });
 
+    /* When a <label> is clicked or validation focus arrives, the real select gets focus; pass the focus on to the trigger */
     /* <label> tıklanınca ya da doğrulama odağı gelince gerçek select odak alır; odağı tetikleyiciye aktar */
     sel.addEventListener("focus", function () { tetik.focus(); });
+    /* "required" validation: for an invisible select the browser bubble does not appear in the right place. Block the bubble, turn the trigger red and focus it. */
     /* "required" doğrulaması: görünmez select için tarayıcı balonu yerinde çıkmaz. Balonu engelle, tetikleyiciyi kırmızı yap ve odakla. */
     sel.addEventListener("invalid", function (e) {
       e.preventDefault();
@@ -522,12 +575,17 @@
       if (alan) alan.classList.add("hatali");
       if (sel.form && sel.form.querySelector(":invalid") === sel) tetik.focus();
     });
+    /* If code changes select.value from outside (or the form is reset) the displayed value should update */
     /* Kod dışarıdan select.value değiştirirse (ya da form sıfırlanırsa) görünen değer güncellensin */
     sel.addEventListener("change", guncelle);
     if (sel.form) sel.form.addEventListener("reset", function () { window.setTimeout(function () { guncelle(); gecerliYap(); }, 0); });
     guncelle();
   }
 
+  /* ---------- Phone top bar: floating state ----------
+     When scrolling down passes 64px, data-yuzen is added to <header class="ust-cubuk"> (CSS turns the bar into a floating capsule, katmanlar.css),
+     and removed when back near the top (<16px). Two thresholds (64 on, 16 off) prevent flicker: for someone scrolling right at the boundary the bar does not flip back and forth.
+     The scroll event is listened to passively and handled at most once per frame via requestAnimationFrame. Without JS the bar always stays fixed (normal). */
   /* ---------- Telefon üst çubuğu: yüzen hâl ----------
      Aşağı kaydırma 64px'i geçince <header class="ust-cubuk">'a data-yuzen eklenir (CSS çubuğu yüzen kapsüle çevirir, katmanlar.css),
      sayfa başına (<16px) dönünce kalkar. İki eşik (64 açar, 16 kapatır) titremeyi önler: tam sınırda kaydıran kişide çubuk gidip gelmez.
@@ -548,6 +606,11 @@
     yuzenGuncelle();
   }
 
+  /* ---------- Bottom bar height (--alt-yer) ----------
+     Bars pinned to the bottom of the screen (the bottom menu on phones, the selection and decision bars in the panel)
+     are marked with data-alt-cubuk. The height taken up by those that are currently visible and touch the bottom of the screen is measured
+     and written to <html> as --alt-yer; the notification bar (toast) sits above it, so they never overlap.
+     To add a new bottom bar, data-alt-cubuk alone is enough. */
   /* ---------- Alt çubuk yüksekliği (--alt-yer) ----------
      Ekranın altına sabitlenen çubuklar (telefonda alt menü, paneldeki seçim ve karar çubukları)
      data-alt-cubuk ile işaretlenir. O an görünen ve ekranın dibine değenlerin kapladığı yükseklik ölçülüp
@@ -561,6 +624,7 @@
       var st = window.getComputedStyle(el);
       if (st.display === "none" || st.visibility === "hidden" || (st.position !== "fixed" && st.position !== "sticky")) return;
       var r = el.getBoundingClientRect();
+      /* Floating bars (like a dock) do not touch the very bottom; those in the bottom zone (last 160px) count */
       /* Yüzen çubuklar (dock gibi) dibe tam değmez; alt bölgede (son 160px) duranlar sayılır */
       if (r.height === 0 || r.bottom < h - 160 || r.top >= h) return;
       yer = Math.max(yer, h - r.top);
@@ -571,15 +635,22 @@
   ["resize", "scroll", "change", "toggle", "transitionend", "animationend"].forEach(function (olay) {
     window.addEventListener(olay, altYerPlanla, { passive: true, capture: true });
   });
-  altYerOlc(); /* ilk ölçüm hemen: requestAnimationFrame arka plandaki/yeni sekmede gecikebilir */
+  /* measure right away the first time: requestAnimationFrame can be delayed in a background/new tab */
+  /* ilk ölçüm hemen: requestAnimationFrame arka plandaki/yeni sekmede gecikebilir */
+  altYerOlc();
 
   hepsi("select").forEach(seciciKur);
 
+  /* The Filter button is hidden only in forms made up solely of selectors; it stays in forms that have a text/date/number box (for people who do not know to press Enter) */
   /* Süz düğmesi yalnızca seçicilerden oluşan formlarda gizlenir; yazı/tarih/sayı kutusu olan formlarda kalır (Enter'a basmayı bilmeyen için) */
   hepsi("form.yn-filtre").forEach(function (f) {
     if (f.querySelector('input:not([type="hidden"]):not([type="submit"]):not([type="checkbox"]):not([type="radio"])')) f.classList.add("yn-suz-kalsin");
   });
 
+  /* ---------- Phone: filters collapse ----------
+     On narrow screens the filter form used to fill the whole screen. A "Süzgeçler" (Filters) button is placed in front of the form; the form starts closed
+     (CSS hides it only at ≤800px, the button is invisible on wide screens). The number of active filters is written on the button so that
+     the user notices the list is filtered. Without JS the form is always open. */
   /* ---------- Telefon: süzgeçler katlanır ----------
      Dar ekranda süzgeç formu bütün ekranı kaplıyordu. Formun önüne "Süzgeçler" düğmesi konur; form kapalı başlar
      (CSS yalnızca ≤800px'te gizler, geniş ekranda düğme görünmez). Etkin süzgeç sayısı düğmede yazar ki
@@ -605,6 +676,9 @@
     });
   });
 
+  /* ---------- Settings: highlight the section currently in view ----------
+     The Settings sub-rows in the side menu (desktop) and the section tabs on the page (tablet/phone) carry the same links (data-bolum-bag). As the page scrolls,
+     the links of the section entering the top third of the screen get aria-current; they are also highlighted immediately on tap. */
   /* ---------- Ayarlar: o an görünen bölümü vurgula ----------
      Kenar menüdeki Ayarlar alt satırları (masaüstü) ve sayfadaki bölüm sekmeleri (tablet/telefon) aynı bağlantıları taşır (data-bolum-bag). Sayfa kaydırıldıkça
      ekranın üst üçte birine giren bölümün bağlantıları aria-current alır; dokununca da hemen vurgulanır. */
@@ -620,11 +694,13 @@
     }
     var bolumler = baglar.map(function (a) { return d.getElementById(a.getAttribute("href").slice(1)); })
       .filter(function (b, i, dizi) { return b && dizi.indexOf(b) === i; });
+    /* rootMargin: only the "reading band" between 15% and 45% from the top of the screen counts; the section in that band is the active one */
     /* rootMargin: yalnızca ekranın üstten %15–%45 arası "okuma bandı" sayılır; o banttaki bölüm etkindir */
     var gozcu = new IntersectionObserver(function (girdiler) {
       girdiler.forEach(function (g) { if (g.isIntersecting) vurgula(g.target.id); });
     }, { rootMargin: "-15% 0px -55% 0px" });
     bolumler.forEach(function (b) { gozcu.observe(b); });
+    /* At the very bottom of the page the last section may never enter the band: highlight the last one when at the bottom */
     /* Sayfanın en altında son bölüm banda hiç giremeyebilir: dipteyken sonuncuyu vurgula */
     window.addEventListener("scroll", function () {
       if (window.innerHeight + window.scrollY >= d.documentElement.scrollHeight - 4) vurgula(bolumler[bolumler.length - 1].id);
@@ -633,6 +709,9 @@
     if (window.location.hash && d.getElementById(window.location.hash.slice(1))) vurgula(window.location.hash.slice(1));
   })();
 
+  /* ---------- Bulk action: action fields hidden when nothing is selected ----------
+     On phones the bulk action box shows only "Hepsini seç" (Select all) until a row is selected; once a selection is made
+     it turns into a bar stuck to the bottom of the screen and shows how many items are selected. */
   /* ---------- Toplu işlem: seçim yokken işlem alanları gizli ----------
      Telefonda toplu işlem kutusu, satır seçilene kadar yalnızca "Hepsini seç" gösterir; seçim yapılınca
      ekranın altına yapışan bir çubuğa dönüşür ve kaç öğe seçildiğini yazar. */
@@ -651,6 +730,9 @@
     say();
   });
 
+  /* ---------- New message: search users ----------
+     Without JS the button is a link to the /mesajlar/yeni page; with JS the same search opens in a window.
+     As you type (after a 250 ms wait) up to 8 people come from the /mesajlar/kisi-ara?q= JSON endpoint. */
   /* ---------- Yeni mesaj: kullanıcı ara ----------
      Düğme JS yokken /mesajlar/yeni sayfasına giden bir bağlantıdır; JS varsa aynı arama pencerede açılır.
      Yazdıkça (250 ms bekleyip) /mesajlar/kisi-ara?q= JSON uç noktasından en fazla 8 kişi gelir. */
@@ -681,6 +763,7 @@
       if (!q) { yaz("Bir kullanıcı adı yazmaya başla."); return; }
       fetch("/mesajlar/kisi-ara?q=" + encodeURIComponent(q), { headers: { Accept: "application/json" }, credentials: "same-origin" })
         .then(function (r) { return r.ok ? r.json() : []; })
+        /* A late old reply must not overwrite a newer one: only the reply to the latest request is rendered */
         /* Geç gelen eski cevap yenisini ezmesin: yalnızca son isteğin cevabı çizilir */
         .then(function (k) { if (benim === sayac) goster(k); })
         .catch(function () { if (benim === sayac) yaz("Arama şu an yapılamadı."); });
@@ -695,6 +778,8 @@
     });
   })();
 
+  /* ---------- Message menu: Copy ----------
+     The item is hidden by CSS without JS (it appears once the .js class is set). data-kopyala = a selector pointing to the element that holds the text to copy. */
   /* ---------- Mesaj menüsü: Kopyala ----------
      Öğe JS yokken CSS ile gizlidir (.js sınıfı gelince görünür). data-kopyala = kopyalanacak metnin elemanını gösteren seçici. */
   d.addEventListener("click", function (e) {
@@ -707,11 +792,12 @@
       if (ad) ad.textContent = basarili ? "Kopyalandı" : "Kopyalanamadı";
       window.setTimeout(function () {
         if (ad) ad.textContent = eski;
-        if (menu && menu.hidePopover) { try { menu.hidePopover(); } catch (x) { /* kapalı */ } }
+        if (menu && menu.hidePopover) { try { menu.hidePopover(); } catch (x) { /* closed · kapalı */ } }
       }, hareketAzMi() ? 400 : 700);
     }
     if (!kaynak) { bitti(false); return; }
     var metin = kaynak.textContent.trim();
+    /* Fallback for old/insecure contexts or when permission is denied: write into a hidden field, select + copy */
     /* Eski/güvensiz bağlamlarda ya da izin verilmediğinde yedek yol: gizli bir alana yazıp seç + kopyala */
     function yedek() {
       var t = d.createElement("textarea");
@@ -726,6 +812,9 @@
     else yedek();
   });
 
+  /* ---------- Private rooms: windows, confirmation, invite-people search ----------
+     The windows are <dialog>s. Without JS the links in the menu go to /oda/:id/<panel> and the page renders the window OPEN (non-modal);
+     with JS that open window is reopened here as modal, and the links open the window without reloading the page. */
   /* ---------- Özel odalar: pencereler, onay, kişi davet araması ----------
      Pencereler <dialog>. JS yokken menüdeki bağlantılar /oda/:id/<panel> adresine gider ve sayfa pencereyi AÇIK (modal olmadan) çizer;
      JS varsa burada o açık pencere modal olarak yeniden açılır, bağlantılar sayfayı yenilemeden pencereyi açar. */
@@ -733,6 +822,7 @@
     if (!acilabilir(dlg) || dlg.matches(":modal")) return;
     dlg.close(); dlg.showModal();
   });
+  /* When the window closes, the address bar goes from the fallback address (/oda/5/uyeler) back to the room's own address */
   /* Pencere kapanınca adres çubuğu yedek adresten (/oda/5/uyeler) odanın kendi adresine dönsün */
   d.addEventListener("close", function (e) {
     var dlg = e.target;
@@ -744,21 +834,25 @@
     var a = e.target && e.target.closest ? e.target.closest("[data-oda-panel]") : null;
     if (!a) return;
     var dlg = bul("#oda-" + a.getAttribute("data-oda-panel"));
-    if (!acilabilir(dlg)) return; /* eski tarayıcı: bağlantı sayfaya gider */
+    if (!acilabilir(dlg)) return; /* old browser: the link goes to the page · eski tarayıcı: bağlantı sayfaya gider */
     e.preventDefault();
     var menu = a.closest("[popover]");
-    if (menu && menu.hidePopover) { try { menu.hidePopover(); } catch (x) { /* kapalı */ } }
-    hepsi("dialog.oda-pencere[open]").forEach(kapat); /* sekme geçişi: önce açık olanı kapat */
+    if (menu && menu.hidePopover) { try { menu.hidePopover(); } catch (x) { /* closed · kapalı */ } }
+    hepsi("dialog.oda-pencere[open]").forEach(kapat); /* tab switch: close the open one first · sekme geçişi: önce açık olanı kapat */
     ac(dlg);
     var girdi = bul("input:not([type=hidden]), textarea", dlg);
     if (girdi && a.getAttribute("data-oda-panel") !== "ayarlar") girdi.focus();
   });
+  /* Dangerous or hard-to-undo actions: the form asks using its data-onay text (inline onsubmit is not used because the text may contain user content) */
   /* Tehlikeli ya da geri dönüşü zor işlemler: form data-onay metniyle sorar (metin kullanıcı içeriği içerebildiği için satır içi onsubmit kullanılmaz) */
   d.addEventListener("submit", function (e) {
     var f = e.target;
     var soru = f && f.getAttribute ? f.getAttribute("data-onay") : null;
     if (soru && !window.confirm(soru)) e.preventDefault();
   });
+  /* Double-submit protection: tapping twice on a phone or pressing the button again on a slow connection can send the same POST
+     twice (the same suspension produced two rows in the audit log). The same form is not resubmitted within 4 s.
+     Because of the time limit the form still works on a page reached with "back"; it does not count if the confirmation question was cancelled (defaultPrevented). */
   /* Çift gönderim koruması: telefonda iki kez dokunmak ya da yavaş bağlantıda düğmeye yeniden basmak aynı POST'u
      iki kez yollayabiliyor (işlem kaydına aynı uzaklaştırma iki satır düştü). Aynı form 4 sn içinde yeniden gönderilmez.
      Süre sınırı olduğu için "geri" ile dönülen sayfada form yine çalışır; onay sorusu iptal edildiyse (defaultPrevented) sayılmaz. */
@@ -769,6 +863,8 @@
     if (simdi - son < 4000) { e.preventDefault(); return; }
     f.setAttribute("data-gonderildi", String(simdi));
   });
+  /* Admin › Content "Select all" box: checks all checkboxes on the visible page (without JS they are selected one by one).
+     It used to be an inline <script> in the template; moved here because CSP forbids inline scripts. */
   /* Yönetim › İçerik "Hepsini seç" kutusu: görünen sayfadaki bütün onay kutularını işaretler (JS yoksa tek tek seçilir).
      Eskiden şablonda satır içi <script> idi; CSP satır içi betiği yasakladığı için buraya taşındı. */
   hepsi("[data-hepsini-sec]").forEach(function (k) {
@@ -776,6 +872,7 @@
       hepsi('#toplu-form input[name="id"]').forEach(function (x) { x.checked = k.checked; });
     });
   });
+  /* Search people to invite: as you type, up to 8 people come from /oda/:id/kisi-ara; each row has its own "Davet et" (Invite) form (the CSRF token is read from the list) */
   /* Davet için kişi ara: yazdıkça /oda/:id/kisi-ara'dan en çok 8 kişi gelir; her satırda kendi "Davet et" formu (CSRF belirteci listeden okunur) */
   hepsi("[data-oda-kisi-ara]").forEach(function (girdi) {
     var odaId = girdi.getAttribute("data-oda-kisi-ara");
@@ -813,12 +910,18 @@
         .catch(function () { if (benim === sayac) yaz("Arama şu an yapılamadı."); });
     }
     girdi.addEventListener("input", function () { window.clearTimeout(zamanlayici); zamanlayici = window.setTimeout(ara, 250); });
+    /* Enter: run the search immediately instead of reloading the page */
     /* Enter: sayfa yenilemek yerine aramayı hemen yap */
     girdi.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); window.clearTimeout(zamanlayici); ara(); } });
   });
 
+  /* ---------- Profile appearance (Settings), custom color picker and member card window (sql/18) ---------- */
   /* ---------- Profil görünümü (Ayarlar), özel renk seçici ve üye kartı penceresi (sql/18) ---------- */
 
+  /* ---------- Crop and position (avatar / banner upload) ----------
+     Choosing a file does not upload it; it opens a window. The crop is computed in the browser and sent to the server in the source image's NATURAL pixel coordinates
+     (kirp_x, kirp_y, kirp_g, kirp_y2); the server redoes the bounds and ratio checks. If the window cannot open
+     (old browser) or the image cannot be decoded, the form is submitted as is: the server crops from the center. */
   /* ---------- Kırp ve konumla (avatar / banner yüklemesi) ----------
      Dosya seçilince yükleme yapılmaz, pencere açılır. Kırpma tarayıcıda hesaplanır ve kaynak görselin DOĞAL piksel koordinatlarında
      sunucuya gider (kirp_x, kirp_y, kirp_g, kirp_y2); sunucu sınır ve oran denetimini yeniden yapar. Pencere açılamazsa
@@ -841,18 +944,22 @@
     function tavan(n, en, cok) { return Math.max(en, Math.min(cok, n)); }
     function konum() { var r = bul("input[name=kirp_konum]:checked", dlg); return r ? r.value : "orta"; }
 
+    /* The area size comes from CSS (square or 2.2:1); scale = the smallest scale that makes the image FILL the area × zoom */
     /* Alan boyutu CSS'ten gelir (kare ya da 2,2:1); ölçek = görseli alanı DOLDURACAK en küçük ölçek × yakınlaştırma */
     function olc() {
       dur.aw = alan.clientWidth; dur.ah = alan.clientHeight;
       dur.kapsa = Math.max(dur.aw / dur.nw, dur.ah / dur.nh);
     }
     function olcek() { return dur.kapsa * dur.z; }
+    /* To leave no gaps, the image's edge never goes inside the area */
     /* Boşluk bırakmamak için görselin kenarı alanın içine girmez */
     function sinirla() {
       var s = olcek();
       dur.ox = tavan(dur.ox, dur.aw - dur.nw * s, 0);
       dur.oy = tavan(dur.oy, dur.ah - dur.nh * s, 0);
     }
+    /* Crop rectangle: the visible part of the area → source pixels. Rounded to integers and clamped inside the image;
+       square for avatar, 2.2:1 kept for banner (the server accepts ±1 px / ±2%). */
     /* Kırpma dikdörtgeni: alanın görünen kısmı → kaynak piksel. Tam sayıya yuvarlanır ve görselin içine sıkıştırılır;
        avatarda kare, bannerda 2,2:1 korunur (sunucu ±1 px / ±%2 kabul eder). */
     function kirpma() {
@@ -874,6 +981,7 @@
         if (!im || !w) return;
         var oran = kutu.getAttribute("data-oran"), kh = k.y2, ky = k.y;
         if (oran) {
+          /* The phone preview is the whole crop; tablet/desktop show its top/middle/bottom strip (the alignment choice) */
           /* Telefon önizlemesi kırpmanın tamamıdır; tablet/masaüstü onun üst/orta/alt şeridini gösterir (yasla seçimi) */
           kh = oran === "2.2" ? k.y2 : Math.min(k.y2, k.g / Number(oran));
           ky = k.y + (kn === "ust" ? 0 : kn === "alt" ? k.y2 - kh : (k.y2 - kh) / 2);
@@ -893,7 +1001,8 @@
 
     function kapatTemizle() {
       if (!dur) return;
-      try { window.URL.revokeObjectURL(dur.adres); } catch (e) { /* önemsiz */ }
+      try { window.URL.revokeObjectURL(dur.adres); } catch (e) { /* negligible · önemsiz */ }
+      /* Cancel / Esc: the file selection is reset, no upload happens */
       /* Vazgeç / Esc: dosya seçimi sıfırlanır, yükleme olmaz */
       if (!dur.gonderildi) dur.girdi.value = "";
       resim.removeAttribute("src");
@@ -911,6 +1020,7 @@
         dur = { girdi: girdi, tur: tur, adres: adres, nw: deneme.naturalWidth, nh: deneme.naturalHeight, z: 1, ox: 0, oy: 0, gonderildi: false };
         dlg.setAttribute("data-tur", tur);
         baslik.textContent = tur === "avatar" ? "Avatarı kırp ve konumla" : "Bannerı kırp ve konumla";
+        /* Banner alignment: start with the saved value (middle if none) */
         /* Banner'ın yaslaması: kayıtlı değerle başla (yoksa orta) */
         var kb = tur === "banner" ? bul("[data-gorsel-satiri=banner] .gs-banner[data-konum]") : null;
         var kayitli = kb ? kb.getAttribute("data-konum") : "orta";
@@ -926,24 +1036,27 @@
         });
         ac(dlg);
         olc();
+        /* Start: image centered in the area, full coverage */
         /* Başlangıç: görsel alanda ortalı, tam kapsama */
         dur.ox = (dur.aw - dur.nw * olcek()) / 2; dur.oy = (dur.ah - dur.nh * olcek()) / 2;
         ciz();
         alan.focus({ preventScroll: true });
       };
+      /* If the browser could not decode it (e.g. a corrupt file): let the server decide and show the error message as a toast */
       /* Tarayıcı çözemediyse (örn. bozuk dosya): sunucu karar versin, hata mesajını toast olarak versin */
       deneme.onerror = function () { window.URL.revokeObjectURL(adres); duz(girdi); };
       deneme.src = adres;
     }
     girdiler.forEach(function (g) { g.addEventListener("change", function () { ac_(g); }); });
 
+    /* Dragging and two fingers: pointer events (mouse, pen and touch use the same code) */
     /* Sürükleme ve iki parmak: pointer events (fare, kalem, dokunmatik aynı kodla) */
     var isaretler = {}, pinch = null;
     function sayi_() { return Object.keys(isaretler).length; }
     alan.addEventListener("pointerdown", function (e) {
       if (!dur) return;
       isaretler[e.pointerId] = { x: e.clientX, y: e.clientY };
-      try { alan.setPointerCapture(e.pointerId); } catch (x) { /* önemsiz */ }
+      try { alan.setPointerCapture(e.pointerId); } catch (x) { /* negligible · önemsiz */ }
       if (sayi_() === 2) {
         var p = Object.keys(isaretler).map(function (k) { return isaretler[k]; });
         pinch = { aralik: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), z: dur.z };
@@ -972,6 +1085,7 @@
       yakinlastir(dur.z * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
     }, { passive: false });
     yakin.addEventListener("input", function () { if (dur) yakinlastir(Number(yakin.value) / 100, dur.aw / 2, dur.ah / 2); });
+    /* Keyboard: arrows pan (Shift: big step), + / − zoom */
     /* Klavye: oklar kaydırır (Shift: büyük adım), + / − yakınlaştırır */
     alan.addEventListener("keydown", function (e) {
       if (!dur) return;
@@ -992,6 +1106,7 @@
       olc(); var s1 = olcek(); dur.ox = dur.aw / 2 - merkezX * s1; dur.oy = dur.ah / 2 - merkezY * s1; ciz();
     });
 
+    /* Save: the original file + crop info are sent with fetch; on success the page reloads (the toast comes from the server) */
     /* Kaydet: asıl dosya + kırpma bilgisi fetch ile gider; başarıda sayfa yenilenir (toast sunucudan gelir) */
     kaydet.addEventListener("click", function () {
       if (!dur) return;
@@ -1024,6 +1139,7 @@
     return "#" + p(k(5)) + p(k(3)) + p(k(1));
   }
 
+  /* Live preview: when selections change, the card's attributes/variables update instantly (the card is already rendered correctly on the server) */
   /* Canlı önizleme: seçimler değişince kartın öznitelikleri/değişkenleri anında güncellenir (kart sunucuda zaten doğru çizilmiştir) */
   hepsi("[data-profil-gorunum]").forEach(function (bolum) {
     var kart = bul(".pk[data-pk-onizleme]", bolum), form = bul("#pg-form", bolum);
@@ -1044,6 +1160,7 @@
     form.addEventListener("input", guncelle);
     form.addEventListener("change", guncelle);
 
+    /* HEX field ↔ color input */
     /* HEX alanı ↔ renk girdisi */
     hepsi("[data-renk-hex]", form).forEach(function (hexAlani) {
       var renk = form.elements[hexAlani.getAttribute("data-renk-hex")];
@@ -1058,12 +1175,14 @@
     guncelle();
   });
 
+  /* Custom color picker: saturation×brightness square, hue strip, HEX, eyedropper, random, recently used.
+     A popover (same surface as the dropdown menu); on phones CSS turns it into a bottom sheet. Without JS the browser's own picker works. */
   /* Özel renk seçici: doygunluk×parlaklık karesi, ton şeridi, HEX, damlalık, rastgele, son kullanılanlar.
      Popover (açılır menüyle aynı yüzey); telefonda CSS onu alttan açılan sayfa yapar. JS yoksa tarayıcının kendi seçicisi çalışır. */
   var panel = null, panelHedef = null, hsv = { h: 0, s: 1, v: 1 };
-  var GECMIS = "quadran.renkGecmisi";
+  var GECMIS = "rubyyard.renkGecmisi";
   function gecmisOku() { try { var g = JSON.parse(window.localStorage.getItem(GECMIS) || "[]"); return Array.isArray(g) ? g.filter(function (x) { return HEX.test(x); }).slice(0, 8) : []; } catch (e) { return []; } }
-  function gecmisYaz(hex) { try { var g = gecmisOku().filter(function (x) { return x !== hex; }); g.unshift(hex); window.localStorage.setItem(GECMIS, JSON.stringify(g.slice(0, 8))); } catch (e) { /* localStorage kapalı olabilir */ } }
+  function gecmisYaz(hex) { try { var g = gecmisOku().filter(function (x) { return x !== hex; }); g.unshift(hex); window.localStorage.setItem(GECMIS, JSON.stringify(g.slice(0, 8))); } catch (e) { /* localStorage may be disabled · localStorage kapalı olabilir */ } }
   function panelKur() {
     if (panel) return;
     panel = d.createElement("div"); panel.className = "renk-panel"; panel.setAttribute("popover", ""); panel.setAttribute("aria-label", "Renk seçici");
@@ -1088,7 +1207,7 @@
     });
     bul("[data-rp-rastgele]", panel).addEventListener("click", function () { hsv = { h: Math.random() * 360, s: .4 + Math.random() * .5, v: .5 + Math.random() * .5 }; panelUygula(); });
     var damla = bul("[data-rp-damla]", panel);
-    if (window.EyeDropper) { damla.hidden = false; damla.addEventListener("click", function () { new window.EyeDropper().open().then(function (s) { hsv = hexHsv(s.sRGBHex); panelUygula(); }).catch(function () { /* iptal */ }); }); }
+    if (window.EyeDropper) { damla.hidden = false; damla.addEventListener("click", function () { new window.EyeDropper().open().then(function (s) { hsv = hexHsv(s.sRGBHex); panelUygula(); }).catch(function () { /* cancelled · iptal */ }); }); }
     panel.addEventListener("toggle", function (e) { if (e.newState === "closed" && panelHedef) gecmisYaz(panelHedef.value); });
   }
   function panelCiz(hexAlaniniYaz) {
@@ -1129,6 +1248,9 @@
     e.preventDefault(); panelAc(g);
   });
 
+  /* Member card window: the author name/avatar (data-uye-karti) opens the card in a popover if JS is present; otherwise the link goes to the profile.
+     Desktop/tablet: a small card next to the name; phone: BOTTOM SHEET: a 44px Close at the top right, and the handle can really be dragged
+     (closes if released >=80px down, snaps back if less). The open/close slide is a CSS transition (efektler.css); only the dragging is here. */
   /* Üye kartı penceresi: yazar adı/avatarı (data-uye-karti) JS varsa kartı popover'da açar; yoksa bağlantı profile gider.
      Masaüstü/tablette adın yanında küçük kart; telefonda ALTTAN SAYFA: sağ üstte 44px Kapat, tutamaç gerçekten sürüklenir
      (aşağı >=80px bırakılırsa kapanır, azsa yerine döner). Açılış/kapanış kayması CSS geçişidir (efektler.css), burada yalnızca sürükleme var. */
@@ -1142,13 +1264,15 @@
     kartPop.addEventListener("click", function (e) {
       if (e.target.closest && e.target.closest(".uye-karti-kapat")) kartPop.hidePopover();
     });
+    /* Drag-to-close: pointer events route mouse, touch and pen through the same code. The transition is turned off while dragging (so it follows the finger exactly),
+       and on release the inline style is removed: the CSS transition then plays either the closing slide or the snap back. */
     /* Sürükle-kapat: pointer olayları fareyi, dokunmayı ve kalemi aynı koddan geçirir. Sürerken geçiş kapatılır (parmağı birebir izlesin),
        bırakınca satır içi stil silinir: CSS geçişi ya kapanış kaymasını ya da yerine dönmeyi oynatır. */
     var bas = null, dy = 0;
     kartPop.addEventListener("pointerdown", function (e) {
       if (!e.target.closest || !e.target.closest(".uye-karti-tutamac")) return;
       bas = e.clientY; dy = 0;
-      try { e.target.setPointerCapture(e.pointerId); } catch (x) { /* yakalanamazsa da sürükleme çalışır (olaylar sayfaya gelir) */ }
+      try { e.target.setPointerCapture(e.pointerId); } catch (x) { /* even if capture fails, dragging still works (events reach the page) · yakalanamazsa da sürükleme çalışır (olaylar sayfaya gelir) */ }
       kartPop.style.transition = "none";
     });
     kartPop.addEventListener("pointermove", function (e) {
@@ -1176,7 +1300,9 @@
     var telefon = window.matchMedia && window.matchMedia("(max-width: 800px)").matches, r = a.getBoundingClientRect();
     if (kartPop.matches(":popover-open")) kartPop.hidePopover();
     kartPop.style.transform = ""; kartPop.style.transition = "";
-    if (telefon) { kartPop.style.inset = ""; kartPop.style.margin = ""; }  /* konumu CSS verir: ekranın altına oturan sayfa */
+    /* position comes from CSS: a sheet sitting at the bottom of the screen */
+    /* konumu CSS verir: ekranın altına oturan sayfa */
+    if (telefon) { kartPop.style.inset = ""; kartPop.style.margin = ""; }
     else {
       kartPop.style.inset = "auto"; kartPop.style.margin = "0";
       kartPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 316)) + "px";
@@ -1188,6 +1314,8 @@
       .then(function (html) { kartDoldur(html); })
       .catch(function () { kartPop.hidePopover(); window.location.href = a.getAttribute("href"); });
   });
+  /* Ruby reward window (partials/yakut-odul.ejs): the server renders it as <dialog open> (visible without JS too, "Tamam" is a form method=dialog).
+     Here it is made modal (backdrop, focus lock, Esc) and the amount is counted up from 0. If motion is reduced the number stays directly at the final value. */
   /* Yakut ödül penceresi (partials/yakut-odul.ejs): sunucu <dialog open> olarak çizer (JS'siz de görünür, "Tamam" form method=dialog).
      Burada modal yapılır (karartma, odak kilidi, Esc) ve miktar 0'dan saydırılır. Hareket azaltılmışsa sayı doğrudan son değerde kalır. */
   hepsi("dialog[data-yakut-odul]").forEach(function (dlg) {
@@ -1198,24 +1326,31 @@
     say.textContent = "0";
     function adim(t) {
       if (bas === null) bas = t;
-      var o = Math.min(1, (t - bas) / sure), e = 1 - Math.pow(1 - o, 3); /* yavaşlayarak durur */
+      var o = Math.min(1, (t - bas) / sure), e = 1 - Math.pow(1 - o, 3); /* slows down as it stops · yavaşlayarak durur */
       say.textContent = Math.round(hedef * e).toLocaleString("tr-TR");
       if (o < 1) requestAnimationFrame(adim);
     }
     requestAnimationFrame(adim);
   });
   /* ======================================================================
+     Comment attachments and external link confirmation (sql/23). All of it is progressive enhancement: without JS the photo link opens the file, the YouTube box
+     and external links go to the /cikis page, and the reply form is submitted as a normal multipart form.
+     ====================================================================== */
+  /* ======================================================================
      Yorum ekleri ve dış bağlantı onayı (sql/23). Hepsi aşamalı geliştirme: JS yoksa fotoğraf bağlantısı dosyayı açar, YouTube kutusu
      ve dış bağlantılar /cikis sayfasına gider, cevap formu normal multipart gönderilir.
      ====================================================================== */
   function guvenliAdres(u) { try { var x = new URL(u, location.href); return /^https?:$/.test(x.protocol) && x.hostname ? x : null; } catch (e) { return null; } }
 
-  /* ---------- Dış bağlantı onayı: "QuadRan'dan ayrılıyorsun" ----------
+  /* ---------- External link confirmation: "You are leaving rubyyard" ----------
+     A bottom sheet on phones, a centered window on large screens (CSS: .cikis-penceresi). "Do not ask again for <domain> in this session" is written to sessionStorage
+     (gone when the tab closes); if storage is unavailable (private window etc.) it silently asks every time, via try/catch. */
+  /* ---------- Dış bağlantı onayı: "rubyyard'dan ayrılıyorsun" ----------
      Telefonda alttan sayfa, büyük ekranda ortada pencere (CSS: .cikis-penceresi). "Bu oturumda <alan> için tekrar sorma" sessionStorage'a yazılır
      (sekme kapanınca gider); depo kullanılamazsa (gizli pencere vb.) try/catch ile sessizce her seferinde sorulur. */
-  var IZIN_ANAHTARI = "quadran.cikisIzin";
+  var IZIN_ANAHTARI = "rubyyard.cikisIzin";
   function izinliAlanlar() { try { return JSON.parse(sessionStorage.getItem(IZIN_ANAHTARI) || "[]") || []; } catch (e) { return []; } }
-  function alanIzniVer(alan) { try { var l = izinliAlanlar(); if (l.indexOf(alan) < 0) l.push(alan); sessionStorage.setItem(IZIN_ANAHTARI, JSON.stringify(l)); } catch (e) { /* depo yok: her seferinde sorulur */ } }
+  function alanIzniVer(alan) { try { var l = izinliAlanlar(); if (l.indexOf(alan) < 0) l.push(alan); sessionStorage.setItem(IZIN_ANAHTARI, JSON.stringify(l)); } catch (e) { /* no storage: asked every time · depo yok: her seferinde sorulur */ } }
   function yeniSekme(adres) { var w = window.open(adres, "_blank", "noopener,noreferrer"); if (!w) location.href = adres; }
   var cikisDlg = null;
   function cikisPenceresi(url) {
@@ -1223,18 +1358,20 @@
     if (!cikisDlg) {
       cikisDlg = d.createElement("dialog"); cikisDlg.className = "cikis-penceresi"; cikisDlg.setAttribute("aria-labelledby", "cikis-baslik");
       d.body.appendChild(cikisDlg);
-      cikisDlg.addEventListener("click", function (e) { if (e.target === cikisDlg) kapat(cikisDlg); }); /* karartmaya dokununca kapanır */
+      /* closes when the backdrop is tapped */
+      /* karartmaya dokununca kapanır */
+      cikisDlg.addEventListener("click", function (e) { if (e.target === cikisDlg) kapat(cikisDlg); });
     }
     var alan = url.hostname.replace(/^www\./, "");
     cikisDlg.textContent = "";
     var kap = d.createElement("div"); kap.className = "cikis-ic";
-    var h = d.createElement("h2"); h.id = "cikis-baslik"; h.textContent = "QuadRan’dan ayrılıyorsun";
+    var h = d.createElement("h2"); h.id = "cikis-baslik"; h.textContent = "rubyyard’dan ayrılıyorsun";
     var kutu = d.createElement("div"); kutu.className = "cikis-alan";
     var b = d.createElement("strong"); b.textContent = alan;
     var tam = d.createElement("span"); tam.textContent = url.href;
     kutu.appendChild(b); kutu.appendChild(tam);
     var uyari = d.createElement("div"); uyari.className = "bilgi-notu cikis-uyari";
-    uyari.textContent = "Görünen yazı ile adres farklıysa dikkat et. Başka sitelerin içeriğinden QuadRan sorumlu değildir.";
+    uyari.textContent = "Görünen yazı ile adres farklıysa dikkat et. Başka sitelerin içeriğinden rubyyard sorumlu değildir.";
     var onay = d.createElement("label"); onay.className = "cikis-onay";
     var kutucuk = d.createElement("input"); kutucuk.type = "checkbox";
     var onayMetin = d.createElement("span"); onayMetin.textContent = "Bu oturumda " + alan + " için tekrar sorma";
@@ -1255,16 +1392,18 @@
     var a = e.target.closest ? e.target.closest("a[data-dis-baglanti]") : null;
     if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     var url = guvenliAdres(a.getAttribute("data-dis-baglanti"));
-    if (!url) return; /* geçersizse /cikis sayfası 400 gösterir */
+    if (!url) return; /* if invalid, the /cikis page shows 400 · geçersizse /cikis sayfası 400 gösterir */
     e.preventDefault();
     if (izinliAlanlar().indexOf(url.hostname.replace(/^www\./, "")) > -1) yeniSekme(url.href); else cikisPenceresi(url);
   });
+  /* On the /cikis page "Vazgeç" (Cancel): returns to the page we came from (if there is history), otherwise the link goes to the feed */
   /* /cikis sayfasında "Vazgeç": gelinen sayfaya döner (geçmiş varsa), yoksa bağlantı olarak akışa gider */
   d.addEventListener("click", function (e) {
     var g = e.target.closest ? e.target.closest("a[data-geri]") : null;
     if (g && history.length > 1 && !e.defaultPrevented) { e.preventDefault(); history.back(); }
   });
 
+  /* ---------- YouTube card: pressing play creates the iframe (a request goes out only then) ---------- */
   /* ---------- YouTube kartı: oynat'a basınca iframe (dışarıya istek ancak o zaman gider) ---------- */
   d.addEventListener("click", function (e) {
     var k = e.target.closest ? e.target.closest("[data-yt-oynat]") : null;
@@ -1281,6 +1420,7 @@
     k.parentNode.replaceChild(kutu, k);
   });
 
+  /* ---------- Full-screen photo viewer ---------- */
   /* ---------- Tam ekran fotoğraf görüntüleyici ---------- */
   var gor = null, gorListe = [], gorSira = 0;
   var GOR_IKON = {
@@ -1300,8 +1440,10 @@
     var a = e.target.closest ? e.target.closest("a[data-ek-gor]") : null;
     if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
     var bulanik = a.closest(".ek-bulanik");
-    if (bulanik) { var onay = bul(".ek-nsfw-onay", bulanik); if (onay && !onay.checked) { e.preventDefault(); return; } } /* +18 bulanıkken görüntüleyici açılmaz */
-    if (!acilabilir(d.createElement("dialog"))) return; /* destek yoksa bağlantı dosyayı açar */
+    /* the viewer does not open while +18 is blurred */
+    /* +18 bulanıkken görüntüleyici açılmaz */
+    if (bulanik) { var onay = bul(".ek-nsfw-onay", bulanik); if (onay && !onay.checked) { e.preventDefault(); return; } }
+    if (!acilabilir(d.createElement("dialog"))) return; /* without support the link opens the file · destek yoksa bağlantı dosyayı açar */
     e.preventDefault();
     if (!gor) {
       gor = d.createElement("dialog"); gor.className = "ek-gorunturu"; gor.setAttribute("aria-label", "Fotoğraf görüntüleyici");
@@ -1327,6 +1469,9 @@
     var kb = bul(".gor-kapat", gor); if (kb) kb.focus();
   });
 
+  /* ---------- Custom video player (comment attachments, Figma 15) ----------
+     Progressive enhancement: the <video controls> in the template works as is without JS. Here `controls` is removed and our own interface is added.
+     State classes live on the box (CSS looks at them): oy-ilk (never played), oy-gizli (controls hidden), oy-bekliyor, oy-hata-durum, oy-tam. */
   /* ---------- Özel video oynatıcı (yorum ekleri, Figma 15) ----------
      Aşamalı geliştirme: şablondaki <video controls> JS'siz aynen çalışır. Burada `controls` kaldırılır ve kendi arayüzümüz eklenir.
      Durum sınıfları kutuda durur (CSS bunlara bakar): oy-ilk (hiç oynatılmadı), oy-gizli (kontroller saklı), oy-bekliyor, oy-hata-durum, oy-tam. */
@@ -1347,11 +1492,12 @@
     indir: OY_IKON_BAS + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>'
   };
   var OY_HIZLAR = [0.5, 0.75, 1, 1.25, 1.5, 2];
-  var oyAnahtar = "quadran-video"; /* localStorage anahtarı: {hiz, ses} */
+  var oyAnahtar = "rubyyard-video"; /* localStorage key: {hiz (speed), ses (volume)} · localStorage anahtarı: {hiz, ses} */
 
+  /* In a private window/blocked site localStorage can throw: every access is in try/catch, otherwise it works with defaults */
   /* Gizli pencerede/engellenmiş sitede localStorage atabilir: her erişim try/catch'te, yoksa varsayılanlarla çalışılır */
   function oyOku() { try { return JSON.parse(window.localStorage.getItem(oyAnahtar)) || {}; } catch (e) { return {}; } }
-  function oyYaz(k, deger) { try { var o = oyOku(); o[k] = deger; window.localStorage.setItem(oyAnahtar, JSON.stringify(o)); } catch (e) { /* saklanamazsa bu oturumda kalır */ } }
+  function oyYaz(k, deger) { try { var o = oyOku(); o[k] = deger; window.localStorage.setItem(oyAnahtar, JSON.stringify(o)); } catch (e) { /* if it cannot be stored it stays for this session · saklanamazsa bu oturumda kalır */ } }
   function oySure(s) {
     if (!isFinite(s) || s < 0) s = 0;
     s = Math.floor(s);
@@ -1365,6 +1511,7 @@
     if (!v || kutu.hasAttribute("data-oy-hazir")) return;
     kutu.setAttribute("data-oy-hazir", "1");
     v.removeAttribute("controls"); v.controls = false;
+    /* Touch: the layout changes in CSS via (pointer: coarse); the behavior in JS (tap to show/hide, double tap) follows it */
     /* Dokunmatik: yerleşim CSS'te (pointer: coarse) ile değişir; davranış (dokununca aç/kapa, çift dokunma) JS'te buna göre */
     var dokunmatik = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
     var pipVar = !!(d.pictureInPictureEnabled && v.requestPictureInPicture);
@@ -1404,6 +1551,7 @@
     var sesDugme = bul('[data-oy="sessiz"]', kutu), tamDugme = bul('[data-oy="tam"]', kutu);
     var oynatDugmeler = hepsi(".oy-oynat", kutu);
 
+    /* ---- While +18 is blurred the player is fully disabled: click (CSS pointer-events) + keyboard focus (inert) ---- */
     /* ---- +18 bulanıkken oynatıcı tamamen devre dışı: tıklama (CSS pointer-events) + klavye odağı (inert) ---- */
     var bulanik = kutu.closest(".ek-bulanik");
     if (bulanik) {
@@ -1413,11 +1561,13 @@
       nsfwEsitle();
     }
 
+    /* ---- Saved speed and volume ---- */
     /* ---- Kayıtlı hız ve ses düzeyi ---- */
     var kayit = oyOku();
     if (OY_HIZLAR.indexOf(kayit.hiz) > -1) { v.defaultPlaybackRate = kayit.hiz; v.playbackRate = kayit.hiz; }
     if (typeof kayit.ses === "number" && kayit.ses >= 0 && kayit.ses <= 1) v.volume = kayit.ses;
 
+    /* ---- Show controls / hide after 2.5 s of inactivity ---- */
     /* ---- Kontrolleri göster / 2,5 sn hareketsizlikte sakla ---- */
     var gizleZaman = 0;
     function menuAcikMi() { return !menu.hidden; }
@@ -1425,7 +1575,9 @@
       try { return kutu.matches(":focus-visible") || !!kutu.querySelector(":focus-visible"); } catch (e) { return false; }
     }
     function gizle() {
-      if (v.paused || menuAcikMi() || klavyeOdagi()) return; /* duraklatılmışken, menü açıkken ve klavye odağındayken hep görünür */
+      /* always visible while paused, while a menu is open and while keyboard focus is inside */
+      /* duraklatılmışken, menü açıkken ve klavye odağındayken hep görünür */
+      if (v.paused || menuAcikMi() || klavyeOdagi()) return;
       kutu.classList.add("oy-gizli");
     }
     function goster() {
@@ -1434,6 +1586,7 @@
       if (!v.paused) gizleZaman = window.setTimeout(gizle, dokunmatik ? 3000 : 2500);
     }
 
+    /* ---- State updates ---- */
     /* ---- Durum güncelleme ---- */
     function oynatDurumu() {
       var oynuyor = !v.paused;
@@ -1455,6 +1608,7 @@
     function yuklenenGuncelle() {
       var sure = isFinite(v.duration) ? v.duration : 0, son = 0;
       if (sure && v.buffered.length) {
+        /* End of the range containing the playback position: the correct "loaded" line for chunked loading */
         /* Oynatma noktasını içeren aralığın sonu: parça parça yüklemede doğru "yüklenen" çizgisi */
         for (var i = 0; i < v.buffered.length; i++) {
           if (v.buffered.start(i) <= v.currentTime + 0.5 && v.buffered.end(i) >= son) son = v.buffered.end(i);
@@ -1479,6 +1633,7 @@
     v.addEventListener("ratechange", function () { hizDugme.textContent = oyHizYaz(v.playbackRate); oyYaz("hiz", v.playbackRate); });
     v.addEventListener("play", function () {
       kutu.classList.remove("oy-ilk");
+      /* Only one video at a time on the page: when one starts the others stop */
       /* Sayfada aynı anda tek video: biri başlayınca diğerleri durur */
       hepsi("video").forEach(function (o) { if (o !== v && !o.paused) o.pause(); });
       oynatDurumu(); goster();
@@ -1495,8 +1650,9 @@
     v.addEventListener("error", hataGoster);
     if (v.error) hataGoster();
 
+    /* ---- Actions ---- */
     /* ---- Eylemler ---- */
-    function oynatDuraklat() { if (v.paused) { var s = v.play(); if (s && s.catch) s.catch(function () { /* otomatik oynatma engeli vb.: sessizce geç */ }); } else v.pause(); }
+    function oynatDuraklat() { if (v.paused) { var s = v.play(); if (s && s.catch) s.catch(function () { /* autoplay block etc.: pass silently · otomatik oynatma engeli vb.: sessizce geç */ }); } else v.pause(); }
     function atla(sn) {
       if (!isFinite(v.duration)) return;
       v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + sn));
@@ -1507,7 +1663,9 @@
       if (tamEkranMi()) { (d.exitFullscreen || d.webkitExitFullscreen).call(d); return; }
       if (kutu.requestFullscreen) kutu.requestFullscreen().catch(function () {});
       else if (kutu.webkitRequestFullscreen) kutu.webkitRequestFullscreen();
-      else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); /* iPhone Safari: yalnızca videonun kendi tam ekranı var */
+      /* iPhone Safari: only the video's own full screen exists */
+      /* iPhone Safari: yalnızca videonun kendi tam ekranı var */
+      else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
     }
     function tamDurumu() {
       var t = tamEkranMi();
@@ -1539,6 +1697,7 @@
       if (!menu.hidden && !(e.target.closest && (e.target.closest(".oy-menu") || e.target.closest(".oy-hiz")) && kutu.contains(e.target))) menuKapat(false);
     });
 
+    /* Ripple effect: a ring growing at the tapped point + "+10 s" on double tap */
     /* Dalga efekti: çift dokunmada dokunulan noktada büyüyen halka + "+10 sn" */
     var dalgaZaman = 0;
     function dalgaGoster(x, y, sn) {
@@ -1546,12 +1705,13 @@
       dalga.hidden = false;
       dalga.textContent = (sn > 0 ? "+" : "−") + Math.abs(sn) + " sn";
       dalga.style.left = (x - r.left) + "px"; dalga.style.top = (y - r.top) + "px";
-      dalga.classList.remove("oy-dalga-ac"); void dalga.offsetWidth; /* animasyonu baştan oynat */
+      dalga.classList.remove("oy-dalga-ac"); void dalga.offsetWidth; /* replay the animation from the start · animasyonu baştan oynat */
       dalga.classList.add("oy-dalga-ac");
       window.clearTimeout(dalgaZaman);
       dalgaZaman = window.setTimeout(function () { dalga.hidden = true; }, hareketAzMi() ? 500 : 650);
     }
 
+    /* ---- Buttons ---- */
     /* ---- Düğmeler ---- */
     kutu.addEventListener("click", function (e) {
       var b = e.target.closest ? e.target.closest("[data-oy]") : null;
@@ -1574,15 +1734,17 @@
     });
     sesKay.addEventListener("input", function () { sesAyarla(Number(sesKay.value)); });
 
+    /* ---- Tapping / clicking the surface ---- */
     /* ---- Yüzeye dokunma / tıklama ---- */
     var sonDokunus = 0, sonYari = 0, bekleyen = 0;
     kutu.addEventListener("pointerup", function (e) {
       if (e.button !== 0 || kutu.classList.contains("oy-hata-durum")) return;
-      if (e.target.closest("button, a, input, .oy-cubuk, .oy-menu")) return; /* yalnızca boş yüzey */
+      if (e.target.closest("button, a, input, .oy-cubuk, .oy-menu")) return; /* only the empty surface · yalnızca boş yüzey */
       menuKapat(false);
       if (e.pointerType === "mouse" || e.pointerType === "pen") { oynatDuraklat(); goster(); return; }
       var r = kutu.getBoundingClientRect(), yari = (e.clientX - r.left) < r.width / 2 ? -1 : 1, simdi = Date.now();
       if (simdi - sonDokunus < 300 && yari === sonYari) {
+        /* Double tap: the single tap's pending "show/hide controls" action is cancelled, left half goes back, right half goes forward */
         /* Çift dokunma: tek dokunuşun bekleyen "kontrolleri aç/kapa" işlemi iptal, sol yarı geri, sağ yarı ileri */
         window.clearTimeout(bekleyen); sonDokunus = 0;
         atla(10 * yari); dalgaGoster(e.clientX, e.clientY, 10 * yari); goster();
@@ -1603,8 +1765,11 @@
       kutu.addEventListener(a, function (e) { if (e.pointerType === "mouse") goster(); });
     });
     kutu.addEventListener("focusin", goster);
-    kutu.addEventListener("focusout", function () { goster(); }); /* odak çıkınca sayaç yeniden başlar */
+    /* when focus leaves, the timer restarts */
+    /* odak çıkınca sayaç yeniden başlar */
+    kutu.addEventListener("focusout", function () { goster(); });
 
+    /* ---- Progress bar: click, drag, time hint on hover ---- */
     /* ---- İlerleme çubuğu: tıkla, sürükle, üzerine gelince zaman ipucu ---- */
     var surukleme = false;
     function oranAl(e) { var r = ilerleme.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); }
@@ -1612,7 +1777,7 @@
       var r = ilerleme.getBoundingClientRect(), oran = oranAl(e);
       ipucu.textContent = oySure(oran * (isFinite(v.duration) ? v.duration : 0));
       var yar = ipucu.offsetWidth / 2, x = oran * r.width;
-      ipucu.style.left = Math.max(yar, Math.min(r.width - yar, x)) + "px"; /* kutudan taşmasın */
+      ipucu.style.left = Math.max(yar, Math.min(r.width - yar, x)) + "px"; /* so it does not overflow the box · kutudan taşmasın */
     }
     function konumaGit(e) { if (isFinite(v.duration)) v.currentTime = oranAl(e) * v.duration; }
     ilerleme.addEventListener("pointerdown", function (e) {
@@ -1625,21 +1790,26 @@
     ilerleme.addEventListener("pointerup", surukBitir);
     ilerleme.addEventListener("pointercancel", surukBitir);
 
+    /* ---- Keyboard (while the player has focus) ---- */
     /* ---- Klavye (oynatıcı odaktayken) ---- */
     kutu.addEventListener("keydown", function (e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       var k = e.key, ele = true;
       if (k === "Escape" && !menu.hidden) { menuKapat(true); e.preventDefault(); return; }
       if (!menu.hidden && e.target.closest(".oy-menu")) {
+        /* Inside the speed menu navigate with up/down; Space/Enter are left to the button's own click */
         /* Hız menüsü içinde yukarı/aşağı ile gezin; Boşluk/Enter düğmenin kendi tıklamasına kalır */
         var ogeler = hepsi(".oy-menu-oge", menu), i = ogeler.indexOf(d.activeElement);
         if (k === "ArrowDown") { ogeler[(i + 1) % ogeler.length].focus(); e.preventDefault(); }
         else if (k === "ArrowUp") { ogeler[(i - 1 + ogeler.length) % ogeler.length].focus(); e.preventDefault(); }
         return;
       }
+      /* Do not break the button's own Space/Enter activation */
       /* Düğmenin kendi Boşluk/Enter etkinleştirmesini bozma */
       if ((k === " " || k === "Enter") && e.target.closest("button, a")) return;
-      if (e.target.closest(".oy-ses-kay") && (k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight")) return; /* kaydırıcının kendi okları */
+      /* the slider's own arrow keys */
+      /* kaydırıcının kendi okları */
+      if (e.target.closest(".oy-ses-kay") && (k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight")) return;
       if (k === " " || k === "k" || k === "K") oynatDuraklat();
       else if (k === "ArrowLeft") atla(-5);
       else if (k === "ArrowRight") atla(5);
@@ -1653,15 +1823,19 @@
       else if (k === "End") { if (e.target.closest(".oy-ilerleme") && isFinite(v.duration)) v.currentTime = v.duration; else ele = false; }
       else if (k.length === 1 && k >= "0" && k <= "9" && isFinite(v.duration)) v.currentTime = v.duration * Number(k) / 10;
       else ele = false;
-      if (ele) { e.preventDefault(); goster(); } /* sayfa kaydırması yalnızca işlenen tuşlarda engellenir */
+      /* page scrolling is prevented only for handled keys */
+      /* sayfa kaydırması yalnızca işlenen tuşlarda engellenir */
+      if (ele) { e.preventDefault(); goster(); }
     });
 
+    /* Initial state */
     /* İlk durum */
     hizDugme.textContent = oyHizYaz(v.playbackRate);
     oynatDurumu(); sesGuncelle(); sureGuncelle(); yuklenenGuncelle();
   }
   hepsi(".ek-video").forEach(videoOynatici);
 
+  /* ---------- Reply form: attachment picking, preview, link chip, submission with progress ---------- */
   /* ---------- Cevap formu: ek seçme, önizleme, bağlantı çipi, ilerlemeli gönderim ---------- */
   var RESIM_SINIR = 10 * 1024 * 1024, VIDEO_SINIR = 50 * 1024 * 1024, EN_COK_RESIM = 6;
   var CIP_IKON = {
@@ -1679,7 +1853,7 @@
     var nsfwSatir = bul("[data-ek-nsfw]", form), gonder = bul("[data-ek-gonder]", form);
     var resimGirdi = bul("[data-ek-resim]", form), videoGirdi = bul("[data-ek-video]", form);
     var cip = bul("[data-ek-baglanti-cip]", form), cipIkon = bul("[data-cip-ikon]", form), cipMetin = bul("[data-cip-metin]", form), kartKapali = bul("[data-kart-kapali]", form);
-    var secili = []; /* { dosya, tur, url (önizleme nesne adresi) } */
+    var secili = []; /* { dosya (file), tur (type), url (preview object URL) } · { dosya, tur, url (önizleme nesne adresi) } */
     var gonderiyor = false;
 
     function hataGoster(m) { if (!hata) return; if (m) { hata.textContent = m; hata.hidden = false; } else { hata.hidden = true; hata.textContent = ""; } }
@@ -1698,13 +1872,15 @@
         var sil = d.createElement("button"); sil.type = "button"; sil.className = "ek-sil"; sil.setAttribute("aria-label", "Eki kaldır: " + s.dosya.name); sil.textContent = "×";
         sil.addEventListener("click", function () {
           if (gonderiyor) return;
-          try { if (s.url) URL.revokeObjectURL(s.url); } catch (e) { /* önemsiz */ }
+          try { if (s.url) URL.revokeObjectURL(s.url); } catch (e) { /* negligible · önemsiz */ }
           secili.splice(secili.indexOf(s), 1); yenile(); hataGoster("");
         });
         oge.appendChild(sil); onizleme.appendChild(oge);
       });
       onizleme.hidden = !secili.length;
-      if (nsfwSatir) nsfwSatir.hidden = !secili.length; /* +18 kutusu yalnızca ek varken (JS'siz hep görünür) */
+      /* the +18 box only when there is an attachment (always visible without JS) */
+      /* +18 kutusu yalnızca ek varken (JS'siz hep görünür) */
+      if (nsfwSatir) nsfwSatir.hidden = !secili.length;
     }
     if (nsfwSatir) nsfwSatir.hidden = true;
 
@@ -1727,10 +1903,12 @@
       secili = [{ dosya: f, tur: "video", url: "" }];
       yenile();
     }
+    /* Selected files are kept in our own array; the input is emptied right away (so the same file can be selected again) and FormData is built by hand on submit */
     /* Seçilen dosyalar kendi dizimizde tutulur; girdi hemen boşaltılır (aynı dosya yeniden seçilebilsin) ve gönderimde FormData elle kurulur */
     if (resimGirdi) resimGirdi.addEventListener("change", function () { resimEkle(resimGirdi.files); resimGirdi.value = ""; });
     if (videoGirdi) videoGirdi.addEventListener("change", function () { if (videoGirdi.files[0]) videoEkle(videoGirdi.files[0]); videoGirdi.value = ""; });
 
+    /* Link preview chip: only for those with the link privilege (the server already renders the card accordingly) */
     /* Bağlantı önizleme çipi: yalnızca bağlantı ayrıcalığı olanda (sunucu kartı zaten ona göre çizer) */
     function cipGuncelle() {
       if (!cip || form.getAttribute("data-baglanti") !== "1") return;
@@ -1747,6 +1925,7 @@
     var cipKapat = bul("[data-cip-kapat]", form);
     if (cipKapat) cipKapat.addEventListener("click", function () { if (kartKapali) kartKapali.value = "1"; cip.hidden = true; });
 
+    /* Submission: with attachments, XHR (percent per frame); otherwise the form goes as usual */
     /* Gönderim: ek varsa XHR (kare başına yüzde); yoksa form normal gider */
     form.addEventListener("submit", function (e) {
       if (gonderiyor) { e.preventDefault(); return; }
@@ -1754,7 +1933,9 @@
         if (!metin.value.trim()) { e.preventDefault(); hataGoster("Cevap boş olamaz."); metin.focus(); }
         return;
       }
-      if (!window.FormData || !window.XMLHttpRequest) return; /* eski tarayıcı: dosyalar girdide olmadığı için gönderilemez; neyse ki bu yol neredeyse yok */
+      /* old browser: files cannot be sent since they are not in the input; luckily this path almost never occurs */
+      /* eski tarayıcı: dosyalar girdide olmadığı için gönderilemez; neyse ki bu yol neredeyse yok */
+      if (!window.FormData || !window.XMLHttpRequest) return;
       e.preventDefault();
       hataGoster("");
       var fd = new FormData();
@@ -1771,12 +1952,15 @@
       x.setRequestHeader("Accept", "application/json");
       x.upload.onprogress = function (ev) {
         if (!ev.lengthComputable) return;
-        var yuzde = Math.min(99, Math.round(ev.loaded / ev.total * 100)) + "%"; /* %100 sunucu işini bitirince (yönlendirme) */
+        /* 100% is reached when the server finishes its work (redirect) */
+        /* %100 sunucu işini bitirince (yönlendirme) */
+        var yuzde = Math.min(99, Math.round(ev.loaded / ev.total * 100)) + "%";
         hepsi("[data-yuzde]", form).forEach(function (y) { y.textContent = yuzde; });
       };
       x.onload = function () {
-        var j = null; try { j = JSON.parse(x.responseText); } catch (er) { /* JSON değil */ }
+        var j = null; try { j = JSON.parse(x.responseText); } catch (er) { /* not JSON · JSON değil */ }
         if (x.status === 200 && j && typeof j.yonlendir === "string" && j.yonlendir.charAt(0) === "/" && j.yonlendir.charAt(1) !== "/") {
+          /* The browser does not reload the same page (only the # differs): refreshed by hand so the new reply shows */
           /* Aynı sayfa (yalnızca # farklıysa) tarayıcı yeniden yüklemez: yeni cevap görünsün diye elle yenilenir */
           var hedef = new URL(j.yonlendir, location.href), ayni = hedef.pathname === location.pathname && hedef.search === location.search;
           location.href = hedef.href; if (ayni) location.reload();
@@ -1790,6 +1974,9 @@
     });
   });
 
+  /* ---------- 429 countdown (views/partials/durum-icerik.ejs) ----------
+     The server writes the remaining time with data-geri-sayim="saniye" (seconds); it drops every second, at zero it writes "Şimdi tekrar deneyebilirsin" (You can try again now) and
+     the hidden "Şimdi tekrar dene" (Try again now) link (data-geri-sayim-bitti) becomes visible. Without JS the plain time and link written by the server remain. */
   /* ---------- 429 geri sayımı (views/partials/durum-icerik.ejs) ----------
      Sunucu kalan süreyi data-geri-sayim="saniye" ile yazar; her saniye düşer, sıfırda "Şimdi tekrar deneyebilirsin" yazar ve
      gizli tutulan "Şimdi tekrar dene" bağlantısı (data-geri-sayim-bitti) görünür. JS yoksa sunucunun yazdığı düz süre ve bağlantı kalır. */
@@ -1811,6 +1998,9 @@
     }, 1000);
   });
 
+  /* ---------- Connection strip (offline / back online) ----------
+     When the browser fires the "offline" event a yellow strip appears right under the top bar; on "online" it turns green and disappears after 2 s.
+     role="status": the screen reader announces it, it does not steal focus. Under "Reduce animations" there is no transition (the CSS duration variables are zeroed, the wait is 0 too). */
   /* ---------- Bağlantı şeridi (çevrimdışı / yeniden bağlandı) ----------
      Tarayıcı "offline" olayını verince üst çubuğun hemen altında sarı şerit çıkar; "online" olunca yeşile döner ve 2 sn sonra kalkar.
      role="status": ekran okuyucu duyurur, odağı çalmaz. "Animasyonları azalt"ta geçiş yok (CSS süre değişkenleri 0'lanır, bekleme de 0). */
@@ -1841,7 +2031,9 @@
     baglantiYaz(false, wifiYokSvg, "Bağlantı yok · gördüklerin güncel olmayabilir");
   });
   window.addEventListener("online", function () {
-    if (!baglantiSeridi || !baglantiSeridi.isConnected) return; /* hiç çevrimdışı olunmadıysa (ör. sayfa yeni açıldı) şerit gösterme */
+    /* if we were never offline (e.g. the page was just opened) do not show the strip */
+    /* hiç çevrimdışı olunmadıysa (ör. sayfa yeni açıldı) şerit gösterme */
+    if (!baglantiSeridi || !baglantiSeridi.isConnected) return;
     var el = baglantiYaz(true, onaySvg, "Yeniden bağlandın");
     var bekle = hareketAzMi() ? 0 : 200;
     baglantiZamanlayici = window.setTimeout(function () {
@@ -1851,9 +2043,11 @@
   });
   if (navigator.onLine === false) baglantiYaz(false, wifiYokSvg, "Bağlantı yok · gördüklerin güncel olmayabilir");
 
+  /* ---------- Service worker (public/sw.js): only for the offline page ----------
+     Registers in a secure context (https or localhost); it does not register over http on a LAN IP, which is fine (the strip still works). */
   /* ---------- Service worker (public/sw.js): yalnızca çevrimdışı sayfası için ----------
      Güvenli bağlamda (https ya da localhost) kaydolur; LAN IP'sinde http üzerinden kayıt olmaz, sorun değil (şerit yine çalışır). */
   if ("serviceWorker" in navigator && window.isSecureContext) {
-    navigator.serviceWorker.register("/sw.js").catch(function () { /* kayıt olmazsa çevrimdışı sayfası yok, site normal çalışır */ });
+    navigator.serviceWorker.register("/sw.js").catch(function () { /* if it does not register there is no offline page, the site works normally · kayıt olmazsa çevrimdışı sayfası yok, site normal çalışır */ });
   }
 })();

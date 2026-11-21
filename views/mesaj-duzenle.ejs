@@ -1,4 +1,9 @@
 <%#
+  Message editing: /mesaj/:id/duzenle
+  Expected data:
+  m        { id, topic_id, ilk_mi (bool: whether it is the topic's first message; if so the title is editable too) }
+  degerler { title, content }
+  hatalar  { title, content }   (optional)
   Mesaj düzenleme: /mesaj/:id/duzenle
   Beklenen veriler:
   m        { id, topic_id, ilk_mi (bool: konunun ilk mesajı mı; öyleyse başlık da düzenlenir) }

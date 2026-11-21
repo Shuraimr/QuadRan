@@ -1,7 +1,7 @@
 SET NAMES utf8mb4;
 -- Yakut (para birimi) (sql/22): bakiye, hareket defteri (yakut_log), rütbe başına aylık harçlık, unvan mağazası.
 -- Çalışan veritabanına bir kez uygulanır (ALTER TABLE tekrar çalışmaz):
---   docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/22_yakut.sql
+--   docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/22_yakut.sql
 --
 -- Yakut puandan AYRIDIR: puan rütbeyi belirler ve harcanmaz, yakut harcanır. Bakiyeye giden HER değişiklik
 -- yakut_log'a bir satır yazar ve yalnızca src/yakut.ts › yakutEkle'den geçer (puanEkle/points_log ile aynı kalıp).

@@ -1,4 +1,11 @@
 <%#
+  Shared layout of the admin panel (top half). Every page: duzen-ust ... content ... duzen-alt
+  Expected data: baslik (page title in the top bar), aktif (id of the active sidebar item: "bakis" | "sikayetler" | "yaptirimlar" | "filtre" |
+  "forum" | "sohbet" | "uyeler" | "puan" | "duyurular" | "kayit-erisim" | "islem-kaydi"), locals.menu (yonetim.ts, groups filtered by role),
+  locals.kullanici. geri: if { ad, href } is given, a "<- ad" link appears above the title (member card).
+  Layout: >=1180px a fixed 248px sidebar on the left; 801-1179px a 72px icon rail (hint via title); <=800px the sidebar is hidden; the Menu button in the top bar opens it as a drawer sliding in from the left
+  (the browser's built-in popover feature: no JS needed, Esc and clicking outside close it by themselves).
+
   Yönetim paneli ortak düzeni (üst yarı). Her sayfa: duzen-ust ... içerik ... duzen-alt
   Beklenen veriler: baslik (üst çubuktaki sayfa başlığı), aktif (kenar menüdeki öğe kimliği: "bakis" | "sikayetler" | "yaptirimlar" | "filtre" |
   "forum" | "sohbet" | "uyeler" | "puan" | "duyurular" | "kayit-erisim" | "islem-kaydi"), locals.menu (yonetim.ts, role göre süzülmüş gruplar),
@@ -8,6 +15,7 @@
 %>
 <%- include("../partials/bas", { sade: true, baslik: "Yönetim · " + locals.baslik }) %>
 <div class="yn">
+  <%# popover: on desktop and tablet CSS keeps it always visible; on phones it opens only with the Menu button %>
   <%# popover: masaüstü ve tablette CSS onu her zaman görünür tutar; telefonda yalnızca Menü düğmesiyle açılır %>
   <aside class="yn-yan" id="yn-cekmece" popover aria-label="Yönetim menüsü">
     <button class="ikon-dugme yn-cekmece-kapat" type="button" popovertarget="yn-cekmece" popovertargetaction="hide" aria-label="Menüyü kapat"><%- include("../partials/ikon", { ad: "kapat", boyut: 20 }) %></button>

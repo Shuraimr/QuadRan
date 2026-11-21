@@ -1,7 +1,11 @@
 <%#
+  Settings › Profile appearance (Figma 37:4 desktop, 38:4 phone). Included from ayarlar.ejs; needs `ayar`, `kullanici` and `premium` data.
+  Groups: Images (avatar/banner, everyone) · Color · Effect · Avatar decoration (the last three are premium). On the right (on phones at the top) a live preview of the person's OWN card:
+  rubyyard.js updates the card's attributes/variables when selections change. Without JS the selections still work, the card updates after Save.
+  A free user can select and preview everything; the server rejects the save, the button becomes "Save with Premium" and goes to /premium.
   Ayarlar › Profil görünümü (Figma 37:4 masaüstü, 38:4 telefon). ayarlar.ejs içinde çağrılır; `ayar`, `kullanici` ve `premium` verisi gerekir.
   Gruplar: Görseller (avatar/banner, herkes) · Renk · Efekt · Avatar süsü (üçü premium). Sağda (telefonda üstte) kişinin KENDİ kartı canlı önizleme:
-  quadran.js seçimler değişince kartın öznitelik/değişkenlerini günceller. JS yokken seçimler yine çalışır, Kaydet'ten sonra kart güncellenir.
+  rubyyard.js seçimler değişince kartın öznitelik/değişkenlerini günceller. JS yokken seçimler yine çalışır, Kaydet'ten sonra kart güncellenir.
   Ücretsiz kişi her şeyi seçip önizleyebilir; sunucu kaydı reddeder, düğme "Premium ile kaydet" olur ve /premium'a gider.
 %><%
   const prem_ = !!Number(ayar.premium_aktif);
@@ -17,6 +21,9 @@
       <%- include("profil-karti", { u: onizle_, onizleme: true }) %>
     </div>
     <div class="pg-ayar">
+      <%# Images (Figma 40:4): in each row preview · name and info · actions. "Değiştir" (Change) is a <label>: the file input inside it is invisible
+          but keyboard-focusable (the focus ring is drawn on the label with :focus-within). With JS, picking a file opens the "Crop and position" window
+          (below); without JS the "Upload" button shows and the form is submitted as before, the server crops from the center. %>
       <%# Görseller (Figma 40:4): her satırda önizleme · ad ve bilgi · eylemler. "Değiştir" bir <label>: içindeki dosya girişi görünmez
           ama klavyeyle odaklanır (odak halkası label'da :focus-within ile çizilir). JS varsa dosya seçilince "Kırp ve konumla" penceresi
           açılır (aşağıda); JS yoksa "Yükle" düğmesi görünür ve form eskisi gibi gönderilir, sunucu ortadan kırpar. %>
@@ -96,7 +103,9 @@
     </div>
   </div>
 
-  <%# Kırp ve konumla (Figma 40:29 masaüstü pencere, 40:70 telefonda alttan sayfa). Tek <dialog>; quadran.js dosya seçilince doldurup açar.
+  <%# Crop and position (Figma 40:29 desktop window, 40:70 bottom sheet on phones). A single <dialog>; rubyyard.js fills it in and opens it when a file is chosen.
+      Cropping is computed in the browser and sent to the server in the source image's pixel coordinates (kirp_x, kirp_y, kirp_g, kirp_y2); the server validates again. %>
+  <%# Kırp ve konumla (Figma 40:29 masaüstü pencere, 40:70 telefonda alttan sayfa). Tek <dialog>; rubyyard.js dosya seçilince doldurup açar.
       Kırpma tarayıcıda hesaplanır ve sunucuya kaynak görselin piksel koordinatlarında gider (kirp_x, kirp_y, kirp_g, kirp_y2); sunucu yeniden doğrular. %>
   <dialog class="yeni-mesaj-penceresi kirp-pencere" id="kirp-pencere" aria-labelledby="kirp-baslik" data-tur="avatar" data-konum="orta">
     <div class="yeni-mesaj-ic kirp-ic">

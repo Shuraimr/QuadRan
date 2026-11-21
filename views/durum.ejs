@@ -1,4 +1,12 @@
 <%#
+  Shared status page: 403, 404, 429, 500, 503 (Figma "09 · Hata ve durum sayfaları"). Rendered by: durumSayfasi() (src/yardimci.ts), the server.ts 404/error handlers.
+  Expected data:
+  kod     403 | 404 | 429 | 500 | 503
+  metin   (optional) replaces the default description; on 503 the maintenance note also comes from here
+  saniye  (429 only) remaining time
+  sade    (optional) if true, rendered without menus; 503 is always menu-less, and so is 500 when the shared data could not be prepared (database error)
+  Normal pages use the site layout (top bar + menus) so the person does not get lost; menus make no sense on the maintenance page (you cannot sign in), so it stays plain.
+
   Ortak durum sayfası: 403, 404, 429, 500, 503 (Figma "09 · Hata ve durum sayfaları"). Çizen: durumSayfasi() (src/yardimci.ts), server.ts 404/hata işleyicileri.
   Beklenen veriler:
   kod     403 | 404 | 429 | 500 | 503
@@ -20,13 +28,14 @@
   const d = Object.assign({}, DURUMLAR[kod] || DURUMLAR[500]);
   if (locals.metin) d.metin = kod === 503 ? "Site güncelleniyor. " + metin : metin;
   const menusuz = kod === 503 || !!locals.sade;
+  // On 404 suggest categories to the lost visitor (only if shared data is ready; not on menu-less/error pages)
   // 404'te kayıp kişiye kategoriler önerilir (ortak veriler hazırsa; menüsüz/hata sayfasında yok)
   const veri_ = Object.assign({}, d, { kod, saniye: locals.saniye, kategoriler: kod === 404 && !menusuz ? (locals.menuKategoriler || []) : [] });
 %>
 <%- include("partials/bas", { sade: menusuz, baslik: d.baslik }) %>
 <% if (menusuz) { %>
   <div class="orta-sayfa">
-    <a class="logo" href="/"><span class="logo-isaret">Q</span><span class="logo-yazi">QuadRan</span></a>
+    <a class="logo" href="/"><span class="logo-isaret"><img src="/img/marka/rakun-96.webp" alt="" width="32" height="32"></span><span class="logo-yazi">rubyyard</span></a>
     <%- include("partials/durum-icerik", veri_) %>
   </div>
 <% } else { %>

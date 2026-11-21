@@ -1,4 +1,23 @@
 <%#
+  Expected data:
+  profil   { username, bio, avatar_url, banner_url, rol, created_at, points, rutbe,
+             konu_sayisi, mesaj_sayisi, alinan_oy }
+  rutbeler [ { id, name, min_points, renk, simge, ... } ]   sorted ascending by min_points (ranks table)
+  simdiki  the profile's rank (one of rutbeler), sonraki  the next rank or undefined (top rank)
+  acilacaklar [ { etiket } ]   privileges NEWLY unlocked at the next rank (shown in the locked box)
+  puanGecmisi [ { id, miktar, sebep, created_at, konu_id, mesaj_konu_id, mesaj_id, rozet } ]   only on the "puan" tab (own profile)
+  konular  [ post card data ]    same fields as partials/gonderi-karti
+  rozetler [ { name } ]
+  haftalik [ { gun: "Pzt", sayi: 2, bugun: false } ]   7 items, Monday to Sunday
+  konum, web_sitesi  (inside profil, optional) shown in the meta row
+  mesajAtabilir (bool), engelledim (bool)  for the visitor: whether "Send message" shows, whether the menu has Block or Unblock
+  kendisi  bool   whether the logged-in person is looking at their own profile
+  sabitKonu  post card data | null   topic pinned to the profile (optional)
+  vitrinRozetleri [ { name, description, earned_at } ]   at most 3 badges selected in the showcase, in order (optional)
+  etkinlikler [ { tur: konu|cevap|rozet|takip, zaman, konu_id, baslik, ek } ]   only on the "etkinlik" tab (public actions, at most 30)
+  sekme    "konular" | "yorumlar" | "etkinlik" | "puan"   which tab is open (?sekme=yorumlar | puan; puan only on one's own profile)
+  yorumlar [ { id, content, created_at, konu_id, konu_baslik } ]   only when the tab is "yorumlar" (replies, not first posts)
+
   Beklenen veriler:
   profil   { username, bio, avatar_url, banner_url, rol, created_at, points, rutbe,
              konu_sayisi, mesaj_sayisi, alinan_oy }
@@ -21,8 +40,10 @@
 <%- include("partials/bas", { baslik: profil.username }) %>
 <%- include("partials/ust-cubuk") %>
 <%
+  // If no tab is given (e.g. /onizleme/profil) Topics counts as open; an undefined variable must not crash the page
   // Sekme verilmediyse (örn. /onizleme/profil) Konular açık sayılır; tanımsız değişken sayfayı çökertmesin
   const sekme = ["yorumlar", "etkinlik", "puan"].includes(locals.sekme) ? locals.sekme : "konular";
+  // Rank progress: fill ratio from the current rank's threshold toward the next one's (fully filled at the top rank)
   // Rütbe ilerlemesi: şimdiki rütbenin eşiğinden sonrakinin eşiğine doğru dolgu oranı (en üst rütbede tam dolu)
   const oran = sonraki ? Math.min(1, Math.max(0, (profil.points - simdiki.min_points) / (sonraki.min_points - simdiki.min_points))) : 1;
   const enCok = Math.max(1, ...haftalik.map(g => g.sayi));
@@ -31,7 +52,9 @@
   const vitrinDolu = !!locals.sabitKonu || vitrinRozet.length > 0;
 %>
 <div class="profil">
-  <%# Üst bölüm: banner + kimlik. Profil rengi/efekti/süsü kişi premium'dayken gelir (sorgu premium değilse NULL döndürür).
+  <%# Top section: banner + identity. Profile color/effect/ornament come when the person is premium (the query returns NULL if not premium).
+      Colors are validated as #rrggbb on the server. The back effect layer plays inside the banner, the front effect layer over the whole top section.
+      Üst bölüm: banner + kimlik. Profil rengi/efekti/süsü kişi premium'dayken gelir (sorgu premium değilse NULL döndürür).
       Renkler sunucuda #rrggbb doğrulanır. Arka efekt katmanı banner'ın içinde, ön efekt katmanı bütün üst bölümün üstünde oynar. %>
   <div class="profil-ust" data-efekt="<%= profil.profil_efekti || '' %>"<%- Number(profil.profil_renk_gecis) ? " data-gecis" : "" %> style="<%= profil.profil_renk_ana ? '--pk-ana:' + profil.profil_renk_ana + ';' : '' %><%= profil.profil_renk_vurgu ? '--pk-vurgu:' + profil.profil_renk_vurgu : '' %>">
     <div class="banner" data-konum="<%= profil.banner_konum || 'orta' %>">
@@ -44,10 +67,10 @@
         <div class="satir"><h1><%= profil.username %></h1><% if (profil.rutbe) { %><%- include("partials/rutbe", { rutbeAd: profil.rutbe, rutbeId: profil.rutbe_id }) %><% } %><%- include("partials/unvan", { unvan: profil.unvan, premium: profil.premium }) %></div>
         <div class="satir ikincil kucuk kimlik-meta">
           <span class="meta-oge"><%- include("partials/ikon", { ad: "takvim", boyut: 16 }) %> <%= profil.rol %> · <%= new Date(profil.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %> tarihinden beri üye</span>
-          <%# Takip sayıları: iki ayrı bağlantı, ilgili listeye gider (src/rotalar/takip.ts). Önizleme verisinde sayı yoksa 0 sayılır. %>
+          <%# Follow counts: two separate links, each goes to its list (src/rotalar/takip.ts). A missing count in preview data is treated as 0. · Takip sayıları: iki ayrı bağlantı, ilgili listeye gider (src/rotalar/takip.ts). Önizleme verisinde sayı yoksa 0 sayılır. %>
           <span class="meta-oge"><a class="baglanti" href="/profil/<%= encodeURIComponent(profil.username) %>/takipciler"><strong><%= profil.takipci_sayisi || 0 %></strong> takipçi</a> · <a class="baglanti" href="/profil/<%= encodeURIComponent(profil.username) %>/takip-edilenler"><strong><%= profil.takip_sayisi || 0 %></strong> takip</a></span>
           <% if (profil.konum) { %><span class="meta-oge"><%- include("partials/ikon", { ad: "konum", boyut: 16 }) %> <%= profil.konum %></span><% } %>
-          <%# Kullanıcının yazdığı adres: yalnızca http(s) kabul edilir (hesap.ts); arama motorlarına güven aktarma (nofollow ugc) ve yeni sekmede güvenli aç (noopener) %>
+          <%# The address the user wrote: only http(s) is accepted (hesap.ts); do not pass trust to search engines (nofollow ugc) and open safely in a new tab (noopener) · Kullanıcının yazdığı adres: yalnızca http(s) kabul edilir (hesap.ts); arama motorlarına güven aktarma (nofollow ugc) ve yeni sekmede güvenli aç (noopener) %>
           <% if (profil.web_sitesi) { %><a class="meta-oge baglanti" href="<%= cikisAdresi(profil.web_sitesi) %>" data-dis-baglanti="<%= profil.web_sitesi %>" rel="nofollow ugc noopener noreferrer"><%- include("partials/ikon", { ad: "baglanti", boyut: 16 }) %> <%= profil.web_sitesi.replace(/^https?:\/\//i, "").replace(/\/$/, "") %></a><% } %>
         </div>
       </div>
@@ -57,10 +80,10 @@
         <% } %>
         <% if (kendisi) { %>
           <a class="buton buton-tonal" href="/ayarlar">Profili düzenle</a>
-          <a class="buton buton-cerceveli" href="/profil/<%= profil.username %>" data-paylas data-baslik="<%= profil.username %> · QuadRan">Paylaş</a>
+          <a class="buton buton-cerceveli" href="/profil/<%= profil.username %>" data-paylas data-baslik="<%= profil.username %> · rubyyard">Paylaş</a>
         <% } else { %>
           <% if (locals.kullanici) { %>
-            <%# Başkasının profilinde birincil eylem "Takip et"; Mesaj gönder ikincil. Aradaki engel varsa takip düğmesi hiç çizilmez. %>
+            <%# On someone else's profile the primary action is "Takip et" (Follow); Send message is secondary. If there is a block between them the follow button is not drawn at all. · Başkasının profilinde birincil eylem "Takip et"; Mesaj gönder ikincil. Aradaki engel varsa takip düğmesi hiç çizilmez. %>
             <% if (!locals.aradaEngelVar) { %>
               <% if (locals.benTakipEdiyorMu) { %>
                 <form method="post" action="/takip/<%= encodeURIComponent(profil.username) %>/birak"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><button class="buton buton-cerceveli" type="submit">Takibi bırak</button></form>
@@ -69,7 +92,7 @@
               <% } %>
             <% } %>
             <% if (locals.mesajAtabilir) { %><a class="buton <%= locals.aradaEngelVar ? 'buton-birincil' : 'buton-tonal' %>" href="/mesajlar/<%= profil.username %>">Mesaj gönder</a><% } %>
-            <%# Engelle ve Şikâyet et tek ⋮ menüsünde (ayrı bir "Şikâyet et" düğmesi yok: aynı eylem iki yerde durmasın) %>
+            <%# Block and Report are in a single ⋮ menu (no separate "Report" button: the same action must not appear in two places) · Engelle ve Şikâyet et tek ⋮ menüsünde (ayrı bir "Şikâyet et" düğmesi yok: aynı eylem iki yerde durmasın) %>
             <button class="buton buton-cerceveli profil-menu-dugme" type="button" popovertarget="profil-menusu" data-menu-ac aria-label="Diğer işlemler"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
             <div class="acilir-menu acilir-menu-konumlu" id="profil-menusu" popover aria-label="Kullanıcı işlemleri">
               <% if (locals.engelledim) { %>
@@ -95,7 +118,7 @@
 
   <% if (profil.bio) { %><p class="bio"><%= profil.bio %></p><% } %>
 
-  <%# Vitrin: sekmelerin üstünde. Boşsa başkasının profilinde hiç çizilmez; kişinin kendi profilinde Ayarlar'a götüren ince bir satır görünür. %>
+  <%# Showcase: above the tabs. If empty it is not drawn at all on someone else's profile; on one's own profile a thin row leading to Settings appears. · Vitrin: sekmelerin üstünde. Boşsa başkasının profilinde hiç çizilmez; kişinin kendi profilinde Ayarlar'a götüren ince bir satır görünür. %>
   <% if (vitrinDolu) { %>
     <section class="sutun vitrin" aria-label="Vitrin">
       <% if (locals.sabitKonu) { %>
@@ -125,7 +148,7 @@
       <a class="<%= sekme === 'konular' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>"<%- sekme === 'konular' ? ' aria-current="page"' : '' %>>Konular</a>
       <a class="<%= sekme === 'yorumlar' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>?sekme=yorumlar"<%- sekme === 'yorumlar' ? ' aria-current="page"' : '' %>>Yorumlar</a>
       <a class="<%= sekme === 'etkinlik' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>?sekme=etkinlik"<%- sekme === 'etkinlik' ? ' aria-current="page"' : '' %>>Etkinlik</a>
-      <%# Puan geçmişi yalnızca kendi profilinde (kendisi); sekme "puan" zaten yalnızca kendisi için açılabilir %>
+      <%# Points history only on one's own profile; the "puan" tab can only be opened by the person themselves anyway · Puan geçmişi yalnızca kendi profilinde (kendisi); sekme "puan" zaten yalnızca kendisi için açılabilir %>
       <% if (kendisi) { %><a class="<%= sekme === 'puan' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>?sekme=puan"<%- sekme === 'puan' ? ' aria-current="page"' : '' %>>Puan geçmişi</a><% } %>
     </div>
     <% if (sekme === "puan") { %>
@@ -133,6 +156,7 @@
         const sebepMetni = { konu: "Konu açtın", cevap: "Cevap yazdın", oy: "Mesajına oy verildi", gunluk: "Günlük ziyaret", seri: "7 günlük seri",
           cozum: "Cevabın çözüm seçildi", cozum_geri: "Çözüm işareti kalktı", rozet: "Rozet kazandın", rozet_geri: "Rozet geri alındı", duzeltme: "Puan düzeltmesi", silme: "Geri alınan puan", geri_yukleme: "Mesaj geri yüklendi",
           baslangic: "Önceki puanların", davet: "Davet" };
+        // the 'oy' (vote) row is split by sign: plus = the author's post got an upvote (or a downvote was taken back), minus = a downvote or a vote that was taken back
         // 'oy' satırı işarete göre ayrılır: artı = yazarın mesajına artı oy verildi (ya da eksi oyu geri alındı), eksi = eksi oy ya da geri alınan oy
         const sebepAd = (p) => p.sebep === "oy" ? (p.miktar > 0 ? "Mesajına artı oy verildi" : "Eksi oy ya da geri alınan oy") : (sebepMetni[p.sebep] || p.sebep);
       %>
@@ -152,7 +176,7 @@
             </div>
           <% } %>
         </div>
-        <%# Sayfalama: ?once=<son görünen log id> ile daha eski 100 hareket; JS gerekmez %>
+        <%# Pagination: ?once=<last seen log id> gives the 100 older entries; no JS needed · Sayfalama: ?once=<son görünen log id> ile daha eski 100 hareket; JS gerekmez %>
         <div class="puan-sayfa">
           <% if (locals.once) { %><a class="baglanti" href="/profil/<%= profil.username %>?sekme=puan">← En yeni hareketler</a><% } else { %><span></span><% } %>
           <% if (locals.dahaEskiVar) { %><a class="baglanti" href="/profil/<%= profil.username %>?sekme=puan&once=<%= puanGecmisi[puanGecmisi.length - 1].id %>" rel="next">Daha eski →</a><% } %>
@@ -161,6 +185,7 @@
       <% } %>
     <% } else if (sekme === "etkinlik") { %>
       <%
+        // An icon + sentence for each type; user text (title, badge name, username) is printed escaped
         // Her tür için ikon + cümle; kullanıcı metni (başlık, rozet adı, kullanıcı adı) kaçışlı basılır
         const etkinlikIkon = { konu: "kalem", cevap: "yorum", rozet: "kupa", takip: "kisi" };
         const etkinlikler_ = locals.etkinlikler || [];
@@ -187,7 +212,7 @@
         <article class="kart profil-yorum">
           <div class="gonderi-meta">
             <a class="baglanti" href="/konu/<%= y.konu_id %>#mesaj-<%= y.id %>"><%= y.konu_baslik %></a>
-            <%# Zaman ayraçsız: satır kırılınca başta tek "·" kalıyordu; aradaki boşluk (gap) yeterli %><span class="zaman"><%= zaman(y.created_at) %></span>
+            <%# No time separator: when the row wrapped a lone "·" was left at the start; the gap between them is enough · Zaman ayraçsız: satır kırılınca başta tek "·" kalıyordu; aradaki boşluk (gap) yeterli %><span class="zaman"><%= zaman(y.created_at) %></span>
           </div>
           <p class="metin"><%= y.content %></p>
         </article>
@@ -226,7 +251,7 @@
           </div>
         </div>
         <% if (locals.yetkiliProfil) { %>
-          <%# Admin/moderatör bütün ayrıcalıklardan muaf (src/rutbe.ts yetkiliMi): kilitli "açılacaklar" listesi yanıltıcı olur %>
+          <%# Admin/moderator are exempt from all privileges (src/rutbe.ts yetkiliMi): a locked "to be unlocked" list would be misleading · Admin/moderatör bütün ayrıcalıklardan muaf (src/rutbe.ts yetkiliMi): kilitli "açılacaklar" listesi yanıltıcı olur %>
           <div class="rutbe-sonraki"><div class="kucuk"><strong>Yetkili:</strong> bütün ayrıcalıklar açık</div></div>
         <% } %>
         <% if (sonraki) { %>
@@ -240,7 +265,9 @@
           </div>
         <% } %>
         <div class="rutbe-alt">
-          <%# "Puan geçmişi" burada yok: kendi profilinde sekme listesinde zaten duruyor (aynı hedef aynı sayfada iki kez olmasın).
+          <%# No "Points history" here: on one's own profile it is already in the tab list (the same target must not appear twice on one page).
+              The empty span keeps the "All ranks" link pushed to the right.
+              "Puan geçmişi" burada yok: kendi profilinde sekme listesinde zaten duruyor (aynı hedef aynı sayfada iki kez olmasın).
               Boş span, "Bütün rütbeler" bağlantısını sağa yaslı tutar. %><span></span>
           <a class="baglanti" href="/rutbeler">Bütün rütbeler →</a>
         </div>
@@ -258,6 +285,6 @@
     </div>
   </section>
 </div>
-<%# Kullanıcı şikâyeti penceresi: misafirde yok, "Şikâyet et" bağlantısı /sikayet üzerinden girişe götürür %>
+<%# User report window: absent for guests, the "Report" link leads to login via /sikayet · Kullanıcı şikâyeti penceresi: misafirde yok, "Şikâyet et" bağlantısı /sikayet üzerinden girişe götürür %>
 <% if (locals.kullanici && !kendisi) { %><%- include("partials/sikayet-penceresi", { hedef_kullanici: profil.username, yazar: profil.username }) %><% } %>
 <%- include("partials/son") %>

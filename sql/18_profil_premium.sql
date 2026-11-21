@@ -1,3 +1,14 @@
+-- Profile appearance and premium (Figma "10 · Premium" and "11 · Premium: profile effects and color").
+-- Run once (ALTER TABLE cannot run twice).
+--
+-- premium_bitis    : NULL or a past date = free. "Unlimited" premium is stored as a far-future date (9999-12-31);
+--                    so a single comparison (premium_bitis > NOW()) covers every case. There is no payment; it is granted by hand from the panel.
+-- profil_efekti    : overlay animation playing over the card/profile (cadilar, melek, seytan, kar, sakura, atesbocegi); NULL = none.
+-- avatar_susu      : decoration around the avatar (cadi_sapkasi, hale_kanat, boynuz_kuyruk, bere, kiraz, fener); NULL = none.
+-- profil_renk_ana / profil_renk_vurgu : free colors chosen by the person (#rrggbb); NULL = the site's own colors.
+-- profil_renk_gecis : 0 = flat main color on the banner (default), 1 = soft main→accent gradient on the banner (only if the person wants it; there is no gradient anywhere else).
+-- avatar_hareketli / banner_hareketli : whether the uploaded file is an animated WebP (only a premium member's GIF stays animated).
+-- avatar_url and banner_url have existed since sql/01; the upload infrastructure (src/yukleme.ts) now fills them.
 -- Profil görünümü ve premium (Figma "10 · Premium" ve "11 · Premium: profil efektleri ve renk").
 -- Bir kez çalıştırılır (ALTER TABLE tekrar çalışmaz).
 --

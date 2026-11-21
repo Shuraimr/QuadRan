@@ -1,3 +1,13 @@
+<%# Leaderboard: /siralama?donem=hafta|ay|tum
+   Expected data:
+   donem     "hafta" | "ay" | "tum"   selected period (tum if missing)
+   liste     [ { sira, username, rutbe, puan, konu_sayisi } ]   by points, high to low, sira starts at 1
+             puan: points earned in the selected period (users.points for tum). rutbe is always computed
+             from total points (ranks.min_points). konu_sayisi: topics opened in the period (topics, deleted_at IS NULL)
+   benim     null or { sira, username, rutbe, puan, konu_sayisi }   the signed-in user's place
+             (sent even if outside the list). Not shown if locals.kullanici is missing
+   rutbeler  [ { name, min_points } ]   the ranks table, ascending by min_points
+   The signed-in user on this page: locals.kullanici { username, rutbe, points } %>
 <%#
   Sıralama (liderlik tablosu): /siralama?donem=hafta|ay|tum
   Beklenen veriler:
@@ -19,6 +29,7 @@
   const srBenim = locals.kullanici ? (locals.benim || null) : null;
   const srDonemler = [{ ad: "hafta", etiket: "Bu hafta" }, { ad: "ay", etiket: "Bu ay" }, { ad: "tum", etiket: "Tüm zamanlar" }];
   const srPodyum = srListe.slice(0, 3);
+  // Podium visual order: 2nd, 1st, 3rd
   // Podyum görsel sırası: 2., 1., 3.
   const srPodyumSirali = [srPodyum[1], srPodyum[0], srPodyum[2]].filter(Boolean);
   const srTablo = srListe.slice(3);

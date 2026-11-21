@@ -1,6 +1,9 @@
 # rubyyard · marka kılavuzu
 
-> Durum: **taslak** (2026-11-21). Site hâlâ QuadRan adını taşıyor; ad değişikliği ayrı bir karar.
+> **English:** this is the brand guide for rubyyard: the raccoon mascot, logo lockups, icons, colours and usage rules. The brand
+> assets are **not** open source; see [LICENSE.md](LICENSE.md) (English and Turkish).
+>
+> Durum: **v1** (2026-11-21). Site 2026-11-21'de bu ada geçti.
 > Tasarım kaynağı: Figma › "16 · Rubyyard logo" sayfası. Bu klasör, o tasarımın repodaki kopyası.
 
 ![Marka panosu](pano.webp)
@@ -17,7 +20,7 @@ altıgen yakutu (sitedeki yakut parasının B3 kesimiyle aynı) sarar.
 
 | Hâl | Görsel | Sitede nerede |
 |---|---|---|
-| Logo (sarmal) | <img src="logo/isaret.png" width="120"> | Üst çubuk, favicon, uygulama simgesi |
+| Logo (sarmal) | <img src="logo/isaret.png" width="120"> | Üst çubuk (`public/img/marka/rakun-96.webp`), favicon, uygulama simgesi |
 | Uyuyor | <img src="maskot/uyuyor.png" width="120"> | Çevrimdışı, bakım modu |
 | Kutluyor | <img src="maskot/kutluyor.png" width="120"> | Rütbe atlama, yakut ödülü penceresi |
 | Şaşırdı | <img src="maskot/sasirdi.png" width="120"> | 404, boş arama sonucu |
@@ -75,13 +78,15 @@ vurgu seçeneklerinden biri (`data-vurgu="yakut"`).
 
 ## GitHub tanıtımı
 
-Figma › "17 · GitHub tanıtımı (rubyyard)". Ekran görüntüleri `docs/ekranlar/`'dan alınıp üst çubukları kırpıldı (eski QuadRan logosu görünmesin diye).
+Figma › "17 · GitHub tanıtımı (rubyyard)". Ekran görüntüleri `docs/ekranlar/`'dan alınıp üst çubukları kırpıldı (eski rubyyard logosu görünmesin diye).
 
 | Dosya | Nerede |
 |---|---|
 | [`github/paylasim-1280x640.png`](github/paylasim-1280x640.png) | Depo › Settings › Social preview (bağlantı paylaşılınca görünen kart) |
 | [`github/baslik-koyu.png`](github/baslik-koyu.png) / [`-acik`](github/baslik-acik.png) | README'nin en üstü (GitHub temasına göre `<picture>` ile seçilir) |
 | [`github/ozellikler-koyu.png`](github/ozellikler-koyu.png) / [`-acik`](github/ozellikler-acik.png) | README'de "Özellikler" başlığının altı |
+
+İngilizce kopyalar `github/en/` klasöründe (`social-preview-1280x640.png`, `header-dark/light.png`, `features-dark/light.png`); README.md (İngilizce) onları, README.tr.md Türkçeleri kullanır. GitHub'ın Social preview ayarına İngilizce kart yüklenir.
 
 README'de kullanım:
 
@@ -97,13 +102,14 @@ README'de kullanım:
 ## Lisans
 
 Marka varlıkları (ad, rakun maskot, logo, bu klasördeki görseller) **AGPL kapsamında değildir; tüm hakları saklıdır.**
-Kullanmak için sahibinden yazılı izin gerekir. Ayrıntı: [LISANS.md](LISANS.md).
+Kullanmak için sahibinden yazılı izin gerekir. Ayrıntı: [LICENSE.md](LICENSE.md).
 
 ## Sıradakiler
 
 - [ ] Rakunu katmanlı vektöre çevirmek (baş, kuyruk, yakut ayrı): animasyonun ön şartı.
 - [ ] Animasyon: kuyruk dalgalanması, göz kırpma, yakut ışıltısı. "Animasyonları azalt" açıkken durağan.
-- [ ] Ad değişikliği kararı (QuadRan → rubyyard) ve alan adı alımı.
+- [x] Ad değişikliği (2026-11-21): kod, arayüz, veritabanı, GitHub deposu.
+- [ ] Alan adı alımı (rubyyard.com / .net / .app 2026-11-21'de boştu).
 
 ## Kaynak dosyalar
 

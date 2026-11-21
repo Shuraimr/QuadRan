@@ -1,7 +1,10 @@
+<%# Link cards: YouTube/GitHub addresses in the text become cards under the text (at most 2). Expected: mesaj { content, rutbe_id, yazar_rol, kart_kapali }.
+   The rule is in baglantiKartlari in src/rutbe.ts (the author has the link privilege + the card has not been closed). While the page loads NO request goes out:
+   when the YouTube box's play is pressed rubyyard.js inserts the iframe (youtube-nocookie); without JS the box goes to youtube.com through the /cikis confirmation. %>
 <%#
   Bağlantı kartları: metindeki YouTube/GitHub adresleri metnin altında kart olur (en çok 2). Beklenen: mesaj { content, rutbe_id, yazar_rol, kart_kapali }.
   Kural src/rutbe.ts baglantiKartlari'nda (yazar bağlantı ayrıcalığına sahip + kart kapatılmamış). Sayfa yüklenirken dışarıya HİÇBİR istek gitmez:
-  YouTube kutusu oynat'a basılınca quadran.js iframe koyar (youtube-nocookie); JS'siz kutu /cikis onayı üzerinden youtube.com'a gider.
+  YouTube kutusu oynat'a basılınca rubyyard.js iframe koyar (youtube-nocookie); JS'siz kutu /cikis onayı üzerinden youtube.com'a gider.
 %><% const kartlar_ = baglantiKartlari(mesaj.content, mesaj.rutbe_id, mesaj.yazar_rol, mesaj.kart_kapali);
 if (kartlar_.length) { %>
   <div class="bag-kartlar">

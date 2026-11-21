@@ -1,12 +1,18 @@
+<%# Yakut reward dialog (direction B approved in Figma). Expected: locals.yakutOdul { tur: "seri" | "harclik" | "premium", miktar, gun?, rutbe?, sonraki? { ad, aylik, kalan } }
+   (src/oturum.ts › yakutOdulHazirla; if missing nothing is drawn). Inside son.ejs: it appears on all pages and in the panel.
+   <dialog open> is visible without JS too; "OK" is a <form method="dialog"> so it closes without JS as well. rubyyard.js turns the open dialog
+   into a modal with showModal (backdrop, focus lock, Esc) and counts the number up from 0 (data-say). On phones (≤800) it is a sheet opening from the bottom. %>
 <%#
   Yakut ödül penceresi (Figma onaylı B yönü). Beklenen: locals.yakutOdul { tur: "seri" | "harclik" | "premium", miktar, gun?, rutbe?, sonraki? { ad, aylik, kalan } }
   (src/oturum.ts › yakutOdulHazirla; yoksa hiçbir şey çizilmez). son.ejs içinde: bütün sayfalarda ve panelde çıkar.
-  <dialog open> JS'siz de görünür; "Tamam" bir <form method="dialog"> olduğu için JS olmadan da kapanır. quadran.js açık pencereyi
+  <dialog open> JS'siz de görünür; "Tamam" bir <form method="dialog"> olduğu için JS olmadan da kapanır. rubyyard.js açık pencereyi
   showModal ile modal yapar (karartma, odak kilidi, Esc) ve sayıyı 0'dan saydırır (data-say). Telefonda (≤800) alttan açılan sayfa.
 %>
 <% if (locals.yakutOdul) { const o_ = locals.yakutOdul;
   const ayAd_ = new Date().toLocaleDateString("tr-TR", { month: "long" }).toLocaleUpperCase("tr");
-  const cok_ = !!(o_.parcalar && o_.parcalar.length > 1); // birden çok ödül tek pencerede toplandıysa başlık ve cümle parçaları sayar
+  // if several rewards were collected in one dialog, the title and sentence count the parts
+  // birden çok ödül tek pencerede toplandıysa başlık ve cümle parçaları sayar
+  const cok_ = !!(o_.parcalar && o_.parcalar.length > 1);
   const etiket_ = cok_ ? "BUGÜNÜN ÖDÜLLERİ · " + o_.parcalar.length : o_.tur === "seri" ? o_.gun + ". GÜN · SERİ ÖDÜLÜ" : o_.tur === "harclik" ? "AYLIK RÜTBE HARÇLIĞI · " + ayAd_ : "PREMIUM · " + ayAd_;
   const dongu_ = ((o_.gun || 1) - 1) % 7 + 1; %>
   <dialog class="yakut-odul" open aria-labelledby="yakut-odul-baslik" data-yakut-odul>
@@ -14,6 +20,7 @@
     <p class="yakut-odul-etiket" id="yakut-odul-baslik"><%= etiket_ %></p>
     <p class="yakut-odul-miktar">+<span data-say="<%= o_.miktar %>"><%= o_.miktar.toLocaleString("tr-TR") %></span> yakut</p>
     <% if (cok_) {
+      // Only the parts that exist are counted: "Your daily streak, monthly allowance and premium yakut were added to your wallet."
       // Yalnızca bulunan parçalar sayılır: "Günlük serin, aylık harçlığın ve premium yakutun cüzdanına eklendi."
       const adlar_ = { seri: "günlük serin", harclik: "aylık harçlığın", premium: "premium yakutun" };
       const liste_ = o_.parcalar.map((p_) => adlar_[p_.tur] || p_.etiket.toLocaleLowerCase("tr"));

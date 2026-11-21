@@ -1,9 +1,9 @@
 ---
-name: quadran-tasarim
-description: QuadRan'da yeni bir ekran, özellik ya da arayüz değişikliği yapılırken izlenecek tasarım süreci (bilgi mimarisi → Figma → onay → kodlama → ölçerek doğrulama → yayın) ve projenin arayüz standartları. Kullanıcı yeni bir sayfa/özellik/menü/bileşen istediğinde, "tasarla", "Figma'da çiz", "arayüzü düzelt/geliştir", "mobilde/tablette bozuk", "standartlarımıza uydur" dediğinde ya da bir arayüz işini bitirmeden önce kullan.
+name: rubyyard-tasarim
+description: rubyyard'da yeni bir ekran, özellik ya da arayüz değişikliği yapılırken izlenecek tasarım süreci (bilgi mimarisi → Figma → onay → kodlama → ölçerek doğrulama → yayın) ve projenin arayüz standartları. Kullanıcı yeni bir sayfa/özellik/menü/bileşen istediğinde, "tasarla", "Figma'da çiz", "arayüzü düzelt/geliştir", "mobilde/tablette bozuk", "standartlarımıza uydur" dediğinde ya da bir arayüz işini bitirmeden önce kullan.
 ---
 
-# QuadRan tasarım süreci
+# rubyyard tasarım süreci
 
 Bu süreç kullanıcıyla birlikte oturtuldu. Kısaltma: kullanıcı "facia", "kendini taklit ediyor", "üst üste biniyor" gibi tepkileri tam da bu adımlar atlandığında verdi.
 Önce `CLAUDE.md` (proje kuralları) ve varsa `CLAUDE.local.md` (Figma dosyası, bileşen kimlikleri) okunur. Kullanıcıya her zaman **Türkçe** yazılır.
@@ -42,7 +42,7 @@ Bu düşünce Figma'da yeni bir sayfanın ilk panosu olarak çizilir ("NN · Kon
 ## 4. Kodla
 
 - Büyük işler alt ajana verilir (`general-purpose`, `model: sonnet`, arka planda). Brif kısa tutulur çünkü genel kurallar `CLAUDE.md`'de: brifte tasarımın kendisi (ölçüler, metinler, durumlar), kullanıcı kararları, yetki kuralları, test listesi ve "seed durumunu geri getir" yer alır.
-- Aynı dosyalara dokunan iki iş aynı anda yürütülmez (örn. menü stilleri, quadran.js, üst çubuk). Biri bitince diğeri başlar.
+- Aynı dosyalara dokunan iki iş aynı anda yürütülmez (örn. menü stilleri, rubyyard.js, üst çubuk). Biri bitince diğeri başlar.
 - Küçük düzeltmeler doğrudan yapılır.
 
 ## 5. Ölçerek doğrula (raporlara güvenme)

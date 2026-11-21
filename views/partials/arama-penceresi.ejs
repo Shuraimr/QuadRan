@@ -1,4 +1,9 @@
 <%#
+  Search window (Ctrl+K). Native <dialog>; without JS the top bar button works as a /ara link.
+  Expected data (all optional):
+  aramaOrnek  { sorgu, konular: [{ id, baslik, kategori, oy }], kullanicilar: [{ username, rutbe }], kategoriler: [{ id, ad, konu_sayisi }] }
+              If not given, the hint "Type to search and press Enter" is shown. (No live results yet.)
+  statik      if true, an open box is drawn instead of <dialog> (only for the preview page)
   Arama penceresi (Ctrl+K). Yerel <dialog>; JS yoksa üst çubuktaki düğme /ara bağlantısı olarak çalışır.
   Beklenen veriler (hepsi isteğe bağlı):
   aramaOrnek  { sorgu, konular: [{ id, baslik, kategori, oy }], kullanicilar: [{ username, rutbe }], kategoriler: [{ id, ad, konu_sayisi }] }
@@ -7,7 +12,7 @@
 %>
 <% const ornek_ = locals.aramaOrnek; const statik_ = !!locals.statik; const etiket_ = statik_ ? "div" : "dialog"; %>
 <<%= etiket_ %> class="arama-penceresi<%= statik_ ? ' katman-statik' : '' %>"<%- statik_ ? "" : ' id="arama-penceresi" aria-labelledby="arama-baslik"' %>>
-  <h2 class="arama-gizli-baslik"<%- statik_ ? "" : ' id="arama-baslik"' %>>QuadRan'da ara</h2>
+  <h2 class="arama-gizli-baslik"<%- statik_ ? "" : ' id="arama-baslik"' %>>rubyyard'da ara</h2>
   <form class="arama-form" method="get" action="/ara" role="search">
     <%- include("ikon", { ad: "ara", boyut: 20 }) %>
     <input class="arama-girdi" type="search" name="q" autocomplete="off" placeholder="Konu, kullanıcı veya kategori ara" aria-label="Arama" value="<%= ornek_ ? ornek_.sorgu : '' %>">

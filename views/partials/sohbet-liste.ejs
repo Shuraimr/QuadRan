@@ -1,3 +1,12 @@
+<%# Left list of the chat hub (members only): the same partial on /sohbet and /oda/:id pages.
+   Expected data:
+   hub        { odalar [{ id, ad, sessiz, kapali, okunmamis, son_metin, son_zaman }], davetler [{ id, oda, davet_eden }],
+                genel { metin, zaman } | null, olustur { izinli, rutbeYeter, sinirDolu, kilit { ad, rutbe, kalan }, sinir } }
+   aktifOda   number of the open room; 0 means "General chat" is open
+   sohbetFiltre "hepsi" (default: general + rooms + DMs in one list by last message) | "oda" (rooms only).
+              The third tab "DM" is the /mesajlar page (there the same tab strip is drawn with DM selected: partials/sohbet-filtre.ejs).
+   Reply to an invite: POST /oda/davet/:id/kabul | /ret · "Create room": /oda/yeni (a dialog if JS is on, #oda-yeni)
+   On phones (<=960px) this list and the conversation are separate views: while on the list the conversation is hidden (.mesaj-acik class on the page). %>
 <%#
   Sohbet merkezinin sol listesi (yalnızca üyeler): /sohbet ve /oda/:id sayfalarında aynı parça.
   Beklenen veriler:
@@ -22,6 +31,7 @@
   };
   const slOl_ = sl_.olustur;
   const slFiltre_ = locals.sohbetFiltre === "oda" ? "oda" : "hepsi";
+  // All: rooms and DMs in one list by last message time (a room with no messages goes last)
   // Hepsi: odalar ve DM'ler son mesaj zamanına göre tek listede (mesajı olmayan oda en sona)
   const slZamanMs_ = (d) => d ? new Date(d).getTime() : 0;
   const slOgeler_ = slFiltre_ === "oda" ? sl_.odalar.map((o) => ({ tur: "oda", o }))

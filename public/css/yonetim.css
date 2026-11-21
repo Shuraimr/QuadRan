@@ -1,6 +1,7 @@
-/* QuadRan · yönetim paneli (/yonetim) ve duyuru şeridi. Renkler quadran.css'teki değişkenlerden gelir (tema/vurgu uyumlu). */
+/* rubyyard · admin panel (/yonetim) and the announcement bar. Colors come from the variables in rubyyard.css (theme/accent aware). */
+/* rubyyard · yönetim paneli (/yonetim) ve duyuru şeridi. Renkler rubyyard.css'teki değişkenlerden gelir (tema/vurgu uyumlu). */
 
-/* ---------- Duyuru şeridi (bütün menülü sayfalarda) ---------- */
+/* ---------- Announcement bar (on every page with a menu) · Duyuru şeridi (bütün menülü sayfalarda) ---------- */
 .duyuru { display: flex; align-items: center; gap: 10px; padding: 10px 24px; font-size: 14px; font-weight: 500; background: var(--ton); color: var(--ton-ustu); border-bottom: 1px solid var(--kenar-ince); }
 .duyuru-uyari { background: var(--hata); color: var(--zemin); }
 .duyuru-metin { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -8,6 +9,8 @@
 .duyuru-kapat { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 16px; color: inherit; }
 .duyuru-kapat:hover { background: rgb(0 0 0 / .15); }
 
+/* Status colors (both themes): pending = amber, processed = green, rejected = gray, suspended = red
+   Each status has a text color (--d-*) and a faint background (--d-*-zemin). Dark theme lives in :root; light theme and the "system" light look are below. */
 /* ---------- Durum renkleri (iki temada da): bekliyor = kehribar, işlendi = yeşil, reddedildi = gri, uzaklaştırıldı = kırmızı ----------
    Her durum için yazı rengi (--d-*) ve soluk zemin (--d-*-zemin). Koyu tema :root'ta, açık tema ve "sistem" açık görünümü aşağıda. */
 :root {
@@ -36,7 +39,7 @@
 .durum-reddedildi { background: var(--d-reddedildi-zemin); color: var(--d-reddedildi); }
 .durum-ban { background: var(--d-ban-zemin); color: var(--d-ban); }
 
-/* ---------- Düzen: ≥1180px solda 248px sabit kenar çubuğu ---------- */
+/* ---------- Layout: at ≥1180px a fixed 248px sidebar on the left · Düzen: ≥1180px solda 248px sabit kenar çubuğu ---------- */
 body.sade { padding: 0; }
 .yn { min-height: 100vh; }
 .yn-yan { position: fixed; inset: 0 auto 0 0; z-index: 20; width: 248px; display: flex; flex-direction: column; gap: 8px; padding: 16px 12px; overflow-y: auto; background: var(--yuzey-1); border-right: 1px solid var(--kenar-ince); }
@@ -69,7 +72,7 @@ a.yn-oge:hover { background: var(--yuzey-2); }
 .yn-bolum-ad, .yn-etiket-ust { font-size: 11px !important; font-weight: 700 !important; letter-spacing: .08em; text-transform: uppercase; color: var(--yazi-2); }
 .yn-mini-ad { display: block; margin-bottom: 4px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--yazi-2); }
 
-/* ---------- Kartlar, sayaçlar ---------- */
+/* ---------- Cards, counters · Kartlar, sayaçlar ---------- */
 .yn-kart { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 18px 20px; min-width: 0; }
 .yn-kart-ust { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .yn-kart-ust strong { font-family: var(--baslik-tipi); font-size: 24px; color: var(--vurgu); }
@@ -83,7 +86,7 @@ a.yn-sayac:hover { border-color: var(--kenar); }
 .yn-izgara-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .yn-izgara-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 
-/* ---------- Grafikler (kütüphanesiz çubuklar) ---------- */
+/* ---------- Charts (library-free bars) · Grafikler (kütüphanesiz çubuklar) ---------- */
 .yn-grafik { display: flex; align-items: flex-end; gap: 2px; height: 96px; }
 .yn-sutun { flex: 1 1 0; width: 0; min-width: 0; min-height: 2px; border-radius: 2px 2px 0 0; background: var(--vurgu); }
 .yn-sutun.sifir { background: var(--kenar); }
@@ -93,7 +96,7 @@ a.yn-sayac:hover { border-color: var(--kenar); }
 .yn-cubuk i { display: block; height: 100%; background: var(--vurgu); }
 .yn-cubuk-satir small { grid-column: 2; color: var(--yazi-2); }
 
-/* ---------- Listeler, etiketler ---------- */
+/* ---------- Lists, labels · Listeler, etiketler ---------- */
 .yn-liste-satir { display: grid; gap: 2px; padding: 8px 0; border-top: 1px solid var(--kenar-ince); font-size: 14px; min-width: 0; }
 .yn-liste-satir:first-of-type { border-top: 0; }
 .yn-kisa { display: block; max-width: 38ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -106,7 +109,7 @@ a.yn-sayac:hover { border-color: var(--kenar); }
 .yn-kimlik-ust { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 .yn-kimlik h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-family: var(--baslik-tipi); }
 
-/* ---------- Tablolar ---------- */
+/* ---------- Tables · Tablolar ---------- */
 .yn-tablo-kutu { overflow-x: auto; padding: 4px 0; }
 .yn-tablo { width: 100%; border-collapse: collapse; font-size: 14px; }
 .yn-tablo th, .yn-tablo td { padding: 10px 14px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--kenar-ince); }
@@ -116,7 +119,7 @@ a.yn-sayac:hover { border-color: var(--kenar); }
 .yn-tablo .bos { text-align: center; }
 .yn-tablo input[type="checkbox"], .yn-toplu input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--vurgu); }
 
-/* ---------- Formlar ---------- */
+/* ---------- Forms · Formlar ---------- */
 .yn-filtre, .yn-toplu { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; }
 .yn-girdi { height: 40px; padding: 0 12px; min-width: 0; background: var(--yuzey-2); color: inherit; font: inherit; font-size: 14px; border: 1px solid var(--kenar); border-radius: 12px; outline: 0; }
 .yn-girdi:focus { border-color: var(--vurgu); box-shadow: 0 0 0 1px var(--vurgu); }
@@ -134,7 +137,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-sifre-kutu { padding: 16px; border-radius: 12px; background: var(--yuzey-2); font-size: 22px; text-align: center; letter-spacing: .08em; user-select: all; }
 .yn-gecici { max-width: 520px; }
 
-/* ---------- Sayfalama, sekmeler ---------- */
+/* ---------- Pagination, tabs · Sayfalama, sekmeler ---------- */
 .yn-sayfalar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
 .yn-sayfa { padding: 8px 16px; border: 1px solid var(--kenar); border-radius: 20px; font-size: 14px; font-weight: 600; }
 .yn-sayfa:hover { background: var(--yuzey-2); }
@@ -142,7 +145,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-sekmeler { display: flex; width: 100%; max-width: 100%; overflow-x: auto; }
 .yn-sekmeler a { flex: none; min-width: 0; white-space: nowrap; }
 
-/* ---------- Şikâyet kartı ---------- */
+/* ---------- Report card · Şikâyet kartı ---------- */
 .yn-sikayet-ust { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .yn-detay summary { cursor: pointer; font-size: 13px; color: var(--vurgu); font-weight: 600; }
 .yn-sikayet-eylem { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 12px; border-top: 1px solid var(--kenar-ince); }
@@ -151,7 +154,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-ban .yn-girdi[name="sebep"] { flex: 1 1 140px; }
 
 
-/* ---------- Bakış ---------- */
+/* ---------- Overview · Bakış ---------- */
 .yn-ilgi { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .yn-ilgi-kart { display: grid; gap: 4px; padding: 18px 20px; border: 1px solid var(--kenar); border-radius: 16px; background: var(--yuzey-1); }
 .yn-ilgi-kart strong { font-family: var(--baslik-tipi); font-size: 32px; line-height: 1.1; }
@@ -164,7 +167,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-sutun.bugun { background: var(--vurgu); }
 .yn-sutun.sifir { background: var(--kenar-ince); }
 
-/* ---------- Boş durum, onay, sekmeler ---------- */
+/* ---------- Empty state, confirmation, tabs · Boş durum, onay, sekmeler ---------- */
 .yn-bos { display: grid; justify-items: center; gap: 8px; padding: 40px 20px; text-align: center; color: var(--yazi-2); }
 .yn-onay { max-width: 560px; gap: 12px; }
 .yn-sekmeler .devre { display: flex; align-items: center; justify-content: center; min-width: 120px; height: 40px; padding: 0 16px; border-left: 1px solid var(--kenar); font-size: 14px; font-weight: 600; color: var(--yazi-2); opacity: .5; cursor: not-allowed; }
@@ -172,7 +175,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-sekme-cizgi a { flex: none; padding: 10px 16px; font-size: 14px; font-weight: 600; color: var(--yazi-2); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
 .yn-sekme-cizgi a.aktif { color: var(--yazi); border-bottom-color: var(--vurgu); }
 
-/* ---------- Şikâyetler: ana/ayrıntı ---------- */
+/* ---------- Reports: master/detail · Şikâyetler: ana/ayrıntı ---------- */
 .yn-md { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 16px; align-items: start; }
 .yn-md-liste { display: grid; gap: 8px; min-width: 0; }
 .yn-md-detay { display: grid; gap: 16px; min-width: 0; }
@@ -196,7 +199,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-ban-grup { display: inline-flex; gap: 6px; }
 .yn-ban-grup .yn-girdi { height: 40px; }
 
-/* ---------- Üye kartı ---------- */
+/* ---------- Member card · Üye kartı ---------- */
 .yn-uye { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
 .yn-uye-ana { display: grid; gap: 16px; min-width: 0; }
 .yn-avatar-64 { width: 64px; height: 64px; border-radius: 50%; font-size: 26px; font-family: var(--baslik-tipi); }
@@ -216,8 +219,10 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-islem-grup .yn-form { gap: 6px; }
 .yn-islem-grup .yn-girdi { width: 100%; }
 
-/* ---------- Tablet (801-1179px): 72px simge şeridi; ayrıntı listenin üstünde yan katman ---------- */
+/* ---------- Tablet (801-1179px): 72px icon rail; the detail pane is a side layer above the list · Tablet (801-1179px): 72px simge şeridi; ayrıntı listenin üstünde yan katman ---------- */
 
+/* The sidebar is a popover (a drawer on phones). On desktop and tablet the browser's popover
+   defaults (centering, border, content-based height, hiding) are overridden; the bar is always visible. */
 /* ---------- Kenar çubuğu bir popover'dır (telefonda çekmece). Masaüstü ve tablette tarayıcının popover
    varsayılanları (ortalama, kenarlık, içeriğe göre yükseklik, gizleme) geçersiz kılınır; çubuk her zaman görünür. ---------- */
 .yn-yan[popover] { margin: 0; height: auto; color: var(--yazi); border: 0; border-right: 1px solid var(--kenar-ince); }
@@ -244,8 +249,10 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
   .yn-islemler { position: static; }
   .yn-izgara-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-/* ---------- Telefon (≤800px): menü üstte yatay kaydırmalı şerit; liste ve ayrıntı ayrı görünümler ---------- */
+/* ---------- Phone (≤800px): the menu is a horizontally scrolling strip on top; list and detail are separate views · Telefon (≤800px): menü üstte yatay kaydırmalı şerit; liste ve ayrıntı ayrı görünümler ---------- */
 @media (max-width: 800px) {
+  /* Drawer: the sidebar is hidden entirely while closed; the Menu button opens it as a full-height panel sliding in from the left.
+     The "icon only" settings from the tablet rule (≤1179px) are undone here: labels must be readable in the drawer. */
   /* Çekmece: kenar çubuğu kapalıyken hiç görünmez; Menü düğmesi onu soldan kayan tam boy bir panel olarak açar.
      Tablet kuralındaki (≤1179px) "yalnızca simge" ayarları burada geri alınır: çekmecede etiketler okunur olmalı. */
   .yn-yan:not(:popover-open) { display: none; }
@@ -281,6 +288,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
   .yn-filtre .buton { flex: 1; }
   .yn-cubuk-satir { grid-template-columns: minmax(0, 1fr); }
   .yn-cubuk-satir small { grid-column: 1; }
+  /* On phones tables stack like cards; the cell header comes from data-etiket */
   /* Tablolar telefonda kart gibi alt alta dizilir; hücre başlığı data-etiket'ten gelir */
   .yn-tablo thead { display: none; }
   .yn-tablo, .yn-tablo tbody, .yn-tablo tr, .yn-tablo td { display: block; width: 100%; }
@@ -289,6 +297,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
   .yn-tablo td[data-etiket]::before { content: attr(data-etiket); color: var(--yazi-2); font-size: 12px; font-weight: 600; text-align: left; }
   .yn-kisa { max-width: 100%; }
   .yn-kimlik-ust { flex-wrap: wrap; }
+  /* Report decision: a sticky bar at the bottom (reason + 4 equal buttons) */
   /* Şikâyet kararı: alttaki yapışkan çubuk (sebep + 4 eşit düğme) */
   .yn-karar-kart { position: sticky; bottom: 0; z-index: 5; border-radius: 16px 16px 0 0; box-shadow: var(--kat-2); }
   .yn-karar-kart .yn-etiket-ust { display: none; }
@@ -302,10 +311,11 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-uye-ana .yn-sayaclar { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 800px) { .yn-uye-ana .yn-sayaclar { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
+/* Reports: status pills sit above the list column and scroll sideways on narrow screens */
 /* Şikâyetler: durum hapları liste sütununun üstünde, dar ekranda yana kayar */
 .yn-durum-haplari { margin-bottom: 8px; overflow-x: auto; scrollbar-width: none; }
 
-/* ---------- Telefon: katlanan süzgeçler ve seçim çubuğu (quadran.js) ---------- */
+/* ---------- Phone: collapsible filters and selection bar (rubyyard.js) · Telefon: katlanan süzgeçler ve seçim çubuğu (rubyyard.js) ---------- */
 .yn-filtre-ac { display: none; }
 .yn-filtre-sayi { min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--vurgu); color: var(--vurgu-ustu); font-size: 12px; }
 .yn-secim-sayi:empty { display: none; }
@@ -313,15 +323,20 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 @media (max-width: 800px) {
   .js .yn-filtre-ac { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px; }
   .js .yn-filtre.katli { display: none; }
+  /* With nothing selected only "Select all" is shown */
   /* Seçim yokken yalnızca "Hepsini seç" görünür */
   .js #toplu-form:not(.secim-var) .yn-toplu > :not(.onay) { display: none; }
   .js #toplu-form:not(.secim-var) .yn-toplu { padding: 10px 14px; }
+  /* sticky does not work here: the box sits ABOVE the table and would scroll out of view when scrolling down to pick rows. So it is pinned to the bottom of the screen instead. */
   /* sticky işe yaramaz: kutu tablonun ÜSTÜNDE, satır seçmek için aşağı kaydırınca gözden kaybolurdu. Bu yüzden ekranın altına sabitlenir. */
   .js #toplu-form.secim-var .yn-toplu { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; margin: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
     border-radius: 16px 16px 0 0; box-shadow: var(--kat-2); border-color: var(--vurgu); background: var(--yuzey-1);
     animation: toast-giris var(--sure-orta) var(--egri-cikis) backwards; }
 }
 
+/* Phone: tighten the table cards
+   Each row is a card; label/value pairs sit in a two-column grid (a card takes ~4 lines instead of 8).
+   The cell that names the card (Title, Member, Topic, Message, Detail) is full width and large; the # number is hidden. */
 /* ---------- Telefon: tablo kartlarını sıkılaştır ----------
    Her satır bir kart; etiket/değer çiftleri iki sütunlu ızgarada durur (bir kart 8 satır yerine ~4 satır tutar).
    Kartın "adı" olan hücre (Başlık, Üye, Konu, Mesaj, Ayrıntı) tam genişlikte ve büyük yazılır; # numarası gizlenir. */
@@ -337,15 +352,18 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
   .yn-tablo td:is([data-etiket="Başlık"], [data-etiket="Üye"], [data-etiket="Konu"], [data-etiket="Mesaj"], [data-etiket="Ayrıntı"], [data-etiket="Hedef"])::before { display: none; }
 }
 
+/* The list column also grew with the implicit column to the width of the status pills; the pills scroll sideways anyway */
 /* Liste sütunu da örtük sütunla durum haplarının genişliğine büyüyordu; haplar zaten yana kayar */
 .yn-md-liste { grid-template-columns: minmax(0, 1fr); }
 .yn-durum-haplari { max-width: 100%; }
+/* Small touch targets on phones get at least a 44px area */
 /* Telefonda parmakla dokunulan küçük öğeler en az 44px'lik alan alır */
 @media (max-width: 800px) {
   .yn-geri { display: inline-flex; align-items: center; min-height: 44px; }
   .yn-ust-avatar { width: 40px; height: 40px; }
 }
 
+/* Points and rewards > Ranks table */
 /* Puan ve ödüller > Rütbeler tablosu */
 .yn-rutbe-tablo td { vertical-align: middle; }
 .yn-rutbe-hucre { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 260px; }
@@ -358,6 +376,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 @media (max-width: 800px) { .yn-rutbe-alt { flex-direction: column; align-items: stretch; } .yn-rutbe-hucre { min-width: 0; } }
 .yn-rutbe-onizleme { flex: 0 0 100%; }
 
+/* Strip shown to staff while maintenance mode is on (partials/duyuru.ejs): "pending" amber, next to/above the announcement bar */
 /* Bakım modu açıkken yetkililere görünen şerit (partials/duyuru.ejs): "bekliyor" sarısı, duyuru şeridinin yanında/üstünde */
 .duyuru-bakim { background: color-mix(in srgb, var(--d-bekliyor) 16%, var(--yuzey-1)); color: var(--d-bekliyor); }
 .duyuru-bakim a { color: inherit; text-decoration: underline; font-weight: 600; }

@@ -1,4 +1,9 @@
 <%#
+  Empty state: instead of a plain "nothing yet" text, an icon + title + (optional) description and action. The small sibling of the status page (durum-icerik.ejs).
+  Usage: inside a card, include("partials/bos-durum", { ikon: "zil", baslik: "...", metin: "...", eylem: { href: "/", etiket: "..." } })
+  (a closing tag cannot be written in the comment: EJS ends the comment there)
+  Expected data: ikon (ikon.ejs name), baslik, metin (optional), eylem { href, etiket } (optional), dar (true: tight, for the side column)
+
   Boş durum: düz "henüz yok" yazısı yerine ikon + başlık + (isteğe bağlı) açıklama ve eylem. Durum sayfasının (durum-icerik.ejs) küçük kardeşi.
   Kullanım: kartın içinde include("partials/bos-durum", { ikon: "zil", baslik: "...", metin: "...", eylem: { href: "/", etiket: "..." } })
   (açıklama satırında kapanış etiketi yazılamaz: EJS yorumu orada bitirir)

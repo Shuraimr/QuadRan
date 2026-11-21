@@ -1,3 +1,14 @@
+<%# Moderation menu (opened from the "more" button on a topic or message, a popover).
+   Button: <button popovertarget="moderasyon-menusu-<post_id>" data-menu-ac> ... </button>
+   Expected data (passed with include):
+   post_id   id of the target message
+   topic_id  id of the target topic
+   kategoriler  (res.locals.tumKategoriler) for the "Change category" dropdown; on the topic page topic.category_id comes selected
+   statik    if true an open box instead of a popover (only for the preview page)
+   satirIci  if true its own box is not drawn: only the items are printed (the comment's ⋮ menu merges them into its own menu, no second ⋮)
+   yazar_id  author of the message; "Suspend…" goes to the Sanctions tab of their admin card
+   Each action goes as POST /moderasyon/<eylem>: sabitle, kilitle, kategori-degistir, sil.
+   Suspension is NOT done with one click here: duration, reason, lifting and sanction history are together on the member card %>
 <%#
   Moderasyon menüsü (konu veya mesaj üzerindeki "daha fazla" düğmesinden açılır, popover).
   Düğme: <button popovertarget="moderasyon-menusu-<post_id>" data-menu-ac> ... </button>
@@ -22,12 +33,14 @@
 ]; %>
 <% if (!satirIci_) { %><div class="acilir-menu moderasyon-menusu<%= statik_ ? ' katman-statik' : ' acilir-menu-konumlu' %>"<%- statik_ ? "" : ' id="moderasyon-menusu-' + (locals.post_id ?? "") + '" popover aria-label="Moderasyon işlemleri"' %>>
 <% } %>
+  <%# If the topic's owner is also staff, the "Pin to my profile" item is added here (konu.ejs does not draw a separate ⋮) %>
   <%# Konunun sahibi aynı zamanda yetkiliyse "Profilime sabitle" öğesi buraya eklenir (konu.ejs ayrı ⋮ çizmez) %>
   <% if (locals.sahibi) { %><%- include("profil-sabit-oge") %><hr class="acilir-ayirici"><% } %>
   <% for (const e of eylemler_) { %>
     <% if (!e) { %>
       <hr class="acilir-ayirici">
     <% } else if (e.eylem === "kategori-degistir") { %>
+      <%# Category selection is inside the menu item: the list + "Move" button are the same form, no JS needed %>
       <%# Kategori seçimi menü öğesinin içinde: liste + "Taşı" düğmesi aynı form, JS gerekmez %>
       <form class="kategori-degistir-formu" method="post" action="/moderasyon/kategori-degistir"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <input type="hidden" name="post_id" value="<%= locals.post_id ?? '' %>">
@@ -54,6 +67,7 @@
       </form>
     <% } %>
   <% } %>
+  <%# +18 marker: only on a comment that has an attachment (yorum.ejs provides ekVar/nsfwMi) %>
   <%# +18 işareti: yalnızca eki olan yorumda (yorum.ejs ekVar/nsfwMi verir) %>
   <% if (locals.ekVar) { %>
     <form method="post" action="/moderasyon/nsfw"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">

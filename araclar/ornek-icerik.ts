@@ -1,3 +1,11 @@
+// Sample content: adds topics, comments, photo attachments, YouTube/GitHub cards and +18 test attachments to try out the site.
+//   Add:     npm run ornek
+//   Remove:  npm run ornek -- --sil
+// Why a separate script (not sql/NN): photo attachments need files on disk (yuklemeler/ is not in git). The script draws the images itself
+// with sharp, so the same content is produced on every setup.
+// It writes only as the seed users (shurai, ayse, ahmet); it writes NO points rows (so the rule points = points_log total is not broken).
+// Removal is done by topic titles: no topic outside the list below is touched.
+// The +18 test attachments are NOT real explicit content: they are plain images that say "+18 TEST"; only for trying the flag/blur flow.
 // Örnek içerik: siteyi denemek için konular, yorumlar, fotoğraf ekleri, YouTube/GitHub kartları ve +18 deneme ekleri ekler.
 //   Ekle:  npm run ornek
 //   Sil:   npm run ornek -- --sil
@@ -10,11 +18,13 @@ import { randomUUID } from "node:crypto";
 import { mkdir, unlink, stat } from "node:fs/promises";
 import sharp from "sharp";
 import { pool } from "../src/db.ts";
+// Same directory/address as src/yukleme.ts (that file is not imported: it loaded multer/rate limiter etc. and kept the process open)
 // src/yukleme.ts ile aynı dizin/adres (o dosya içe aktarılmaz: multer/hız sınırı vb. yükleyip süreci açık tutuyordu)
 const YUKLEME_DIZINI = "yuklemeler", YUKLEME_ADRESI = "/yuklemeler";
 
 const RICK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
+// Simple landscape drawing (SVG → WebP): sky, sun, two rows of mountains. Colors vary per image.
 // Basit manzara çizimi (SVG → WebP): gökyüzü, güneş, iki sıra dağ. Renkler resim başına değişir.
 function manzara(gok: [string, string], dag: [string, string], gunes: string, yazi = "") {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000">
@@ -55,7 +65,7 @@ const KONULAR: Konu[] = [
   },
   {
     kategori: "Yazılım", yazar: "shurai", baslik: "En sevdiğiniz açık kaynak projeler hangileri?", gunOnce: 5,
-    metin: "Ben QuadRan'ı yazarken çok şey öğrendiğim projeleri paylaşayım, siz de ekleyin. Express 5 çıkınca geçtim, async hataları artık kendisi yakalıyor:\nhttps://github.com/expressjs/express",
+    metin: "Ben rubyyard'ı yazarken çok şey öğrendiğim projeleri paylaşayım, siz de ekleyin. Express 5 çıkınca geçtim, async hataları artık kendisi yakalıyor:\nhttps://github.com/expressjs/express",
     yorumlar: [
       { yazar: "ahmet", metin: "Çekirdek dururken başka proje mi olur 🙂\nhttps://github.com/torvalds/linux", gunOnce: 4 },
       { yazar: "ayse", metin: "Resim işlerinde sharp'a bayılıyorum, hem hızlı hem EXIF'i temizlemek tek satır:\nhttps://github.com/lovell/sharp", gunOnce: 4 },
@@ -95,7 +105,7 @@ const KONULAR: Konu[] = [
     metin: "Ben yine eski bir RPG'ye döndüm, bitiremedim bir türlü. Siz?",
     yorumlar: [
       { yazar: "ayse", metin: "Arkadaşlarla co-op hayatta kalma oyunu, her akşam ayrı bir felaket 😅", gunOnce: 1 },
-      { yazar: "shurai", metin: "QuadRan'a çok oyunculu oyunlar gelince burada oynarız 👀", gunOnce: 0 },
+      { yazar: "shurai", metin: "rubyyard'a çok oyunculu oyunlar gelince burada oynarız 👀", gunOnce: 0 },
       { yazar: "ayse", metin: "O zaman ilk turnuvanın ödülü belli: " + RICK, gunOnce: 0 },
     ],
   },
@@ -131,6 +141,7 @@ async function ekle() {
   const { kullanici, kategori } = await idler();
   await mkdir(YUKLEME_DIZINI, { recursive: true });
 
+  // Makes a separate file for the same image every time it is attached (delete/remove works per attachment)
   // Aynı resmi her eklendiği yerde ayrı dosya yapar (silme/kaldırma eke göre çalışıyor)
   async function resimYaz(ad: string) {
     const dosya = randomUUID() + ".webp";
@@ -152,6 +163,7 @@ async function ekle() {
       yorumSayisi++;
       for (const [i, ad] of (y.resimler ?? []).entries()) {
         const r = await resimYaz(ad);
+        // the "yetkili" (staff) flag only on the first attachment (as if a moderator flagged just one attachment); the "yazar" (author) flag on all attachments
         // "yetkili" işareti yalnızca ilk eke (moderatör tek bir eki işaretlemiş gibi); "yazar" işareti bütün eklere
         const nsfw = y.nsfw === "yazar" || (y.nsfw === "yetkili" && i === 0) ? 1 : 0;
         await pool.query(
@@ -161,6 +173,7 @@ async function ekle() {
       }
     }
   }
+  // One in the general chat too 🙂
   // Genel sohbete de bir tane 🙂
   await pool.query("INSERT INTO chat_messages (user_id, content) VALUES (?, ?)", [kullanici.ayse, "Herkese güzel bir şarkı önerim var: " + RICK]);
   console.log(`${KONULAR.length} konu, ${yorumSayisi} yorum, ${ekSayisi} fotoğraf eki ve 1 sohbet mesajı eklendi.`);
@@ -170,5 +183,7 @@ try {
   if (process.argv.includes("--sil")) await sil(); else await ekle();
 } finally {
   await pool.end();
-  process.exit(0); // açık kalan bir tutamak (sharp iş parçacıkları vb.) betiği bekletmesin
+  // so that a lingering handle (sharp worker threads etc.) does not keep the script waiting
+  // açık kalan bir tutamak (sharp iş parçacıkları vb.) betiği bekletmesin
+  process.exit(0);
 }

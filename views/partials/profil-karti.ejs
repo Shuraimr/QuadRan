@@ -1,4 +1,10 @@
 <%#
+  Profile card (Figma 38:75 member card, Settings preview, /premium). In the site's card language: background --yuzey-1, border --kenar-ince.
+  Expected: u { username, bio, avatar_url, banner_url, avatar_susu, profil_efekti, profil_renk_ana, profil_renk_vurgu,
+                rutbe, rutbe_id, created_at }   (fields tied to premium come back NULL in the query if the user is not premium)
+  mesajAtabilir (bool, for the visitor), profiliAc (bool: the "Open profile" button in the member card dialog), onizleme (bool: Settings preview; all 6 effects/decorations are drawn, JS shows the selected one, no button)
+  Colour use (restrained): the MAIN colour only paints the banner (if there is no image) and the avatar ring, the ACCENT colour the top border line and small highlights.
+  If no colour is chosen the CSS fallbacks (--ton / --yuzey-2 and --vurgu) apply. Colours are validated on the server as #rrggbb.
   Profil kartı (Figma 38:75 üye kartı, Ayarlar önizlemesi, /premium). Sitenin kart dilinde: zemin --yuzey-1, kenar --kenar-ince.
   Beklenen: u { username, bio, avatar_url, banner_url, avatar_susu, profil_efekti, profil_renk_ana, profil_renk_vurgu,
                 rutbe, rutbe_id, created_at }   (premium'a bağlı alanlar sorguda premium değilse NULL gelir)

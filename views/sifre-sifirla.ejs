@@ -1,4 +1,10 @@
 <%#
+  Password reset: /sifre-sifirla/<token>   (reached from the link in the email)
+  Expected data:
+  gecersiz  bool     if true, the box saying the link is invalid/expired/used is shown
+  token     string   for the form's target address (required if not gecersiz)
+  hata      string   e.g. "Şifreler aynı değil." (optional)
+  Form: POST /sifre-sifirla/<token>  fields: password, password2
   Şifre sıfırlama: /sifre-sifirla/<belirteç>   (e-postadaki bağlantıdan gelinir)
   Beklenen veriler:
   gecersiz  bool     true ise bağlantı geçersiz/süresi dolmuş/kullanılmış kutusu görünür
@@ -9,7 +15,7 @@
 <%- include("partials/bas", { sade: true, baslik: "Yeni şifre belirle" }) %>
 <div class="orta-sayfa">
   <%- include("partials/kontur") %>
-  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <a class="logo" href="/"><span class="logo-isaret"><img src="/img/marka/rakun-96.webp" alt="" width="32" height="32"></span>rubyyard</a>
   <% if (locals.gecersiz) { %>
     <div class="kart form-karti sifre-basari" role="alert">
       <span class="sifre-ikon"><%- include("partials/ikon", { ad: "uyari", boyut: 24 }) %></span>

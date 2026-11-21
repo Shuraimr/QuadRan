@@ -1,3 +1,11 @@
+// Admin panel: Chat > Rooms tab (private rooms, sql/12_odalar.sql).
+//   GET  /yonetim/sohbet/odalar                       room list + room creation rules (moderator + admin; only the admin changes the rules)
+//   POST /yonetim/sohbet/odalar/ayar                  kisi_basi_oda_siniri (admin only; the rank that may create rooms: Points and rewards > Ranks)
+//   POST /yonetim/sohbet/odalar/:id/kapat|ac          close the room (members can read but not write) / reopen it
+// 
+// PRIVACY: a room belongs only to its members. This page NEVER shows the rooms' messages, only counts (members, messages).
+// Staff only sees the content of a room if a message in that room is reported, and then only as much as the report's context (src/sikayet.ts).
+// Every action is written to the audit log (audit_log).
 // Yönetim paneli: Sohbet > Odalar sekmesi (özel odalar, sql/12_odalar.sql).
 //   GET  /yonetim/sohbet/odalar                       oda listesi + oda açma kuralları (moderatör + admin; kuralları yalnızca admin değiştirir)
 //   POST /yonetim/sohbet/odalar/ayar                  kisi_basi_oda_siniri (yalnızca admin; oda açabilen rütbe: Puan ve ödüller > Rütbeler)
@@ -66,6 +74,7 @@ async function odaIslemi(req: express.Request, res: express.Response, kapat: boo
   const [[o]]: any = id ? await pool.query("SELECT id, ad, sahip_id, kapatildi_at FROM rooms WHERE id = ? AND deleted_at IS NULL", [id]) : [[]];
   if (!o) { bildir(req, "hata", "Oda bulunamadı."); return res.redirect(geri); }
   const sebep = metin(req.body.sebep);
+  // Closing affects the members: a reason is required (it goes to the record and to the owner). A reason is optional when reopening.
   // Kapatmak üyeleri etkiler: sebep zorunlu (kayda ve sahibe gider). Yeniden açmada sebep isteğe bağlı.
   if (kapat && (sebep.length < 3 || sebep.length > 255)) { bildir(req, "hata", "Odayı kapatmak için 3 ile 255 karakter arasında bir sebep yazmalısın."); return res.redirect(geri); }
   if (kapat === !!o.kapatildi_at) { bildir(req, "hata", kapat ? "Oda zaten kapalı." : "Oda zaten açık."); return res.redirect(geri); }

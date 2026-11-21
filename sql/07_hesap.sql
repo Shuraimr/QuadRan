@@ -1,7 +1,7 @@
 SET NAMES utf8mb4;
 -- Hesap işlemleri: şifre sıfırlama belirteçleri ve kullanıcı şikâyeti.
 -- Çalışan veritabanına elle uygulamak için:
---   docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/07_hesap.sql
+--   docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/07_hesap.sql
 
 -- ---------------------------------------------------------------------------
 -- Şifre sıfırlama belirteçleri

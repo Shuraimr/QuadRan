@@ -1,4 +1,10 @@
 <%#
+  Yakut (ruby) section: balance + daily streak + next allowance + "Store and wallet" link. It replaces the balance chip in the top bar
+  (user decision 2026-11-21: a section designed separately for every screen size for yakut and the store). It appears ONLY once at any given size:
+    desktop (1181+) → in the left menu above Settings (kenar-menu.ejs, tur "kenar")
+    tablet (801–1180) → yakut icon + balance in the rail (a separate item inside kenar-menu.ejs, not this partial)
+    phone (≤800)    → in the account page that opens when Profile is tapped (avatar-menusu.ejs, tur "hesap")
+  Expected data: kullanici { yakut, seri_gun }; tur "kenar" | "hesap"
   Yakut bölümü: bakiye + günlük seri + sonraki harçlık + "Mağaza ve cüzdan" bağlantısı. Üst çubuktaki bakiye çipinin yerine geldi
   (kullanıcı kararı 2026-11-21: yakut ve mağazaya her ölçek için ayrı düşünülmüş bir bölüm). Bir ölçekte YALNIZCA bir kez görünür:
     masaüstü (1181+) → sol menüde Ayarlar'ın üstünde (kenar-menu.ejs, tur "kenar")

@@ -1,4 +1,5 @@
 SET NAMES utf8mb4;
+-- Roles: they decide permissions
 -- Roller: yetkiyi belirler
 CREATE TABLE roles (
     id   TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -7,6 +8,7 @@ CREATE TABLE roles (
 
 INSERT INTO roles (name) VALUES ('admin'), ('moderator'), ('uye');
 
+-- Ranks: earned by points, appearance only
 -- Rütbeler: puana göre kazanılır, sadece görünüş
 CREATE TABLE ranks (
     id         TINYINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -20,6 +22,7 @@ INSERT INTO ranks (name, min_points) VALUES
     ('Usta', 500),
     ('Efsane', 2000);
 
+-- Users
 -- Kullanıcılar
 CREATE TABLE users (
     id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

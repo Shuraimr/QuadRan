@@ -1,4 +1,8 @@
 <%#
+  Notification bar (toast). Shown at the bottom, hidden by JS after about 5 seconds; stays if there is no JS.
+  Expected data:
+  bildirim  { tur: "basari" | "hata", metin, eylem?: { metin, link }, rutbe?: { renk, simge } }  (nothing is drawn if missing)
+  statik    if true, a copy with no fixed position that does not hide itself (for the preview page only)
   Bildirim çubuğu (toast). Alt kısımda görünür, JS ile yaklaşık 5 saniye sonra gizlenir; JS yoksa kalır.
   Beklenen veriler:
   bildirim  { tur: "basari" | "hata", metin, eylem?: { metin, link }, rutbe?: { renk, simge } }  (yoksa hiçbir şey çizilmez)
@@ -6,6 +10,7 @@
 %>
 <% if (locals.bildirim) { const b_ = locals.bildirim; const hata_ = b_.tur === "hata"; %>
   <div class="cubuk-alani<%= locals.statik ? ' katman-statik' : '' %>">
+    <%# Rank celebration (b_.rutbe { renk, simge }): in the rank's icon and color, the icon does a short "pop" %>
     <%# Rütbe kutlaması (b_.rutbe { renk, simge }): rütbenin simgesi ve renginde, simge kısa bir "pop" yapar %>
     <div class="cubuk-bildirim cubuk-bildirim-<%= hata_ ? 'hata' : 'basari' %><%= b_.rutbe ? ' cubuk-bildirim-rutbe rutbe-' + b_.rutbe.renk : '' %>" role="status" aria-live="polite"<%- locals.statik ? "" : " data-otomatik-gizle" %>>
       <%- include("ikon", { ad: b_.rutbe ? b_.rutbe.simge : (hata_ ? "uyari" : "onay"), boyut: 20 }) %>

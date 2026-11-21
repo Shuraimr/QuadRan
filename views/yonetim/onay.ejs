@@ -1,4 +1,7 @@
 <%#
+  Confirmation step (dangerous actions). Expected: baslik, metin, buton, iptal (cancel address), alanlar [{ad, deger}] (fields of the first form), eylemYolu (POST address)
+  The form sends back all fields of the first form (reason included) as hidden inputs and adds onay=1; the server then performs the action.
+
   Onay adımı (tehlikeli işlemler). Beklenen: baslik, metin, buton, iptal (vazgeç adresi), alanlar [{ad, deger}] (ilk formun alanları), eylemYolu (POST adresi)
   Form, ilk formdaki bütün alanları (sebep dahil) gizli olarak geri gönderir ve onay=1 ekler; sunucu o zaman işlemi yapar.
 %>

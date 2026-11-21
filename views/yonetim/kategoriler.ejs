@@ -1,4 +1,5 @@
-<%# Kategoriler: kategoriler [{id, name, description, sort_order, konu_sayisi}] %>
+<%# Categories: kategoriler [{id, name, description, sort_order, konu_sayisi}]
+    Kategoriler: kategoriler [{id, name, description, sort_order, konu_sayisi}] %>
 <%- include("duzen-ust", { baslik: "Forum", aktif: "forum" }) %>
 <%- include("forum-sekmeler", { sekme: "kategoriler" }) %>
 <form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/forum/kategoriler"><%- include("csrf") %>

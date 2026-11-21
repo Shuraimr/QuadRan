@@ -1,5 +1,6 @@
 SET NAMES utf8mb4;
 
+-- Public chat: messages everyone can see
 -- Genel sohbet: herkesin gördüğü mesajlar
 CREATE TABLE chat_messages (
     id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -10,6 +11,7 @@ CREATE TABLE chat_messages (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Private messages: between two users
 -- Özel mesajlar: iki kullanıcı arasında
 CREATE TABLE messages (
     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -23,6 +25,7 @@ CREATE TABLE messages (
     FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Test data
 -- Test verileri
 INSERT INTO chat_messages (user_id, content) VALUES
     (3, 'Selam millet'),

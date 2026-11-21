@@ -1,3 +1,4 @@
+<%# Titles: unvanlar [{id, ad, fiyat, aktif, sira, sahip_sayisi}]. No delete (owners exist); an inactive title is hidden from the store. %>
 <%# Unvanlar: unvanlar [{id, ad, fiyat, aktif, sira, sahip_sayisi}]. Silme yok (sahipler var); pasif unvan mağazada görünmez. %>
 <%- include("duzen-ust", { baslik: "Puan ve ödüller", aktif: "puan" }) %>
 <%- include("puan-sekmeler", { sekme: "unvanlar" }) %>

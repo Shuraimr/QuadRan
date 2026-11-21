@@ -1,6 +1,10 @@
-/* QuadRan · hareket sistemi. Hafif ve hızlı; kaynağı quadran.css'deki --sure-* / --egri-* değişkenleridir.
+/* rubyyard · motion system. Light and fast; its source is the --sure-* / --egri-* variables in rubyyard.css.
+   This file loads last so it can override old `transition` lines in the other files.
+   Reduced motion (the operating system or the switch in Settings) is turned off by the rules in rubyyard.css;
+   the slide/scale values here also use the --hareket multiplier, so they stay in place even while it is off. */
+/* rubyyard · hareket sistemi. Hafif ve hızlı; kaynağı rubyyard.css'deki --sure-* / --egri-* değişkenleridir.
    Bu dosya en son yüklenir ki diğer dosyalardaki eski `transition` satırlarının üstüne yazabilsin.
-   Azaltılmış hareket (işletim sistemi ya da Ayarlar'daki anahtar) quadran.css'deki kurallarla kapatılır;
+   Azaltılmış hareket (işletim sistemi ya da Ayarlar'daki anahtar) rubyyard.css'deki kurallarla kapatılır;
    buradaki kayma/ölçek değerleri ayrıca --hareket çarpanını kullanır, böylece kapalıyken de yerinde kalırlar. */
 
 @keyframes sayfa-giris { from { opacity: 0; transform: translateY(calc(4px * var(--hareket))); } }
@@ -8,18 +12,20 @@
 @keyframes aktif-belir { from { background-color: transparent; } }
 @keyframes oy-pop { 0%, 100% { transform: scale(1); } 50% { transform: scale(calc(1 + .15 * var(--hareket))); } }
 
+/* 9. Page entrance: the main content fades in softly once. `backwards`: no transform is left after the animation ends
+   (if it were, the reference of position:fixed elements inside would change). */
 /* 9. Sayfa girişi: ana içerik bir kez yumuşakça belirir. `backwards`: animasyon bitince transform kalmaz
    (kalsaydı içindeki position:fixed öğelerin referansı değişirdi). */
 main { animation: sayfa-giris var(--sure-yavas) var(--egri-cikis) backwards; }
 
-/* 5. Düğmeler */
+/* 5. Buttons · Düğmeler */
 .buton, .ikon-dugme, .eylem, .acilir-oge, .cubuk-eylem {
   transition: background-color var(--sure-hizli) ease, border-color var(--sure-hizli) ease, color var(--sure-hizli) ease,
               filter var(--sure-hizli) ease, box-shadow var(--sure-hizli) ease, transform var(--sure-hizli) var(--egri-cikis);
 }
 .buton:not([disabled]):active, .ikon-dugme:active, .eylem:active { transform: scale(calc(1 - .03 * var(--hareket))); }
 
-/* 6. Bağlantı olan kartlar ve satırlar */
+/* 6. Cards and rows that are links · Bağlantı olan kartlar ve satırlar */
 a.kart, .gonderi, .ara-satir, .mesaj-satir, .yn-lr, .siralama-kart {
   transition: border-color var(--sure-orta) ease, background-color var(--sure-orta) ease, transform var(--sure-orta) var(--egri-cikis);
 }
@@ -29,7 +35,7 @@ a.kart, .gonderi, .ara-satir, .mesaj-satir, .yn-lr, .siralama-kart {
   }
 }
 
-/* 7. Sekmeler, haplar, menü öğeleri */
+/* 7. Tabs, pills, menu items · Sekmeler, haplar, menü öğeleri */
 .siralama a, .siralama label, .kategori-ogesi, .yn-oge, .menu-hap {
   transition: background-color var(--sure-orta) ease, color var(--sure-orta) ease, border-color var(--sure-orta) ease;
 }
@@ -37,20 +43,24 @@ a.kart, .gonderi, .ara-satir, .mesaj-satir, .yn-lr, .siralama-kart {
   animation: aktif-belir var(--sure-yavas) var(--egri-cikis) backwards;
 }
 
-/* 8. Oy düğmesi: oy verip sayfa yenilenince seçili düğme küçük bir "pop" yapar (quadran.js .oy-pop ekler) */
+/* 8. Vote button: after voting and the page reloads, the selected button does a small "pop" (rubyyard.js adds .oy-pop) */
+/* 8. Oy düğmesi: oy verip sayfa yenilenince seçili düğme küçük bir "pop" yapar (rubyyard.js .oy-pop ekler) */
 .oy-pop { animation: oy-pop 240ms var(--egri-yay); }
 
-/* 10. Girdi odak halkası */
+/* 10. Input focus ring · Girdi odak halkası */
 input, textarea, select, .yn-girdi, .alan > span:first-child, .yn-ara {
   transition: border-color var(--sure-hizli) ease, box-shadow var(--sure-hizli) ease, color var(--sure-hizli) ease;
 }
 .ray, .ray::after { transition-duration: var(--sure-orta); }
 
-/* 4. Bildirim çubuğu: aşağıdan kayarak gelir, giderken solarak iner */
+/* 4. Notification bar (toast): slides in from below, fades out as it leaves · Bildirim çubuğu: aşağıdan kayarak gelir, giderken solarak iner */
 .cubuk-bildirim { animation: toast-giris var(--sure-yavas) var(--egri-cikis) backwards;
   transition: opacity var(--sure-orta) var(--egri-giris), transform var(--sure-orta) var(--egri-giris); }
 .cubuk-bildirim.gizleniyor { opacity: 0; transform: translateY(calc(12px * var(--hareket))); }
 
+/* 2 and 3: popovers and dialogs. Without `@supports selector(:popover-open)` nothing changes (the menu works as it is).
+   Adding display and overlay to the transition with `allow-discrete` keeps the element visible while closing until the animation ends;
+   @starting-style gives the starting value on opening. */
 /* 2 ve 3: popover ve dialog'lar. `@supports selector(:popover-open)` yoksa hiçbir şey değişmez (menü olduğu gibi çalışır).
    display ve overlay'i `allow-discrete` ile geçişe katmak, kapanırken öğenin animasyon bitene kadar görünmesini sağlar;
    açılışta başlangıç değerini @starting-style verir. */

@@ -1,3 +1,8 @@
+// Moderation: the moderation menu on topics/posts (the ⋮ on the site) and the old report action addresses (POST /moderasyon/:id/...).
+// The report queue itself moved to the /yonetim/sikayetler page.
+// Everything here is for moderators and admins only (yetkiliGerekli).
+//
+// Every action is also written to the audit log (audit_log): who did what, and when.
 // Moderasyon: konu/mesaj üzerindeki moderasyon menüsü (sitedeki ⋮) ve eski şikâyet işlem adresleri (POST /moderasyon/:id/...).
 // Şikâyet kuyruğunun kendisi /yonetim/sikayetler sayfasına taşındı.
 // Buradaki her şey yalnızca moderator ve admin içindir (yetkiliGerekli).
@@ -12,6 +17,8 @@ import { hedefOnizleme, sikayetIslemi } from "../sikayet.ts";
 
 export const moderasyon = express.Router();
 
+// The old report queue page now lives in the admin panel (/yonetim/sikayetler). 301 so bookmarks don't break.
+// Defined BEFORE the gates: a guest first goes to the new address, where they are redirected to login. ?durum= is kept.
 // Eski şikâyet kuyruğu sayfası artık yönetim panelinde (/yonetim/sikayetler). Yer imleri bozulmasın diye 301.
 // Kapılardan ÖNCE tanımlı: misafir de önce yeni adrese gider, orada girişe yönlendirilir. ?durum= korunur.
 moderasyon.get("/moderasyon", (req, res) => {
@@ -19,11 +26,14 @@ moderasyon.get("/moderasyon", (req, res) => {
   res.redirect(301, "/yonetim/sikayetler" + (durum ? "?durum=" + durum : ""));
 });
 
+// Two gates before every route: login first, then permission.
+// Order matters: someone who is not logged in should be sent to login, not see a 403.
 // Her route'tan önce iki kapı: önce giriş, sonra yetki.
 // Sıra önemli: giriş yapmamış biri 403 görmesin, girişe gitsin.
 moderasyon.use("/moderasyon", girisGerekli("Moderasyon için giriş yapman gerekiyor."), yetkiliGerekli);
 
 // ---------------------------------------------------------------------------
+// Actions on reports in the queue: the address carries the REPORT id
 // Kuyruktaki şikâyet işlemleri: adreste ŞİKÂYET id'si var
 // ---------------------------------------------------------------------------
 const KUYRUK = "/yonetim/sikayetler";
@@ -37,6 +47,7 @@ async function sikayetiBul(id: number | null) {
   return satirlar[0] ?? null;
 }
 
+// delete / warn / suspend share the same pattern: find the report, run the shared action, show the result as a toast
 // sil / uyar / uzaklastir aynı kalıp: şikâyeti bul, ortak işlemi çalıştır, sonucu toast olarak göster
 function kuyrukRotasi(yol: string, eylem: "sil" | "uyar" | "banla") {
   moderasyon.post(`/moderasyon/:id/${yol}`, async (req, res) => {
@@ -58,6 +69,7 @@ moderasyon.post("/moderasyon/:id/reddet", async (req, res) => {
   const s = await sikayetiBul(sayi(req.params.id));
   if (!s) { bildir(req, "hata", "Şikâyet bulunamadı."); return res.redirect(geriAdres(req, KUYRUK)); }
 
+  // A moderator cannot close a report that concerns an admin
   // Moderatör, yöneticiyi ilgilendiren şikâyeti kapatamaz
   const o = await hedefOnizleme(s.hedef_tur, s.hedef_id);
   if (k.rol !== "admin" && o?.yazarRol === "admin") {
@@ -65,6 +77,7 @@ moderasyon.post("/moderasyon/:id/reddet", async (req, res) => {
     return res.redirect(geriAdres(req, KUYRUK));
   }
 
+  // Reject only closes this report; other reports about the same target are evaluated separately.
   // Reddet yalnızca bu şikâyeti kapatır; aynı hedefe gelen diğerleri ayrı değerlendirilir.
   await pool.query("UPDATE reports SET durum = 'reddedildi', handled_by = ?, handled_at = NOW() WHERE id = ? AND durum = 'bekliyor'", [k.id, s.id]);
   await denetim(req, res, "sikayet.reddet", s.hedef_tur, s.hedef_id, { sikayet: s.id, adet: 1 });
@@ -73,9 +86,11 @@ moderasyon.post("/moderasyon/:id/reddet", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Topic/post menu (partials/moderasyon-menusu): form fields are post_id and topic_id
 // Konu/mesaj menüsü (partials/moderasyon-menusu): form alanları post_id ve topic_id
 // ---------------------------------------------------------------------------
 
+// Find the topic: if topic_id is missing or empty (yorum.ejs sometimes sends it empty), derive it from the post.
 // Konuyu bul: topic_id yoksa ya da boşsa (yorum.ejs bazen boş yollar) mesajdan türet.
 async function hedefiBul(req: express.Request) {
   let topicId = sayi(req.body.topic_id);
@@ -87,6 +102,7 @@ async function hedefiBul(req: express.Request) {
   return { topicId, postId };
 }
 
+// A moderator cannot touch an admin's topic/post (returns true when an admin wrote it = block).
 // Moderatör, yöneticinin konusuna/mesajına dokunamaz (yönetici yazarsa true döner = engelle).
 async function yoneticiyeAitMi(yapanRol: string, tur: "konu" | "mesaj", id: number | null): Promise<boolean> {
   if (yapanRol === "admin" || !id) return false;
@@ -98,6 +114,8 @@ async function yoneticiyeAitMi(yapanRol: string, tur: "konu" | "mesaj", id: numb
   return s[0]?.rol === "admin";
 }
 
+// pin and lock do the same thing: if the column is set, clear it; if empty, write the current time (toggle).
+// The column name comes from the code, not from the user, so string concatenation is safe here.
 // sabitle ve kilitle aynı işi yapar: sütun doluysa boşalt, boşsa şimdiki zamanı yaz (aç/kapa).
 // Sütun adı koddan gelir, kullanıcıdan değil; bu yüzden metin birleştirmek güvenli.
 function anahtarRotasi(yol: string, sutun: "pinned_at" | "locked_at", acik: string, kapali: string, eylemAcik: string, eylemKapali: string) {
@@ -125,6 +143,8 @@ function anahtarRotasi(yol: string, sutun: "pinned_at" | "locked_at", acik: stri
 anahtarRotasi("sabitle", "pinned_at", "Konu sabitlendi.", "Konunun sabiti kaldırıldı.", "konu.sabitle", "konu.sabit_kaldir");
 anahtarRotasi("kilitle", "locked_at", "Konu kilitlendi.", "Konunun kilidi açıldı.", "konu.kilitle", "konu.kilit_ac");
 
+// Change category: moves the topic to the category chosen in the menu's dropdown.
+// The category id is incoming data; we check the database that it really exists.
 // Kategoriyi değiştir: menüdeki açılır listeden seçilen kategoriye taşır.
 // Kategori id'si gelen veridir; gerçekten var mı diye veritabanından kontrol ediyoruz.
 moderasyon.post("/moderasyon/kategori-degistir", async (req, res) => {
@@ -147,6 +167,9 @@ moderasyon.post("/moderasyon/kategori-degistir", async (req, res) => {
   res.redirect(geri);
 });
 
+// +18 flag (sql/23): ALL attachments of a comment are flagged / unflagged together (the ekler table has one row per attachment, but in the UI a comment is one unit).
+// When a staff member removes it, the author's own flag goes away too (the staff decision overrides); when staff flag it, nsfw_kim = 'yetkili'
+// and the author cannot undo it (the author has no edit path anyway; attachments cannot be edited).
 // +18 işareti (sql/23): yorumun BÜTÜN ekleri birlikte işaretlenir / işareti kaldırılır (ekler tablosunda satır başına var, ama arayüzde yorum tek birim).
 // Yetkili kaldırınca yazarın kendi işareti de gider (yetkili kararı üstündür); yetkili işaretlediğinde nsfw_kim = 'yetkili' olur ve
 // yazar bunu geri alamaz (yazarın düzenleme yolu zaten yok; ekler düzenlenemez).
@@ -179,9 +202,12 @@ moderasyon.post("/moderasyon/sil", async (req, res) => {
   }
   await denetim(req, res, "icerik.sil", "konu_mesaji", postId, { konu: silinen.topic_id, konu_silindi: !!silinen.ilk_mi, kaynak: "moderasyon menüsü" });
   bildir(req, "basari", silinen.ilk_mi ? "Konu silindi." : "Mesaj silindi.");
+  // If the topic was deleted, the topic page now returns 404; go back to the feed
   // Konu silindiyse konu sayfası artık 404 verir; akışa dön
   res.redirect(silinen.ilk_mi ? "/" : geriAdres(req, `/konu/${silinen.topic_id}`));
 });
 
+// The "Suspend…" item in the post menu is no longer a form: it goes to the Sanctions tab of the member card
+// (/yonetim/uyeler/:id?sekme=yaptirim). The duration + mandatory reason are asked there; lifting and history are in the same place.
 // Mesaj menüsündeki "Uzaklaştır…" artık bir form değil: üye kartının Yaptırımlar sekmesine gider
 // (/yonetim/uyeler/:id?sekme=yaptirim). Orada süre + zorunlu sebep sorulur, kaldırma ve geçmiş de aynı yerde.

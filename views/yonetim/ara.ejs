@@ -1,3 +1,4 @@
+<%# Panel search: q, uyeler [{id, username, rol, deleted_at, banli}], konular [{id, title, deleted_at, kategori}], sikayetler [{id, hedef_tur, sebep, durum, created_at, bildiren}], turEtiket %>
 <%# Panel araması: q, uyeler [{id, username, rol, deleted_at, banli}], konular [{id, title, deleted_at, kategori}], sikayetler [{id, hedef_tur, sebep, durum, created_at, bildiren}], turEtiket %>
 <%- include("duzen-ust", { baslik: "Ara", aktif: "bakis", aramaMetni: q }) %>
 <% if (!q) { %>

@@ -1,6 +1,9 @@
+/* Comment attachments, link cards, the +18 marker, external link confirmation, settings cards (sql/23, Figma 15).
+   Colours and durations come only from variables; "Reduce animations" zeroes the durations through the global rule in rubyyard.css. */
 /* Yorum ekleri, bağlantı kartları, +18 işareti, dış bağlantı onayı, ayar kartları (sql/23, Figma 15).
-   Renkler ve süreler yalnızca değişkenlerden; "Animasyonları azalt" quadran.css'teki genel kuralla süreleri sıfırlar. */
+   Renkler ve süreler yalnızca değişkenlerden; "Animasyonları azalt" rubyyard.css'teki genel kuralla süreleri sıfırlar. */
 
+/* ---------- Attachments: single photo, grid, video ---------- */
 /* ---------- Ekler: tek fotoğraf, ızgara, video ---------- */
 .ekler { position: relative; display: grid; gap: 4px; margin-top: 2px; }
 .ek-medya { min-width: 0; border-radius: 12px; overflow: hidden; }
@@ -9,6 +12,7 @@
 .ek-izgara { max-width: 560px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; border-radius: 12px; overflow: hidden; }
 .ek-kare { position: relative; display: block; aspect-ratio: 1; background: var(--yuzey-2); overflow: hidden; }
 .ek-kare img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* With an odd number of photos (3, 5) the last cell must not stay empty: with 3 the first photo spans two rows on the left, with 5 the last photo fills its row */
 /* Tek sayıda fotoğrafta (3, 5) son hücre boş kalmasın: 3'te ilk fotoğraf solda iki satır boyu, 5'te son fotoğraf satırı kaplar */
 .ek-izgara:has(> .ek-kare:nth-child(3):last-child) > .ek-kare:first-child { grid-row: span 2; aspect-ratio: auto; }
 .ek-izgara:has(> .ek-kare:nth-child(5):last-child) > .ek-kare:last-child { grid-column: span 2; aspect-ratio: 2; }
@@ -21,7 +25,10 @@
 .ek-video { aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--yuzey-3); }
 .ek-video video { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--yuzey-3); }
 
-/* ---------- Özel video oynatıcı (quadran.js videoOynatici) ----------
+/* ---------- Custom video player (rubyyard.js videoOynatici) ----------
+   Without JS these classes are never added and the native controls work. Colour/duration only from variables; "Reduce animations"
+   zeroes the durations, the spinning ring and wave animations are disabled separately below. */
+/* ---------- Özel video oynatıcı (rubyyard.js videoOynatici) ----------
    JS yoksa bu sınıflar hiç eklenmez, yerel controls çalışır. Renk/süre yalnızca değişkenlerden; "Animasyonları azalt"
    süreleri sıfırlar, dönen halka ve dalga animasyonları aşağıda ayrıca kapatılır. */
 .ek-video.oy { position: relative; isolation: isolate; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
@@ -33,10 +40,12 @@
 .ek-video.oy:fullscreen { aspect-ratio: auto; border-radius: 0; }
 .ek-video.oy:-webkit-full-screen { aspect-ratio: auto; border-radius: 0; }
 
+/* :where → the reset has specificity 0: it must not override the background of classes like .oy-buyuk */
 /* :where → sıfırlamanın belirginliği 0: .oy-buyuk gibi sınıfların arka planını ezmesin */
 :where(.oy) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .oy button:focus-visible, .oy-ilerleme:focus-visible, .oy-ses-kay:focus-visible, .oy-indir:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 2px; }
 
+/* Centre buttons: big play at the start; always on touch screens (while the controls are open) */
 /* Ortadaki düğmeler: başlangıçta büyük oynat; dokunmatikte her zaman (kontroller açıkken) */
 .oy-orta {
   position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 28px;
@@ -60,6 +69,7 @@
 }
 .oy-ilk .oy-sure-cip { display: inline-flex; }
 
+/* Control bar */
 /* Kontrol çubuğu */
 .oy-cubuk {
   position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 3; display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 4px;
@@ -73,6 +83,7 @@
 .oy-zaman { flex: none; padding: 0 6px; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--yazi-2); }
 .oy-hiz { flex: none; min-width: 36px; height: 36px; padding: 0 8px; border-radius: 8px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+/* Progress: track is 25% text colour, buffered 45%, played is the accent */
 /* İlerleme: iz yazı rengi %25, yüklenen %45, oynanan vurgu */
 .oy-ilerleme { position: relative; flex: 1 1 auto; min-width: 36px; height: 44px; margin: 0 8px; cursor: pointer; touch-action: none; border-radius: 6px; }
 .oy-iz { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: color-mix(in srgb, var(--yazi) 25%, transparent); }
@@ -88,11 +99,13 @@
 @media (hover: hover) { .oy-ilerleme:hover .oy-ipucu { display: block; } }
 .oy-suruk .oy-ipucu { display: block; }
 
+/* Volume: on desktop an icon + a short slider that opens on hover */
 /* Ses: masaüstünde simge + üzerine gelince açılan kısa kaydırıcı */
 .oy-ses { display: flex; align-items: center; flex: none; }
 .oy-ses-kay { width: 0; opacity: 0; margin: 0; padding: 0; accent-color: var(--vurgu); cursor: pointer; transition: width var(--sure-orta) var(--egri-cikis), opacity var(--sure-orta) var(--egri-cikis), margin var(--sure-orta) var(--egri-cikis); }
 .oy-ses:hover .oy-ses-kay, .oy-ses:focus-within .oy-ses-kay { width: 72px; opacity: 1; margin: 0 8px 0 2px; }
 
+/* Speed menu: stays inside the box, scrolls if long */
 /* Hız menüsü: kutunun içinde kalır, uzunsa kayar */
 .oy-menu {
   position: absolute; right: 8px; bottom: 60px; z-index: 4; display: grid; min-width: 112px; max-height: calc(100% - 68px); overflow-y: auto; padding: 4px;
@@ -105,6 +118,7 @@
 .oy-onay { display: grid; place-items: center; width: 20px; height: 20px; }
 .oy-onay svg { width: 16px; height: 16px; }
 
+/* Loading ring */
 /* Yükleniyor halkası */
 .oy-bekle {
   position: absolute; left: 50%; top: 50%; z-index: 2; display: none; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
@@ -115,6 +129,7 @@
 .oy-bekliyor .oy-orta { visibility: hidden; opacity: 0; }
 @keyframes oy-don { to { transform: rotate(360deg); } }
 
+/* Error: the video could not be opened */
 /* Hata: video açılamadı */
 .oy-hata { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; background: var(--yuzey-3); color: var(--yazi-2); text-align: center; }
 .oy-hata[hidden] { display: none; }
@@ -124,6 +139,7 @@
 .oy-indir:hover { background: var(--yuzey-1); }
 .oy-hata-durum .oy-orta, .oy-hata-durum .oy-cubuk, .oy-hata-durum .oy-sure-cip, .oy-hata-durum .oy-ince, .oy-hata-durum .oy-bekle { display: none; }
 
+/* Double-tap wave */
 /* Çift dokunma dalgası */
 .oy-dalga {
   position: absolute; z-index: 4; display: grid; place-items: center; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 50%;
@@ -133,6 +149,7 @@
 .oy-dalga-ac { animation: oy-dalga 600ms var(--egri-cikis) both; }
 @keyframes oy-dalga { from { transform: scale(.5); opacity: 1; } to { transform: scale(1.25); opacity: 0; } }
 
+/* Touch: a thin 3px progress line at the bottom while the controls are hidden */
 /* Dokunmatik: kontroller gizliyken altta 3px ince ilerleme çizgisi */
 .oy-ince { display: none; position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; height: 3px; background: color-mix(in srgb, var(--yazi) 25%, transparent); pointer-events: none; }
 .oy-ince span { display: block; width: var(--oyn, 0%); height: 100%; background: var(--vurgu); }
@@ -143,7 +160,9 @@
   .oy-ilk .oy-atla { display: none; }
   .oy-atla { display: grid; }
   .oy-buyuk { width: 60px; height: 60px; }
-  .oy-cubuk .oy-oynat, .oy-ses-kay, .oy-pip { display: none; } /* oynat ortada; ses kaydırıcısı yok; PiP telefonda yer yer */
+  /* play sits in the centre; no volume slider; PiP is hidden on phones */
+  /* oynat ortada; ses kaydırıcısı yok; PiP telefonda yer yer */
+  .oy-cubuk .oy-oynat, .oy-ses-kay, .oy-pip { display: none; }
   .oy-dugme, .oy-hiz { min-width: 44px; height: 44px; }
   .oy-zaman { font-size: 12px; padding: 0 4px; }
   .oy-ilerleme { margin: 0 6px; }
@@ -151,12 +170,14 @@
   .oy-menu-oge { height: 44px; }
 }
 
+/* Reduced motion: the ring does not spin (a fixed arc remains), the wave appears without animation and is removed by a timer */
 /* Azaltılmış hareket: halka dönmez (sabit yay kalır), dalga animasyonsuz görünüp zamanlayıcıyla kalkar */
 @media (prefers-reduced-motion: reduce) {
   .oy-bekle, .oy-dalga-ac { animation: none; }
 }
 [data-az-animasyon] .oy-bekle, [data-az-animasyon] .oy-dalga-ac { animation: none; }
 
+/* ---------- +18: hidden checkbox, blurred view, corner chip ---------- */
 /* ---------- +18: gizli kutu, bulanık görünüm, köşe çipi ---------- */
 .ek-gizli {
   display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 12px 14px;
@@ -169,6 +190,7 @@
   background: var(--d-ban-zemin); color: var(--d-ban); border: 1px solid var(--d-ban); font-size: 12px; font-weight: 700; letter-spacing: .02em;
 }
 .ek-nsfw-kose { position: absolute; top: 8px; left: 8px; pointer-events: none; background: color-mix(in srgb, var(--zemin) 75%, transparent); }
+/* Blurred: works without JS (hidden checkbox + label). When checked the blur is removed and interaction is enabled. */
 /* Bulanık: JS'siz çalışır (gizli onay kutusu + label). İşaretlenince bulanıklık kalkar ve etkileşim açılır. */
 .ek-bulanik .ek-medya { filter: blur(28px); transform: scale(1.02); pointer-events: none; user-select: none; transition: filter var(--sure-orta) var(--egri-cikis); }
 .ek-bulanik:has(.ek-nsfw-onay:checked) .ek-medya { filter: none; transform: none; pointer-events: auto; user-select: auto; }
@@ -180,8 +202,11 @@
 .ek-nsfw-dugme:hover { background: var(--yuzey-2); }
 .ek-bulanik:has(.ek-nsfw-onay:focus-visible) .ek-nsfw-dugme { outline: 2px solid var(--vurgu); outline-offset: 2px; }
 .ek-bulanik:has(.ek-nsfw-onay:checked) .ek-nsfw-dugme { display: none; }
-.ek-bulanik { min-height: 96px; overflow: hidden; border-radius: 12px; } /* blur kenarlardan taşıp üst çubuğun/komşu yorumun üstüne yayılmasın */
+/* so the blur does not spill past the edges over the top bar / the neighbouring comment */
+/* blur kenarlardan taşıp üst çubuğun/komşu yorumun üstüne yayılmasın */
+.ek-bulanik { min-height: 96px; overflow: hidden; border-radius: 12px; }
 
+/* ---------- Link cards ---------- */
 /* ---------- Bağlantı kartları ---------- */
 .bag-kartlar { display: grid; gap: 8px; margin-top: 2px; }
 .yt-kart { display: grid; gap: 8px; max-width: 520px; }
@@ -213,6 +238,7 @@
 .gh-metin span { font-size: 13px; color: var(--yazi-2); }
 .gh-dis { flex: none; display: grid; place-items: center; width: 44px; height: 44px; color: var(--yazi-2); }
 
+/* ---------- Reply form: tool row, preview tiles, chip ---------- */
 /* ---------- Cevap formu: araç satırı, önizleme kareleri, çip ---------- */
 .ek-arac { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ek-dugme {
@@ -223,7 +249,9 @@
 .ek-dugme:has(.gorunmez:focus-visible) { outline: 2px solid var(--vurgu); outline-offset: 2px; }
 .ek-ipucu { min-width: 0; }
 .ek-arac [data-ek-gonder] { margin-left: auto; }
-@media (max-width: 800px) { .ek-ipucu { display: none; } } /* telefonda ipucu 3 satıra sarıyor ve düğmeleri sıkıştırıyor */
+/* on phones the hint wraps to 3 lines and squeezes the buttons */
+/* telefonda ipucu 3 satıra sarıyor ve düğmeleri sıkıştırıyor */
+@media (max-width: 800px) { .ek-ipucu { display: none; } }
 .ek-onizleme { display: flex; flex-wrap: wrap; gap: 8px; }
 .ek-onizleme[hidden], .ek-baglanti-cip[hidden], .ek-nsfw-satir[hidden], .ek-hata[hidden] { display: none; }
 .ek-onizleme-oge { position: relative; width: 64px; height: 64px; border-radius: 12px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); overflow: visible; }
@@ -234,7 +262,9 @@
   position: absolute; top: -8px; right: -8px; z-index: 2; width: 24px; height: 24px; padding: 0; border-radius: 12px; line-height: 1;
   background: var(--yuzey-3); color: var(--yazi); border: 1px solid var(--kenar); font-size: 16px; cursor: pointer;
 }
-.ek-sil::after { content: ""; position: absolute; inset: -10px; } /* dokunma alanı ≥44px (görünür düğme 24px) */
+/* touch target ≥44px (the visible button is 24px) */
+/* dokunma alanı ≥44px (görünür düğme 24px) */
+.ek-sil::after { content: ""; position: absolute; inset: -10px; }
 .ek-yuzde {
   position: absolute; inset: 0; display: grid; place-items: center; border-radius: 11px; font-size: 13px; font-weight: 600;
   background: color-mix(in srgb, var(--zemin) 60%, transparent); color: var(--yazi); pointer-events: none;
@@ -256,6 +286,7 @@
 .ek-kilitler .kilit-kart { margin: 0; }
 .ek-hata { margin: 0; }
 
+/* ---------- Fullscreen photo viewer ---------- */
 /* ---------- Tam ekran fotoğraf görüntüleyici ---------- */
 .ek-gorunturu {
   width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; border: 0;
@@ -276,6 +307,7 @@
 .gor-sayac:empty { display: none; }
 .gor-kapat:focus-visible, .gor-gez:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 2px; }
 
+/* ---------- External link confirmation: the /cikis page and dialog ---------- */
 /* ---------- Dış bağlantı onayı: /cikis sayfası ve pencere ---------- */
 .cikis-alan { display: grid; gap: 6px; padding: 16px; border-radius: 14px; background: var(--yuzey-3); border: 1px solid var(--kenar-ince); }
 .cikis-alan strong { font-family: var(--baslik-tipi); font-size: 20px; overflow-wrap: anywhere; }
@@ -300,6 +332,7 @@
 .cikis-ic { display: grid; gap: 14px; padding: 24px; }
 .cikis-ic h2 { font-family: var(--baslik-tipi); font-size: 20px; }
 @media (max-width: 800px) {
+  /* On phones a sheet opening from the bottom (same motion as the member card) */
   /* Telefonda alttan açılan sayfa (üye kartıyla aynı hareket) */
   .cikis-penceresi { inset: auto 0 0 0; width: 100%; max-width: none; margin: 0; border-radius: 24px 24px 0 0; transform: translateY(100%); opacity: 1; padding-bottom: env(safe-area-inset-bottom); }
   .cikis-penceresi[open] { transform: none; }
@@ -308,6 +341,7 @@
   .cikis-eylem { display: grid; grid-template-columns: 1fr 1fr; }
 }
 
+/* ---------- Settings › +18 content choice ---------- */
 /* ---------- Ayarlar › +18 içerik seçimi ---------- */
 .nsfw-secenekler { display: grid; gap: 8px; }
 .nsfw-secenek {

@@ -1,8 +1,14 @@
+// Audit log (audit_log): every action performed by staff is written here as one row.
+// Why? So that "who did what, and when?" can be answered from one place when there is a report or a bug.
 // İşlem kaydı (audit_log): yetkililerin yaptığı her işlem buraya bir satır olarak yazılır.
 // Neden? "Kim, neyi, ne zaman yaptı?" sorusu bir şikâyet ya da hata olduğunda tek yerden cevaplanabilsin.
 import type { Request, Response } from "express";
 import { pool } from "./db.ts";
 
+// eylem   : a name grouped with dots, like 'kullanici.ban'
+// hedefTur: what the action was performed on ('kullanici', 'konu', 'konu_mesaji', 'kategori'...)
+// ayrinti : extra information such as the reason or old/new values (stored as JSON)
+// If the record cannot be written we do not break the main action (it was already done); we log the error to the console.
 // eylem   : 'kullanici.ban' gibi nokta ile gruplanmış ad
 // hedefTur: işlemin üzerinde yapıldığı şey ('kullanici', 'konu', 'konu_mesaji', 'kategori'...)
 // ayrinti : sebep, eski/yeni değer gibi ek bilgi (JSON olarak saklanır)
@@ -21,6 +27,7 @@ export async function denetim(
   }
 }
 
+// To show action names in a readable form in the template
 // Şablonda eylem adlarını okunur yazmak için
 export const EYLEM_ETIKETLERI: Record<string, string> = {
   "kullanici.rol": "Rol değiştirildi",

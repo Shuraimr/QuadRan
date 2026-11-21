@@ -1,8 +1,12 @@
 SET NAMES utf8mb4;
+-- Private rooms (sql/12): group chats entered only by invitation or an invite link.
+-- Applied once to a running database (ALTER TABLE cannot be re-run):
 -- Özel odalar (sql/12): yalnızca davetle ya da davet bağlantısıyla girilen grup sohbetleri.
 -- Çalışan veritabanına bir kez uygulanır (ALTER TABLE tekrar çalışmaz):
---   docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/12_odalar.sql
+--   docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/12_odalar.sql
 
+-- 1) Rooms. Delete = soft delete (deleted_at); kapatildi_at = staff closed the room
+--    (members can read but not write; it becomes NULL when staff reopen it).
 -- 1) Odalar. Silme = yumuşak silme (deleted_at); kapatildi_at = yetkililer odayı kapattı
 --    (üyeler okuyabilir ama yazamaz; yetkili açınca NULL olur).
 CREATE TABLE IF NOT EXISTS rooms (
@@ -17,6 +21,8 @@ CREATE TABLE IF NOT EXISTS rooms (
     FOREIGN KEY (sahip_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
+-- 2) Membership. rol: sahip (owner, only one per room), yonetici (manager), uye (member). sessiz (muted): no unread dot/count for this room.
+--    son_okunan_id: the last message number the member read in the room; unread count = messages greater than this.
 -- 2) Üyelik. rol: sahip (odada tek), yonetici, uye. sessiz: bu oda için okunmamış noktası/sayısı sayılmaz.
 --    son_okunan_id: üyenin odada okuduğu son mesaj numarası; okunmamış sayısı = bundan büyük mesajlar.
 CREATE TABLE IF NOT EXISTS room_members (
@@ -32,6 +38,8 @@ CREATE TABLE IF NOT EXISTS room_members (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
+-- 3) Invite to a person. Having a single "bekliyor" (pending) record for the same room + person is enforced in code (we did not add a UNIQUE:
+--    old rejected/cancelled invites stay, and the person can be invited again later).
 -- 3) Kişiye davet. Aynı oda + kişi için tek "bekliyor" kaydı olması kodda sağlanır (UNIQUE koymadık:
 --    eski reddedilmiş/iptal edilmiş davetler kalır, kişi sonra yeniden davet edilebilir).
 CREATE TABLE IF NOT EXISTS room_invites (
@@ -48,6 +56,11 @@ CREATE TABLE IF NOT EXISTS room_invites (
     FOREIGN KEY (davet_edilen) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
+-- 4) Invite links: /oda/katil/<kod>.
+--    kod is stored as PLAIN TEXT (not a hash): the link is not a password but an invitation shared to enter the room;
+--    managers must be able to see and copy it again in the "Etkin bağlantılar" (active links) list. The harm is limited: the link
+--    can be restricted by expiry/use limit and cancelled on request (iptal_at). The code is 8 characters, without
+--    easily confused letters (I, O, 0, 1, L), in a readable form: K7Q2-XM9P.
 -- 4) Davet bağlantıları: /oda/katil/<kod>.
 --    kod DÜZ METİN saklanır (özet değil): bağlantı bir şifre değil, odaya girmek için paylaşılan bir davetiye;
 --    yöneticiler "Etkin bağlantılar" listesinde onu yeniden görüp kopyalayabilmeli. Zarar sınırlıdır: bağlantı
@@ -68,6 +81,7 @@ CREATE TABLE IF NOT EXISTS room_links (
     FOREIGN KEY (olusturan) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
+-- 5) People removed from a room cannot come back via a link for 24 hours. (The column is "bitis" because "until" is a reserved word in MySQL.)
 -- 5) Odadan çıkarılanlar 24 saat bağlantıyla geri giremez. (Sütun adı "until" MySQL'de ayrılmış kelime olduğu için "bitis".)
 CREATE TABLE IF NOT EXISTS room_bans (
     room_id INT UNSIGNED NOT NULL,
@@ -78,6 +92,8 @@ CREATE TABLE IF NOT EXISTS room_bans (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
+-- 6) Room messages. tur 'sistem': event lines such as "ayse added ahmet to the room"; user_id is the person who did the event,
+--    the text is written ready-made. System lines cannot be reported and do not count as unread.
 -- 6) Oda mesajları. tur 'sistem': "ayse odaya ahmet’i ekledi" gibi olay satırları; user_id olayı yapan kişidir,
 --    metin hazır yazılır. Sistem satırları şikâyet edilemez, okunmamış sayılmaz.
 CREATE TABLE IF NOT EXISTS room_messages (
@@ -94,6 +110,7 @@ CREATE TABLE IF NOT EXISTS room_messages (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
+-- 7) Report: new target type 'oda_mesaji' (the note in sql/08: a value in the enum + an FK column + UNIQUE + one branch in the CHECK).
 -- 7) Şikâyet: yeni hedef türü 'oda_mesaji' (sql/08'deki not: enum'a değer + FK sütunu + UNIQUE + CHECK'e bir dal).
 ALTER TABLE reports
     MODIFY COLUMN hedef_tur ENUM('konu_mesaji','kullanici','sohbet_mesaji','ozel_mesaj','oda_mesaji') NOT NULL DEFAULT 'konu_mesaji',
@@ -110,10 +127,13 @@ ALTER TABLE reports ADD CONSTRAINT reports_hedef_tek CHECK (
     OR (hedef_tur = 'oda_mesaji'    AND post_id IS NULL AND reported_user_id IS NULL AND chat_message_id IS NULL AND message_id IS NULL AND room_message_id IS NOT NULL)
 );
 
+-- 8) Notification type 'oda' (room invite, removal from a room...). MODIFY keeps the old values as they are.
 -- 8) Bildirim türü 'oda' (oda daveti, odadan çıkarılma...). MODIFY eski değerleri aynen korur.
 ALTER TABLE notifications
     MODIFY COLUMN tur ENUM('cevap','oy','rozet','mesaj','moderasyon','duyuru','oda') NOT NULL;
 
+-- 9) Settings (changed in the panel under Chat > Rooms tab): the points needed to open a room (100 = Müdavim)
+--    and the most rooms one person may own. INSERT IGNORE: re-running does not overwrite the admin's value.
 -- 9) Ayarlar (panelde Sohbet > Odalar sekmesinden değişir): oda açmak için gereken puan (100 = Müdavim)
 --    ve kişi başına en çok kaç oda sahibi olunabileceği. INSERT IGNORE: tekrar çalıştırmak yönetici değerini ezmez.
 INSERT IGNORE INTO site_settings (anahtar, deger) VALUES

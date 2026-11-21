@@ -1,4 +1,7 @@
 <%#
+  Sanctions: /yonetim/yaptirimlar?filtre=aktif|yakinda|dolan|hepsi
+  satirlar [{ durum: "aktif"|"dolan", id, username, rol, baslangic, bitis, sebep, yapan }], uyarilar [{ eylem, ayrinti, created_at, aktor }], sureler, qs, yol
+  Lifting a suspension: POST /yonetim/uyeler/:id/ban-kaldir. New suspension: POST /yonetim/yaptirimlar/ban (kullanici, sure, sebep)
   Yaptırımlar: /yonetim/yaptirimlar?filtre=aktif|yakinda|dolan|hepsi
   satirlar [{ durum: "aktif"|"dolan", id, username, rol, baslangic, bitis, sebep, yapan }], uyarilar [{ eylem, ayrinti, created_at, aktor }], sureler, qs, yol
   Uzaklaştırma kaldırma: POST /yonetim/uyeler/:id/ban-kaldir. Yeni uzaklaştırma: POST /yonetim/yaptirimlar/ban (kullanici, sure, sebep)

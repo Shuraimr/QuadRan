@@ -1,4 +1,7 @@
 <%#
+  "Open a room" dialog (only for people allowed to open rooms): a dialog with JS, without JS the /oda/yeni page draws the same dialog open.
+  Expected data: hub.olustur.izinli, panelAcik (comes open if "yeni")
+  Form: POST /oda  fields: ad (required, 3-60), aciklama (optional, at most 280). On success the room opens and the person is redirected to it.
   "Oda aç" penceresi (yalnızca oda açma izni olanlarda): JS varsa pencere, JS yokken /oda/yeni sayfası aynı pencereyi açık çizer.
   Beklenen veriler: hub.olustur.izinli, panelAcik ("yeni" ise açık gelir)
   Form: POST /oda  alanlar: ad (zorunlu, 3-60), aciklama (isteğe bağlı, en çok 280). Başarılıysa oda açılır, kişi ona yönlenir.

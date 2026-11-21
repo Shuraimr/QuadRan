@@ -1,3 +1,10 @@
+<%# Invite link page: /oda/katil/:kod  (sign-in required; a guest goes to sign-in and comes back)
+   Expected data:
+   hal        "ok" | "yok" | "iptal" | "doldu" | "sinir" | "kapali" | "yasak"  (someone who is already "uye" (a member) is redirected to the room)
+   oda        { ad, aciklama, uye (count), olusturan } | null (if the code does not exist at all)
+   gecerlilik "Bağlantı 6 gün daha geçerli." or empty (no expiry)
+   kod        the code in the address (written into the form)
+   Form: POST /oda/katil/:kod %>
 <%#
   Davet bağlantısı sayfası: /oda/katil/:kod  (giriş gerekir; misafir girişe gider ve geri döner)
   Beklenen veriler:

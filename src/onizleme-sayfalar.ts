@@ -1,14 +1,20 @@
+// Preview: messages, notifications, search, ranking, chat, moderation, forgot password.
 // Önizleme: mesajlar, bildirimler, ara, sıralama, sohbet, moderasyon, şifremi unuttum.
+// Uses SAMPLE data and never touches the database. Mounted under /onizleme (in server.ts).
 // ÖRNEK veri kullanır, veritabanına dokunmaz. /onizleme altına bağlanır (server.ts'de).
+// Addresses: /onizleme/mesajlar  /mesajlar/ayse  /bildirimler  /ara?q=selinux  /siralama  /sohbet  /moderasyon  /sifremi-unuttum
 // Adresler: /onizleme/mesajlar  /mesajlar/ayse  /bildirimler  /ara?q=selinux  /siralama  /sohbet  /moderasyon  /sifremi-unuttum
+// Shared extras: ?misafir=1 (logged-out view), ?bos=1 (empty state), ?tema=acik&vurgu=zumrut
 // Ortak ekler: ?misafir=1 (çıkış yapmış görünüm), ?bos=1 (boş durum), ?tema=acik&vurgu=zumrut
 import express from "express";
 
 export const sayfalar = express.Router();
 
+// ---------- Helpers ----------
 // ---------- Yardımcılar ----------
 const dakikaOnce = (d: number) => new Date(Date.now() - d * 60 * 1000);
 const saatOnce = (s: number) => dakikaOnce(s * 60);
+// "gun" days ago, hour:minute (local). For today use dakikaOnce: so it does not end up in the future
 // "gun" gün önce, saat:dakika (yerel). Bugün için dakikaOnce kullan: gelecekte kalmasın
 const gunSaat = (gun: number, saat: number, dk = 0) => {
   const t = new Date();
@@ -32,6 +38,7 @@ sayfalar.use((req, res, next) => {
   next();
 });
 
+// ---------- /mesajlar (messages) ----------
 // ---------- /mesajlar ----------
 const konusmaVerisi = [
   { kullanici: "ayse", rutbe: "Müdavim", son_mesaj: "Tamamdır, yarın laboratuvarda konuşuruz.", son_zaman: dakikaOnce(12), okunmamis: 2, son_benden: false },
@@ -84,13 +91,14 @@ const mesajlarSayfasi = (req: express.Request, res: express.Response) => {
 sayfalar.get("/mesajlar", mesajlarSayfasi);
 sayfalar.get("/mesajlar/:kullanici", mesajlarSayfasi);
 
+// ---------- /bildirimler (notifications) ----------
 // ---------- /bildirimler ----------
 sayfalar.get("/bildirimler", (req, res) => {
   const t = (tur: string, kisi: string | null, metin: string, link: string, created_at: Date, okundu: boolean) =>
     ({ tur, kisi, metin, link, created_at, read_at: okundu ? created_at : null });
   const hepsi = [
     t("cevap", "ayse", "ayse, “Fedora’da SELinux açıkken Docker volume izin hatası” konunuza cevap yazdı.", "/konu/1", dakikaOnce(14), false),
-    t("oy", "mert", "mert, “QuadRan’a hoş geldiniz” konunuzu beğendi.", "/konu/2", dakikaOnce(70), false),
+    t("oy", "mert", "mert, “rubyyard’a hoş geldiniz” konunuzu beğendi.", "/konu/2", dakikaOnce(70), false),
     t("mesaj", "ahmet", "ahmet sana yeni bir mesaj gönderdi.", "/mesajlar/ahmet", dakikaOnce(95), false),
     t("rozet", null, "Yeni rozet kazandın: “100 oy”.", "/profil/shurai", saatOnce(5), true),
     t("cevap", "zeynep", "zeynep, “Node 22’de TypeScript’i doğrudan çalıştırmak” konusunda sana cevap verdi.", "/konu/8", gunSaat(2, 18, 20), true),
@@ -106,6 +114,7 @@ sayfalar.get("/bildirimler", (req, res) => {
   res.render("bildirimler", { aktifMenu: "bildirimler", filtre, okunmamis_sayisi: bos ? 0 : hepsi.filter((b) => !b.read_at).length, bildirimler });
 });
 
+// ---------- /ara (search) ----------
 // ---------- /ara ----------
 const aramaKonulari = [
   { id: 1, title: "Fedora’da SELinux açıkken Docker volume izin hatası nasıl çözülür?", kategori: "Yazılım", yazar: "shurai", rutbe: "Usta", created_at: saatOnce(2), ozet: "Volume’u bağladım ama container dosyaları okuyamıyor. :z etiketini ekleyince düzeldi, tam olarak ne yapıyor?", yorum_sayisi: 3, skor: 342 },
@@ -152,8 +161,10 @@ sayfalar.get("/ara", (req, res) => {
   });
 });
 
+// ---------- /siralama (ranking) ----------
 // ---------- /siralama ----------
 const siralamaVerisi: Record<string, Array<[string, number, number, number]>> = {
+  // [user, period points, topic count, total points]
   // [kullanıcı, dönem puanı, konu sayısı, toplam puan]
   tum: [["kernelkadir", 2140, 88, 2140], ["zeynep", 1180, 40, 1180], ["mert", 905, 31, 905], ["shurai", 640, 24, 640], ["can", 512, 17, 512], ["ayse", 310, 9, 310], ["selinuxcu", 220, 6, 220], ["elif", 188, 5, 188], ["ahmet", 45, 2, 45]],
   ay: [["zeynep", 214, 7, 1180], ["shurai", 190, 6, 640], ["mert", 166, 5, 905], ["ayse", 120, 3, 310], ["can", 97, 2, 512], ["kernelkadir", 80, 2, 2140], ["elif", 54, 1, 188], ["ahmet", 25, 1, 45]],
@@ -169,6 +180,7 @@ sayfalar.get("/siralama", (req, res) => {
   res.render("siralama", { aktifMenu: "siralama", donem, liste, benim, rutbeler });
 });
 
+// ---------- /sohbet (chat) ----------
 // ---------- /sohbet ----------
 sayfalar.get("/sohbet", (req, res) => {
   const m = (id: number, yazar: string, content: string, dk: number) => ({ id, yazar, rutbe: rutbeHesapla(({ shurai: 640, ayse: 310, ahmet: 45, mert: 905, zeynep: 1180 } as Record<string, number>)[yazar] ?? 0), content, created_at: dakikaOnce(dk) });
@@ -188,6 +200,7 @@ sayfalar.get("/sohbet", (req, res) => {
   res.render("sohbet", { aktifMenu: "sohbet", mesajlar, cevrimici });
 });
 
+// ---------- /moderasyon (moderation) ----------
 // ---------- /moderasyon ----------
 sayfalar.get("/moderasyon", (req, res) => {
   const post = (id: number, yazar: string, rutbe: string, content: string, dk: number, silindi = false) => ({ id, yazar, rutbe, content, created_at: dakikaOnce(dk), deleted_at: silindi ? dakikaOnce(5) : null });
@@ -195,7 +208,7 @@ sayfalar.get("/moderasyon", (req, res) => {
     { id: 1, durum: "bekliyor", sebep: "Hakaret", aciklama: "Başka bir kullanıcıya kişisel saldırı var.", created_at: dakikaOnce(25), bildiren: "ayse", ayni_post_sayisi: 3, post: post(41, "ahmet", "Çaylak", "Bu kadar basit şeyi bilmiyorsan forumda ne işin var, git önce temel bilgisayar dersi al.", 180), konu: { id: 12, title: "Okul laboratuvarında SELinux enforcing modunda Apache açılmıyor" } },
     { id: 2, durum: "bekliyor", sebep: "Spam", aciklama: "", created_at: dakikaOnce(130), bildiren: "mert", ayni_post_sayisi: 1, post: post(57, "yeniuye99", "Çaylak", "Ucuz oyun hesabı ve lisans anahtarı satışı, ayrıntılar için özel mesaj atın.", 200), konu: { id: 14, title: "Minecraft sunucusunu Docker ile ayağa kaldırma" } },
     { id: 3, durum: "bekliyor", sebep: "Konu dışı", aciklama: "Donanım sorusunun altında alakasız bir tartışma açıldı.", created_at: saatOnce(6), bildiren: "zeynep", ayni_post_sayisi: 2, post: post(63, "can", "Usta", "Bence en iyisi hepsini bırakıp telefondan oyun oynamak, bilgisayar almaya gerek yok.", 400), konu: { id: 13, title: "Ryzen 5 5600 için hangi anakart alınmalı?" } },
-    { id: 4, durum: "islendi", sebep: "Spam", aciklama: "", created_at: saatOnce(20), bildiren: "ayse", ayni_post_sayisi: 2, post: post(29, "reklamci", "Çaylak", "Bedava kripto kazanmak için bağlantıya tıkla.", 1300, true), konu: { id: 2, title: "QuadRan’a hoş geldiniz: kurallar ve ilk adımlar" } },
+    { id: 4, durum: "islendi", sebep: "Spam", aciklama: "", created_at: saatOnce(20), bildiren: "ayse", ayni_post_sayisi: 2, post: post(29, "reklamci", "Çaylak", "Bedava kripto kazanmak için bağlantıya tıkla.", 1300, true), konu: { id: 2, title: "rubyyard’a hoş geldiniz: kurallar ve ilk adımlar" } },
     { id: 5, durum: "reddedildi", sebep: "Yanıltıcı bilgi", aciklama: "Yanlış komut öneriyor.", created_at: gunSaat(2, 16, 0), bildiren: "ahmet", ayni_post_sayisi: 1, post: post(18, "ayse", "Müdavim", "setenforce 0 yazmak geçici çözümdür, kalıcı değildir; kalıcı için /etc/selinux/config düzenlenir.", 3000), konu: { id: 1, title: "Fedora’da SELinux açıkken Docker volume izin hatası nasıl çözülür?" } },
   ];
   const d = dizge(req.query.durum);
@@ -206,6 +219,7 @@ sayfalar.get("/moderasyon", (req, res) => {
   res.render("moderasyon", { aktifMenu: "moderasyon", durum, ozet, sikayetler });
 });
 
+// ---------- /sifremi-unuttum (forgot password) ----------
 // ---------- /sifremi-unuttum ----------
 sayfalar.get("/sifremi-unuttum", (req, res) => {
   res.render("sifremi-unuttum", { gonderildi: !!req.query.gonderildi });

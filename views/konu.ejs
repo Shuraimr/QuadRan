@@ -1,4 +1,9 @@
 <%#
+  Expected data:
+  konu      { id, title, kategori, created_at, duzenlendi (bool), yazar, rutbe, puan, konu_sayisi }
+  mesajlar  [ { id, content, yazar, rutbe, created_at, deleted_at, skor, benim_oyum, konu_sahibi } ]
+            The first element is the topic's own text (the first message in the posts table).
+  benzerler [ { id, title, skor } ]   other topics from the same category
   Beklenen veriler:
   konu      { id, title, kategori, created_at, duzenlendi (bool), yazar, rutbe, puan, konu_sayisi }
   mesajlar  [ { id, content, yazar, rutbe, created_at, deleted_at, skor, benim_oyum, konu_sahibi } ]
@@ -40,6 +45,7 @@
           <% } else { %>
           <a class="eylem" href="/sikayet?post_id=<%= ilk.id %>" data-sikayet-ac data-post-id="<%= ilk.id %>" data-yazar="<%= ilk.yazar %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
           <% } %>
+          <%# The topic owner's ⋮ menu: pin to profile / remove. If the owner is also a moderator, a single ⋮ is enough: the items are added to the top of the moderation menu. %>
           <%# Konu sahibinin ⋮ menüsü: profile sabitle / kaldır. Sahip aynı zamanda yetkiliyse tek ⋮ yeter: öğeler moderasyon menüsünün başına eklenir. %>
           <% const sahibi_ = locals.kullanici && kullanici.id === konu.user_id; const yetkili_ = ["moderator", "admin"].includes(locals.kullanici?.rol); %>
           <% if (sahibi_ && !yetkili_) { %>
@@ -61,8 +67,10 @@
         <%- include("partials/ikon", { ad: "kilit", boyut: 16 }) %> Bu konu kilitli, yeni cevap yazılamaz.
       </div>
     <% } else if (locals.kullanici) { %>
+      <%# Reply form (Figma 15): text + tool row (photo, video) + preview tiles of the chosen attachments + link chip + +18 checkbox.
+          multipart: it is submitted as-is without JS; with rubyyard.js it is sent via XHR (per-tile progress). _csrf MUST be the FIRST field (src/ekler.ts). %>
       <%# Cevap formu (Figma 15): metin + araç satırı (fotoğraf, video) + seçilen eklerin önizleme kareleri + bağlantı çipi + +18 kutusu.
-          multipart: JS'siz de olduğu gibi gönderilir; quadran.js varsa XHR ile gönderir (kare başına ilerleme). _csrf İLK alan olmalı (src/ekler.ts). %>
+          multipart: JS'siz de olduğu gibi gönderilir; rubyyard.js varsa XHR ile gönderir (kare başına ilerleme). _csrf İLK alan olmalı (src/ekler.ts). %>
       <% const ey_ = locals.ekYetki || { gorsel: { acik: false }, video: { acik: false }, baglanti: false }; const tas_ = locals.taslak || {}; %>
       <form class="kart cevap-kutusu" id="cevap" method="post" action="/konu/<%= konu.id %>/cevap" enctype="multipart/form-data" data-ek-form data-baglanti="<%= ey_.baglanti ? '1' : '0' %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <div class="ust">
@@ -138,6 +146,7 @@
     <% } %>
   </aside>
 </div>
+<%# Guests cannot report: if there is no dialog, the "Report" link goes to login via /sikayet (and a guest page never gets a session) %>
 <%# Misafir şikâyet edemez: pencere yoksa "Şikâyet et" bağlantısı /sikayet üzerinden girişe götürür (ayrıca misafir sayfasında oturum açılmaz) %>
 <% if (locals.kullanici) { %><%- include("partials/sikayet-penceresi") %><% } %>
 <%- include("partials/son") %>

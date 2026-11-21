@@ -1,3 +1,8 @@
+// Admin panel: Moderation group (Reports, Sanctions). The automatic filter is in yonetim-site.ts.
+//
+// Reports: a single queue, five target types (konu_mesaji, kullanici, sohbet_mesaji, ozel_mesaj, oda_mesaji).
+// The screen is "master/detail": on the left a list that groups reports on the same target, on the right the detail of the selected report (?id=).
+// Difference from /moderasyon: filters, grouping, mandatory reason, the author's past sanctions.
 // Yönetim paneli: Moderasyon grubu (Şikâyetler, Yaptırımlar). Otomatik filtre yonetim-site.ts'te.
 //
 // Şikâyetler: tek kuyruk, beş hedef türü (konu_mesaji, kullanici, sohbet_mesaji, ozel_mesaj, oda_mesaji).
@@ -15,12 +20,14 @@ import { sayfala, secim, onayIste } from "./yonetim-ortak.ts";
 export const yonetimSikayet = express.Router();
 
 const DURUMLAR = ["bekliyor", "islendi", "reddedildi", "hepsi"] as const;
+// Target id: whichever of the five columns is filled (consistent with reports.hedef_tur, guaranteed by a CHECK)
 // Hedef kimliği: beş sütundan hangisi doluysa o (reports.hedef_tur ile uyumlu, CHECK garanti eder)
 const HEDEF_ID = "COALESCE(reports.post_id, reports.reported_user_id, reports.chat_message_id, reports.message_id, reports.room_message_id)";
 
 yonetimSikayet.get("/yonetim/sikayetler", async (req, res) => {
   const yapan = res.locals.kullanici;
   const secili = sayi(req.query.id);
+  // If reached directly with ?id= (search result, notification link) that report may not be pending: the list opens with "all"
   // Doğrudan ?id= ile gelindiyse (arama sonucu, bildirim bağlantısı) o şikâyet bekliyor olmayabilir: liste "hepsi" ile açılır
   const durum = secim(req.query.durum, DURUMLAR, secili ? "hepsi" : "bekliyor");
   const tur = secim(req.query.tur, ["hepsi", ...TURLER] as const, "hepsi");
@@ -37,7 +44,9 @@ yonetimSikayet.get("/yonetim/sikayetler", async (req, res) => {
     `SELECT COUNT(*) AS n FROM (SELECT 1 FROM reports WHERE ${nerede.replaceAll("reports.", "")} GROUP BY hedef_tur, ${HEDEF_ID.replaceAll("reports.", "")}) AS g`, p);
   const sf = sayfala(req, Number(n), 15);
 
+  // GROUPING: reports on the same target form one row. Ones with pending reports first, then the newest.
   // GRUPLAMA: aynı hedefe gelen şikâyetler tek satır. Önce bekleyeni olanlar, sonra en yeniler.
+  // rid: the id of the group's newest report; the row link becomes ?id=rid.
   // rid: grubun en yeni şikâyetinin numarası; satır bağlantısı ?id=rid olur.
   const [gruplar]: any = await pool.query(
     `SELECT reports.hedef_tur AS tur, ${HEDEF_ID} AS hedef_id, COUNT(*) AS adet, SUM(reports.durum = 'bekliyor') AS bekleyen,
@@ -49,6 +58,7 @@ yonetimSikayet.get("/yonetim/sikayetler", async (req, res) => {
     [...p, sf.boyut, sf.offset]
   );
 
+  // Selected report (independent of the list filter: its detail opens even if it doesn't match the filter)
   // Seçili şikâyet (liste süzgecinden bağımsız: süzgece uymasa da ayrıntısı açılır)
   let sikayet: any = null;
   if (secili) {
@@ -69,6 +79,7 @@ yonetimSikayet.get("/yonetim/sikayetler", async (req, res) => {
   let detay: any = null;
   if (sikayet) {
     const h = await hedefOnizleme(sikayet.tur, sikayet.hedef_id);
+    // The OTHER reports on the same target (in every status)
     // Aynı hedefe gelen DİĞER şikâyetler (her durumda)
     const [digerleri]: any = await pool.query(
       `SELECT reports.id, reports.sebep, reports.aciklama, reports.durum, reports.created_at, bildiren.username AS bildiren, isleyen.username AS isleyen
@@ -81,6 +92,7 @@ yonetimSikayet.get("/yonetim/sikayetler", async (req, res) => {
       detay.sayilar = await yaptirimSayilari(h.yazarId);
       const [[b]]: any = await pool.query(`SELECT COUNT(*) AS n FROM reports WHERE ${HEDEF_SUTUN[sikayet.tur]} = ? AND durum = 'bekliyor'`, [sikayet.hedef_id]);
       detay.bekleyenVar = Number(b.n) > 0;
+      // A moderator cannot act on a report about an admin's content: an explanation is shown instead of the buttons
       // Moderatör, yöneticinin içeriğiyle ilgili şikâyette işlem yapamaz: düğmeler yerine açıklama çıkar
       detay.kisitli = yapan.rol !== "admin" && h.yazarRol === "admin";
     }
@@ -93,6 +105,8 @@ yonetimSikayet.get("/yonetim/sikayetler", async (req, res) => {
   });
 });
 
+// Action: POST /yonetim/sikayetler/islem  fields: rid (report no), tur, hedef_id, eylem (sil|uyar|banla|reddet), sure, sebep (REQUIRED)
+// All pending reports on the same target close together (sikayetIslemi).
 // İşlem: POST /yonetim/sikayetler/islem  alanlar: rid (şikâyet no), tur, hedef_id, eylem (sil|uyar|banla|reddet), sure, sebep (ZORUNLU)
 // Aynı hedefe gelen bekleyen bütün şikâyetler birlikte kapanır (sikayetIslemi).
 yonetimSikayet.post("/yonetim/sikayetler/islem", async (req, res) => {
@@ -110,6 +124,7 @@ yonetimSikayet.post("/yonetim/sikayetler/islem", async (req, res) => {
     bildir(req, "hata", "İşlem için 3 ile 255 karakter arasında bir sebep yazmalısın.");
     return res.redirect(geri);
   }
+  // A permanent suspension is hard to undo: a confirmation page comes first
   // Kalıcı uzaklaştırma geri alınması zor bir karardır: önce onay sayfası
   if (eylem === "banla" && sure === "kalici" &&
       onayIste(req, res, { baslik: "Kalıcı uzaklaştırma", metin: `Bu şikâyetin yazarı kalıcı olarak uzaklaştırılacak ve oturumu kapanacak. Sebep: “${sebep}”. Onaylıyor musun?`, buton: "Evet, kalıcı uzaklaştır", iptal: geri, aktif: "sikayetler" })) return;
@@ -122,6 +137,11 @@ yonetimSikayet.post("/yonetim/sikayetler/islem", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Sanctions: /yonetim/yaptirimlar?filtre=aktif|yakinda|dolan|hepsi
+//   aktif   : accounts currently suspended (who, until when, reason, who did it) + a remove button
+//   dolan   : expired bans; read from the audit log (the user row is cleared when a ban ends, so there is no other source)
+//   yakinda : bans expiring within 24 hours (the link of the warning card on the Overview page)
+// Below, the latest warnings ('uyar' actions in the audit log).
 // Yaptırımlar: /yonetim/yaptirimlar?filtre=aktif|yakinda|dolan|hepsi
 //   aktif   : şu an uzaklaştırılmış hesaplar (kim, ne zamana kadar, sebep, kim yaptı) + kaldırma düğmesi
 //   dolan   : süresi dolmuş banlar; işlem kaydından okunur (ban bitince kullanıcı satırı temizlendiği için başka kaynak yok)
@@ -141,6 +161,7 @@ yonetimSikayet.get("/yonetim/yaptirimlar", async (req, res) => {
         ORDER BY users.banned_until IS NULL, users.banned_until, users.id`
     );
     for (const b of banlilar) {
+      // "Who did it": not kept on the user row; read from the latest ban event in the audit log
       // "Kim yaptı": kullanıcı satırında tutulmaz, işlem kaydındaki en son ban olayından okunur
       const [[son]]: any = await pool.query(
         `SELECT users.username AS aktor FROM audit_log LEFT JOIN users ON users.id = audit_log.actor_id
@@ -151,6 +172,7 @@ yonetimSikayet.get("/yonetim/yaptirimlar", async (req, res) => {
   }
 
   if (filtre === "dolan" || filtre === "hepsi") {
+    // Look at each person's LAST ban/unban event: if there is no unban after the ban and the end date has passed, it is "expired"
     // Kişi başına SON ban/ban-kaldırma olayına bakılır: ban'dan sonra kaldırma yoksa ve bitiş geçmişse "süresi doldu"
     const [olaylar]: any = await pool.query(
       `SELECT audit_log.id, audit_log.eylem, audit_log.hedef_tur, audit_log.hedef_id, audit_log.ayrinti, audit_log.created_at, users.username AS aktor
@@ -165,7 +187,9 @@ yonetimSikayet.get("/yonetim/yaptirimlar", async (req, res) => {
       goruldu.add(kisiId);
       if (o.eylem === "kullanici.ban_kaldir" || aktifler.has(kisiId)) continue;
       const bitis = banBitisi(o.created_at, ay.sure);
-      if (!bitis || bitis.getTime() > Date.now()) continue; // kalıcı ya da hâlâ sürüyor (aktif listede zaten)
+      // permanent or still running (already in the active list)
+      // kalıcı ya da hâlâ sürüyor (aktif listede zaten)
+      if (!bitis || bitis.getTime() > Date.now()) continue;
       const kisi = await kullaniciGetir(kisiId);
       if (!kisi || kisi.silindi) continue;
       satirlar.push({ durum: "dolan", id: kisiId, username: kisi.username, rol: kisi.rol, baslangic: o.created_at, bitis, sebep: ay.sebep ?? null, yapan: o.aktor });
@@ -184,6 +208,7 @@ yonetimSikayet.get("/yonetim/yaptirimlar", async (req, res) => {
   });
 });
 
+// Suspend by username (a moderator may only suspend those with the "uye" role, rule in islemler.ts > islemHatasi)
 // Kullanıcı adıyla uzaklaştır (moderatör yalnızca "uye" rolündekini, kural islemler.ts > islemHatasi)
 yonetimSikayet.post("/yonetim/yaptirimlar/ban", async (req, res) => {
   const geri = "/yonetim/yaptirimlar";

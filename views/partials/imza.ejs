@@ -1,4 +1,8 @@
 <%#
+  Signature: the author's signature, small faded text under the message. Shown only if the author's rank grants the signature privilege
+  (or the author is an admin/moderator); if the rank drops or the privilege closes, the signature is hidden but not deleted.
+  Expected data: yazar { imza, rutbe_id, yazar_rol }. Admin/moderator are exempt from all privileges: the signature is always visible.
+
   İmza: yazarın imzası, mesajın altında küçük soluk yazı. Yalnızca yazarın rütbesi imza ayrıcalığını veriyorsa
   (ya da yazar yönetici/moderatörse) gösterilir; rütbe düşerse/ayrıcalık kapanırsa imza gizlenir ama silinmez.
   Beklenen veri: yazar { imza, rutbe_id, yazar_rol }. Yönetici/moderatör bütün ayrıcalıklardan muaf: imza her zaman görünür.

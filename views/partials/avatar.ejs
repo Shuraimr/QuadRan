@@ -1,4 +1,10 @@
 <%#
+  Avatar: <img> if there is a picture, otherwise the first letter of the username. Use this everywhere (sql/18: avatar_url).
+  Expected: ad (username), url (avatar_url or empty), sus (avatar_susu or empty; only filled for premium members),
+  sinif (size class such as "avatar-36", optional), etiket ("span" default | "a" | "button"), href (for a),
+  ek (fixed attribute text: only constants from the template, NOT user data), oynat (bool: the decoration always plays; otherwise
+  still like in lists, plays once on hover), tum (bool: preview, all 6 decorations at once), bos (bool: decorative, hide from screen readers)
+
   Avatar: resim varsa <img>, yoksa kullanıcı adının ilk harfi. Her yerde bunu kullan (sql/18: avatar_url).
   Beklenen: ad (kullanıcı adı), url (avatar_url ya da boş), sus (avatar_susu ya da boş; yalnızca premium üyede dolu gelir),
   sinif ("avatar-36" gibi boyut sınıfı, isteğe bağlı), etiket ("span" varsayılan | "a" | "button"), href (a için),

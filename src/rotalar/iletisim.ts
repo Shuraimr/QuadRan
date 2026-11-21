@@ -1,3 +1,4 @@
+// Communication: direct messages, notifications, general chat.
 // İletişim: özel mesajlar, bildirimler, genel sohbet.
 import express from "express";
 import { pool } from "../db.ts";
@@ -8,6 +9,13 @@ import { hubVerisi } from "../odalar.ts";
 
 export const iletisim = express.Router();
 
+// ---------------------------------------------------------------------------
+// Direct messages
+//   /mesajlar              conversation list
+//   /mesajlar/:kullanici   that conversation is open in the list
+//
+// Conversation list: for each row in the messages table the "other party" is the recipient if I sent it,
+// and the sender if it came to me. We find the other party with CASE and group by it.
 // ---------------------------------------------------------------------------
 // Özel mesajlar
 //   /mesajlar              konuşma listesi
@@ -58,11 +66,13 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
     if (!kisi) return next();
     if (kisi.id === ben.id) return res.redirect("/mesajlar");
 
+    // Opening the conversation marks unread messages sent to me as read (the other party sees "Görüldü" / Seen)
     // Konuşmayı açınca bana gelen okunmamış mesajlar okundu olur (karşı taraf "Görüldü" görür)
     await pool.query(
       "UPDATE messages SET read_at = NOW() WHERE sender_id = ? AND receiver_id = ? AND read_at IS NULL",
       [kisi.id, ben.id]
     );
+    // Messages just read should also drop out of the count in the top bar
     // Az önce okunanlar üst çubuktaki sayıdan da düşsün
     const [[kalan]]: any = await pool.query("SELECT COUNT(*) AS n FROM messages WHERE receiver_id = ? AND read_at IS NULL", [ben.id]);
     res.locals.okunmamisMesaj = Number(kalan.n);
@@ -75,10 +85,13 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
         ORDER BY id DESC LIMIT 200`,
       [ben.id, ben.id, kisi.id, kisi.id, ben.id]
     );
+    // We fetched the last 200 messages newest to oldest; the template wants oldest to newest
     // Son 200 mesajı yeniden eskiye aldık; şablon eskiden yeniye istiyor
     mesajlar.reverse();
     for (const m of mesajlar) { m.benim = !!m.benim; m.silindi = !!m.silindi; }
+    // durum: text box or block/permission card (mesajDurumu, src/gizlilik.ts)
     // durum: yazı kutusu mu, engel/izin kartı mı (mesajDurumu, src/gizlilik.ts)
+    // avatar_url/avatar_susu are sent too: the other party's profile photo in the header (it used to show only the initial)
     // avatar_url/avatar_susu da gider: başlıkta karşı tarafın profil fotoğrafı (eskiden yalnızca baş harf çıkıyordu)
     acik = { kullanici: kisi.username, avatar_url: kisi.avatar_url, avatar_susu: kisi.avatar_susu, rutbe: kisi.rutbe, rutbe_id: kisi.rutbe_id, yazar_rol: kisi.yazar_rol, cevrimici: !!kisi.cevrimici, durum: await mesajDurumu(ben.id, kisi.id), mesajlar };
   }
@@ -86,6 +99,7 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
   res.render("mesajlar", { q, konusmalar: await konusmalar(ben.id, q), acik, aktifMenu: "sohbet" });
 }
 
+// Search users for a new message: myself, deleted accounts and people with a block between us (in either direction) do not appear.
 // Yeni mesaj için kullanıcı ara: kendim, silinmiş hesaplar ve aramızda engel olan (iki yönde de) kişiler çıkmaz.
 async function kisiAra(benId: number, q: string) {
   if (!q) return [];
@@ -100,12 +114,15 @@ async function kisiAra(benId: number, q: string) {
   return satirlar as { username: string; rutbe: string | null }[];
 }
 
+// The JSON endpoint used by JS. NOTE: "yeni" is a valid username format but /mesajlar/yeni goes to this page;
+// so hesap.ts treats "yeni" as a reserved name ("kisi-ara" contains a hyphen so it cannot be a username anyway).
 // JS'in kullandığı JSON ucu. NOT: "yeni" geçerli bir kullanıcı adı biçimidir ama /mesajlar/yeni bu sayfaya gider;
 // bu yüzden hesap.ts "yeni"yi ayrılmış ad sayar ("kisi-ara" tire içerdiği için zaten kullanıcı adı olamaz).
 iletisim.get("/mesajlar/kisi-ara", girisGerekli("Mesaj göndermek için giriş yapman gerekiyor."), async (req, res) => {
   res.json(await kisiAra(res.locals.kullanici.id, metin(req.query.q).slice(0, 32)));
 });
 
+// Without JS the same search opens as a page (the "yeni" flag in mesajlar.ejs)
 // JS yokken aynı arama bir sayfa olarak açılır (mesajlar.ejs "yeni" bayrağı)
 iletisim.get("/mesajlar/yeni", girisGerekli("Mesaj göndermek için giriş yapman gerekiyor."), async (req, res) => {
   const ben = res.locals.kullanici;
@@ -130,6 +147,8 @@ iletisim.post("/mesajlar/:kullanici", girisGerekli("Mesaj göndermek için giri�
     return res.redirect(adres);
   }
 
+  // Block / direct message permission: the page already hides the text box but this is the real protection (the form can also be submitted by hand).
+  // We do not say which reason it is (see src/gizlilik.ts).
   // Engel / özel mesaj izni: sayfa yazı kutusunu zaten gizler ama asıl koruma burası (form elle de gönderilebilir).
   // Hangi sebep olduğunu söylemiyoruz (bkz. src/gizlilik.ts).
   const durum = await mesajDurumu(ben.id, kisi.id);
@@ -153,6 +172,8 @@ iletisim.post("/mesajlar/:kullanici", girisGerekli("Mesaj göndermek için giri�
   res.redirect(`${adres}#m-${sonuc.insertId}`);
 });
 
+// Delete your own message: soft delete (deleted_at). You cannot touch someone else's message: the query requires sender_id = me.
+// The row stays, so a "This message was deleted" placeholder shows in the conversation and the report record is not broken.
 // Kendi mesajını sil: yumuşak silme (deleted_at). Başkasının mesajına dokunamaz: sorgu sender_id = ben şartını arar.
 // Satır kalır, böylece konuşmada "Bu mesaj silindi" yer tutucusu görünür ve şikâyet kaydı bozulmaz.
 iletisim.post("/mesajlar/mesaj/:id/sil", girisGerekli(), async (req, res, next) => {
@@ -164,12 +185,13 @@ iletisim.post("/mesajlar/mesaj/:id/sil", girisGerekli(), async (req, res, next) 
           WHERE messages.id = ? AND messages.sender_id = ?`, [id, ben.id])
     : [[]];
   const m = satirlar[0];
-  if (!m) return next(); // yok ya da başkasının: 404 (varlığını da söylemiyoruz)
+  if (!m) return next(); // does not exist or is someone else's: 404 (we do not reveal its existence either) · yok ya da başkasının: 404 (varlığını da söylemiyoruz)
   await pool.query("UPDATE messages SET deleted_at = COALESCE(deleted_at, NOW()) WHERE id = ?", [m.id]);
   bildir(req, "basari", "Mesajın silindi");
   res.redirect("/mesajlar/" + encodeURIComponent(m.karsi));
 });
 
+// Block / unblock. The address uses the username; it returns to the page it came from (profile, messages, settings).
 // Engelle / engeli kaldır. Adres kullanıcı adıyla; geldiği sayfaya (profil, mesajlar, ayarlar) döner.
 async function engelHedefi(req: express.Request, res: express.Response) {
   const [satirlar]: any = await pool.query("SELECT id, username FROM users WHERE username = ? AND deleted_at IS NULL", [req.params.kullanici]);
@@ -188,7 +210,7 @@ iletisim.post("/engel/:kullanici", girisGerekli(), async (req, res, next) => {
   if (hedef === undefined) return;
   if (!hedef) return next();
   await pool.query("INSERT IGNORE INTO user_blocks (blocker_id, blocked_id) VALUES (?, ?)", [res.locals.kullanici.id, hedef.id]);
-  await takipleriSil(res.locals.kullanici.id, hedef.id); // engel takibi de bitirir (src/gizlilik.ts)
+  await takipleriSil(res.locals.kullanici.id, hedef.id); // a block also ends following (src/gizlilik.ts) · engel takibi de bitirir (src/gizlilik.ts)
   bildir(req, "basari", `${hedef.username} engellendi`);
   res.redirect(geriAdres(req, "/mesajlar"));
 });
@@ -202,6 +224,8 @@ iletisim.post("/engel/:kullanici/kaldir", girisGerekli(), async (req, res, next)
   res.redirect(geriAdres(req, "/mesajlar"));
 });
 
+// ---------------------------------------------------------------------------
+// Notifications
 // ---------------------------------------------------------------------------
 // Bildirimler
 // ---------------------------------------------------------------------------
@@ -218,6 +242,8 @@ iletisim.get("/bildirimler", girisGerekli("Bildirimlerin için giriş yapman ger
       LIMIT 100`,
     [ben.id]
   );
+  // This page also uses the name "bildirimler"; the bell panel in the top bar reads the same name.
+  // We set the fields for both so that the panel renders correctly on this page too.
   // Bu sayfa da "bildirimler" adını kullanıyor; üst çubuktaki zil paneli de aynı adı okur.
   // İkisinin de alanlarını koyuyoruz ki panel bu sayfada da düzgün çizilsin.
   const bildirimler = satirlar.map((n: any) => ({
@@ -230,6 +256,7 @@ iletisim.get("/bildirimler", girisGerekli("Bildirimlerin için giriş yapman ger
   res.render("bildirimler", { filtre, bildirimler, okunmamis_sayisi: res.locals.okunmamisBildirim, aktifMenu: "bildirimler" });
 });
 
+// When a notification is clicked: mark it read, go to the real address
 // Bir bildirime tıklanınca: okundu yap, asıl adrese git
 iletisim.get("/bildirimler/:id", girisGerekli(), async (req, res, next) => {
   const id = sayi(req.params.id);
@@ -248,6 +275,8 @@ iletisim.post("/bildirimler/okundu", girisGerekli(), async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// General chat (not live: new messages appear when the page is refreshed)
+// ---------------------------------------------------------------------------
 // Genel sohbet (canlı değil: sayfa yenilenince yeni mesajlar görünür)
 // ---------------------------------------------------------------------------
 async function sohbetVerisi() {
@@ -260,6 +289,7 @@ async function sohbetVerisi() {
         ORDER BY chat_messages.id DESC LIMIT 50
      ) AS son ORDER BY id`
   );
+  // People who opened any page in the last 5 minutes (oturum.ts updates last_seen_at)
   // Son 5 dakikada herhangi bir sayfa açanlar (oturum.ts last_seen_at'i günceller)
   const [cevrimici] = await pool.query(
     `SELECT username FROM users
@@ -269,6 +299,9 @@ async function sohbetVerisi() {
   return { mesajlar, cevrimici };
 }
 
+// Chat hub: for members a list on the left (general chat + invitations + my rooms), the open chat on the right (here, general chat).
+// Guests only read the general chat (the old layout). Both /sohbet and /oda/yeni (the no-JS "Create room" page) render this.
+// genelAcik: on phones the list and the conversation are separate views; ?genel=1 opens the conversation (it also stays open on an error).
 // Sohbet merkezi: üyeler için solda liste (genel sohbet + davetler + odalarım), sağda açık sohbet (burada genel sohbet).
 // Misafirler yalnızca genel sohbeti okur (eski düzen). Hem /sohbet hem /oda/yeni (JS'siz "Oda aç" sayfası) bunu çizer.
 // genelAcik: telefonda liste ve konuşma ayrı görünümdür; ?genel=1 konuşmayı açar (hata durumunda da açık kalır).
@@ -279,6 +312,7 @@ export async function sohbetSayfasi(req: express.Request, res: express.Response,
     hub: ben ? await hubVerisi(ben) : null,
     genelAcik: !!req.query.genel,
     aktifOda: 0, panelAcik: "", aktifMenu: "sohbet",
+    // List filter: All (general + rooms + DMs, by last message) | Rooms. The DM tab is the /mesajlar page.
     // Liste filtresi: Hepsi (genel + odalar + DM, son mesaja göre) | Odalar. DM sekmesi /mesajlar sayfasıdır.
     sohbetFiltre: req.query.f === "oda" ? "oda" : "hepsi",
     ...ekstra,

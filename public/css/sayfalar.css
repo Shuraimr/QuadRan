@@ -1,7 +1,11 @@
-/* QuadRan · sayfa stilleri: mesajlar, bildirimler, ara, sıralama, sohbet, moderasyon, şifre.
-   Yalnızca quadran.css'te olmayanlar burada. Renkler hep değişkenlerden gelir.
+/* rubyyard · page styles: messages, notifications, search, ranking, chat, moderation, password.
+   Only what is not in rubyyard.css lives here. Colors always come from variables.
+   Class names start with the page prefix: mesaj-, bildirimler-, ara-, siralama-, sohbet-, moderasyon-, sifre-. */
+/* rubyyard · sayfa stilleri: mesajlar, bildirimler, ara, sıralama, sohbet, moderasyon, şifre.
+   Yalnızca rubyyard.css'te olmayanlar burada. Renkler hep değişkenlerden gelir.
    Sınıf adları sayfa önekiyle başlar: mesaj-, bildirimler-, ara-, siralama-, sohbet-, moderasyon-, sifre-. */
 
+/* ---------- Messages ---------- */
 /* ---------- Mesajlar ---------- */
 .mesaj-sayfa { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 16px; max-width: 1240px; margin: 0 auto; padding: 24px; height: calc(100dvh - 64px); }
 .mesaj-liste, .mesaj-pano { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -15,7 +19,9 @@
 .mesaj-satir:hover { background: var(--yuzey-2); }
 .mesaj-satir.aktif { background: var(--ton); color: var(--ton-ustu); }
 .mesaj-satir.aktif .ikincil { color: var(--ton-ustu); opacity: .8; }
-.mesaj-satir-govde { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; } /* sütun tanımı olmazsa uzun önizleme (bağlantı) sütunu genişletip satırı taşırıyordu */
+/* without a column definition a long preview (link) would widen the column and overflow the row */
+/* sütun tanımı olmazsa uzun önizleme (bağlantı) sütunu genişletip satırı taşırıyordu */
+.mesaj-satir-govde { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
 .mesaj-satir-ust { display: flex; align-items: baseline; gap: 8px; }
 .mesaj-satir-ust strong { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mesaj-satir-ust .kucuk { font-size: 12px; flex: none; }
@@ -44,6 +50,7 @@
 .mesaj-bos h2 { font-family: var(--baslik-tipi); font-size: 22px; color: var(--yazi); }
 .mesaj-bos-ikon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 18px; background: var(--ton); color: var(--ton-ustu); }
 
+/* ---------- Notifications ---------- */
 /* ---------- Bildirimler ---------- */
 .bildirimler-sayfa { display: grid; gap: 20px; max-width: 760px; margin: 0 auto; padding: 32px 24px 64px; }
 .bildirimler-ust { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -63,6 +70,7 @@
 .bildirimler-nokta { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--vurgu); }
 .bildirimler-nokta-yer { flex: none; width: 10px; }
 
+/* ---------- Search ---------- */
 /* ---------- Ara ---------- */
 .ara-sayfa { display: grid; gap: 20px; max-width: 880px; margin: 0 auto; padding: 32px 24px 64px; }
 .ara-form { display: flex; gap: 8px; }
@@ -73,9 +81,13 @@
 .ara-sekmeler { max-width: 100%; }
 .ara-sekmeler .siralama { max-width: 100%; }
 .ara-sekmeler .siralama a { min-width: 0; flex: 1 1 auto; white-space: nowrap; }
+/* Profile tabs number 4 on one's own profile (Topics, Comments, Activity, Points history): so that, if they do not fit on a phone, they
+   do not widen the column and clip the page on the right, the column may shrink (min-width: 0) and the bar scrolls horizontally. */
 /* Profil sekmeleri kendi profilinde 4 tane (Konular, Yorumlar, Etkinlik, Puan geçmişi): telefonda sığmazsa sütunu
    genişletip sayfayı sağdan kesmesin diye sütun daralabilir (min-width: 0) ve çubuk yatay kaydırılır. */
-.profil, .profil .sutun { grid-template-columns: minmax(0, 1fr); } /* tek sütun: sekme şeridi (max-content) sütunu genişletip 320px ekranda yatay taşma yapmasın */
+/* single column: the tab strip (max-content) must not widen the column and cause horizontal overflow on a 320px screen */
+/* tek sütun: sekme şeridi (max-content) sütunu genişletip 320px ekranda yatay taşma yapmasın */
+.profil, .profil .sutun { grid-template-columns: minmax(0, 1fr); }
 .profil > * { min-width: 0; }
 .profil .siralama { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .profil .siralama a { min-width: 0; flex: 0 0 auto; white-space: nowrap; }
@@ -99,6 +111,7 @@
 .ara-etiketler a { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--kenar); border-radius: 20px; font-size: 14px; font-weight: 600; }
 .ara-etiketler a:hover { background: var(--yuzey-2); }
 
+/* ---------- Ranking ---------- */
 /* ---------- Sıralama ---------- */
 .siralama-sayfa { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px 32px; align-items: start; max-width: 1136px; margin: 0 auto; padding: 32px 24px 64px; }
 .siralama-ana { display: grid; gap: 20px; min-width: 0; }
@@ -137,6 +150,7 @@
 .siralama-rutbe .esik { margin-left: auto; font-weight: 700; color: var(--yazi-2); white-space: nowrap; }
 .siralama-rutbe.simdiki .esik { color: var(--vurgu); }
 
+/* ---------- Chat ---------- */
 /* ---------- Sohbet ---------- */
 .sohbet-sayfa { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; max-width: 1136px; margin: 0 auto; padding: 24px; height: calc(100dvh - 64px); }
 .sohbet-pano { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -167,6 +181,7 @@
 .sohbet-kurallar li { display: flex; gap: 10px; counter-increment: k; }
 .sohbet-kurallar li::before { content: counter(k); font-weight: 700; color: var(--vurgu); }
 
+/* ---------- Moderation ---------- */
 /* ---------- Moderasyon ---------- */
 .moderasyon-sayfa { display: grid; gap: 20px; max-width: 920px; margin: 0 auto; padding: 32px 24px 64px; }
 .moderasyon-sayfa h1 { font-family: var(--baslik-tipi); font-size: 28px; }
@@ -193,13 +208,16 @@
 .moderasyon-eylem form { display: contents; }
 .moderasyon-erisim { display: grid; justify-items: center; gap: 8px; padding: 48px 24px; text-align: center; }
 
+/* ---------- Forgot password ---------- */
 /* ---------- Şifremi unuttum ---------- */
 .sifre-ikon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--ton); color: var(--ton-ustu); }
 .sifre-aciklama { font-size: 14px; color: var(--yazi-2); }
 .sifre-basari { display: grid; gap: 16px; justify-items: start; }
 
 /* ---------- Tablet ---------- */
+/* ---------- Tablet ---------- */
 @media (max-width: 1180px) {
+  /* On tablet the list and the conversation fit side by side: the list narrows (280px). It only switches to a single column below 960px. */
   /* Tablette liste ve konuşma yan yana sığar: liste daralır (280px). Tek sütuna yalnızca 960px altında geçilir. */
   .mesaj-sayfa { grid-template-columns: 280px minmax(0, 1fr); padding: 16px 20px; }
   .siralama-sayfa { grid-template-columns: minmax(0, 1fr); max-width: 808px; }
@@ -214,6 +232,7 @@
   .mesaj-geri { display: grid; }
 }
 
+/* ---------- Mobile ---------- */
 /* ---------- Mobil ---------- */
 @media (max-width: 800px) {
   .mesaj-sayfa, .sohbet-sayfa { height: calc(100dvh - 56px - 88px); padding: 12px; }
@@ -236,7 +255,7 @@
   .siralama-kart .avatar { width: 40px; height: 40px; border-radius: 12px; font-size: 16px; }
   .siralama-kart.birinci .avatar { width: 52px; height: 52px; border-radius: 14px; font-size: 20px; }
   .siralama-kart strong { font-size: 13px; }
-  .siralama-kart .rozet { display: none; } /* rütbe çipi telefonda da görünür */
+  .siralama-kart .rozet { display: none; } /* the rank chip stays visible on phones too · rütbe çipi telefonda da görünür */
   .siralama-puan { font-size: 16px; }
   .siralama-tablo .gizle-mobil { display: none; }
   .siralama-tablo th:first-child, .siralama-tablo td:first-child { padding-left: 12px; width: 40px; }
@@ -250,6 +269,7 @@
   .moderasyon-durum { margin-left: 0; }
 }
 
+/* ---------- Report flag in chat and direct messages ---------- */
 /* ---------- Sohbet ve özel mesajda şikâyet bayrağı ---------- */
 .sohbet-mesaj { align-items: flex-start; }
 .sohbet-bayrak { align-self: center; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: var(--yazi-2); opacity: 0; transition: opacity .15s; }
@@ -262,10 +282,12 @@
 .moderasyon-baglam-satir.hedef { background: var(--ton); color: var(--ton-ustu); }
 .moderasyon-baglam-satir.hedef strong { color: inherit; }
 
+/* ---------- Direct messages: new message, message menu, header, block card ---------- */
 /* ---------- Özel mesajlar: yeni mesaj, mesaj menüsü, üst bilgi, engel kartı ---------- */
 .mesaj-liste-baslik { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .yeni-mesaj-dugme { flex: none; height: 40px; padding: 0 16px; gap: 8px; border-radius: 20px; font-size: 14px; }
 
+/* Header: avatar + name as a single link (the only way to the profile); status line under the name */
 /* Üst bilgi: avatar + ad tek bağlantı (profile giden tek yol); durum satırı adın altında */
 .mesaj-ust-kimlik { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border-radius: 12px; }
 .mesaj-ust-bilgi strong { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -276,6 +298,7 @@
 .mesaj-ust-menu-dugme { flex: none; }
 .mesaj-yeni-baslik { font-family: var(--baslik-tipi); font-size: 20px; }
 
+/* Bubble + ⋮ button side by side; on my own message the button moves to the left of the bubble */
 /* Balon + ⋮ düğmesi yan yana; kendi mesajımda düğme balonun soluna geçer */
 .mesaj-satiri { display: flex; align-items: center; gap: 4px; max-width: min(82%, 600px); }
 .mesaj-grup.ben .mesaj-satiri { flex-direction: row-reverse; }
@@ -285,17 +308,22 @@
   opacity: 0; transition: opacity var(--sure-orta, .15s) ease, background-color var(--sure-orta, .15s) ease;
 }
 .mesaj-menu-dugme:hover { background: var(--yuzey-2); color: var(--yazi); }
+/* Visible on hover or focus on desktop; stays visible while the menu is open */
 /* Masaüstünde üzerine gelince ya da odaklanınca görünür; menü açıkken de görünür kalır */
 .mesaj-satiri:hover .mesaj-menu-dugme, .mesaj-menu-dugme:focus-visible, .mesaj-satiri:has(.mesaj-menusu:popover-open) .mesaj-menu-dugme { opacity: 1; }
+/* No hover on touch screens: always visible */
 /* Dokunmatikte üzerine gelme yok: hep görünür */
 @media (hover: none) { .mesaj-menu-dugme { opacity: 1; } }
 .mesaj-menusu { min-width: 200px; }
+/* Copy only works with JS: without JS it does not show in the menu at all */
 /* Kopyala yalnızca JS'le çalışır: JS yokken menüde hiç görünmez */
 .mesaj-kopyala { display: none; }
 .js .mesaj-kopyala { display: flex; }
+/* Deleted message: a dashed-border, unfilled placeholder */
 /* Silinmiş mesaj: kesikli çerçeveli, dolgusuz yer tutucu */
 .mesaj-grup .mesaj-balon.silindi, .mesaj-grup.ben .mesaj-balon.silindi { background: transparent; border: 1px dashed var(--kenar); color: var(--yazi-2); font-style: italic; }
 
+/* Blocked / not permitted: a centered card in place of the text box */
 /* Engel / izin yok: yazı kutusunun yerine ortalı kart */
 .mesaj-kilit { display: grid; justify-items: center; gap: 6px; padding: 20px 16px; border-top: 1px solid var(--kenar-ince); text-align: center; }
 .mesaj-kilit strong { font-size: 15px; }
@@ -303,6 +331,7 @@
 .mesaj-kilit .mesaj-bos-ikon { width: 48px; height: 48px; border-radius: 16px; }
 .mesaj-kilit form { margin-top: 8px; }
 
+/* New message: search (the same piece in the window and on the /mesajlar/yeni page) */
 /* Yeni mesaj: arama (pencerede ve /mesajlar/yeni sayfasında aynı parça) */
 .mesaj-yeni { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 12px; padding: 16px; }
 .kisi-ara-form { display: flex; align-items: center; gap: 8px; }
@@ -320,6 +349,7 @@
 .yeni-mesaj-ic { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 12px; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 20px; }
 .yeni-mesaj-ust { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .yeni-mesaj-ust h2 { font-family: var(--baslik-tipi); font-size: 20px; }
+/* In the window search runs as you type: the "Search" button is unnecessary (Enter goes to /mesajlar/yeni too) */
 /* Pencerede arama yazdıkça çalışır: "Ara" düğmesi gereksiz (Enter de /mesajlar/yeni'ye gider) */
 .yeni-mesaj-penceresi .kisi-ara-gonder { display: none; }
 @media (max-width: 800px) {
@@ -328,6 +358,7 @@
   .mesaj-ust-menu-dugme { width: 48px; height: 48px; }
 }
 
+/* ---------- Discover (/kesfet) ---------- */
 /* ---------- Keşfet (/kesfet) ---------- */
 .kesfet { display: grid; gap: 20px; max-width: 720px; margin: 0 auto; padding: 16px 16px 40px; }
 .kesfet h1 { font-family: var(--baslik-tipi); font-size: 28px; }
@@ -347,8 +378,14 @@
 .kesfet-lider:hover { background: color-mix(in srgb, var(--yazi) 6%, transparent); }
 .kesfet-lider strong { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
 .kesfet-sira { width: 20px; font-family: var(--baslik-tipi); font-size: 18px; font-weight: 700; color: var(--vurgu); }
-.kesfet .bolum-etiketi { display: block; } /* telefonda genel ".bolum-etiketi" gizleme kuralını geçersiz kıl: burada bölüm başlığıdır */
+/* override the general ".bolum-etiketi" hiding rule on phones: here it is the section title */
+/* telefonda genel ".bolum-etiketi" gizleme kuralını geçersiz kıl: burada bölüm başlığıdır */
+.kesfet .bolum-etiketi { display: block; }
 
+/* =====================================================================
+   Private rooms (sql/12) and the chat hub
+   The left list and the conversation use the same master/detail layout as /mesajlar (.mesaj-sayfa, .mesaj-liste, .mesaj-pano, separate views below 960px).
+   ===================================================================== */
 /* =====================================================================
    Özel odalar (sql/12) ve sohbet merkezi
    Sol liste ve konuşma /mesajlar ile aynı ana/ayrıntı düzenini kullanır (.mesaj-sayfa, .mesaj-liste, .mesaj-pano, 960px altında ayrı görünümler).
@@ -359,6 +396,7 @@
 .oda-avatar-80 { width: 80px; height: 80px; border-radius: 22px; font-size: 34px; }
 .oda-avatar.genel { background: var(--yuzey-3); color: var(--yazi-2); }
 
+/* Left list: the header is fixed, the rest (invitations, general chat, my rooms) scrolls */
 /* Sol liste: başlık sabit, geri kalanı (davetler, genel sohbet, odalarım) kayar */
 .oda-liste .mesaj-liste-ust { padding-bottom: 8px; }
 .oda-liste-kaydir { flex: 1; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 10px; padding: 0 8px 12px; }
@@ -371,6 +409,7 @@
 .oda-sessiz { display: grid; flex: none; color: var(--yazi-2); }
 .mesaj-rozet.sessiz { background: var(--yuzey-3); color: var(--yazi-2); }
 
+/* Without permission to create rooms: a dashed lock card. Pending invitation: a yellow (waiting) card */
 /* Oda açma izni yoksa: kesikli kilit kartı. Bekleyen davet: sarı (bekliyor) kart */
 .kilit-kart { display: flex; align-items: flex-start; gap: 10px; margin: 0 4px; padding: 12px 14px; border: 1px dashed var(--kenar); border-radius: 16px; color: var(--yazi-2); font-size: 13px; line-height: 1.45; }
 .kilit-kart svg { flex: none; margin-top: 1px; }
@@ -381,11 +420,13 @@
 .oda-davet-eylem form { flex: 1; display: block; }
 .oda-davet-eylem .buton { width: 100%; height: 40px; }
 
+/* Room header */
 /* Oda başlığı */
 .oda-ust-kimlik { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
 .oda-ust .mesaj-ust-bilgi strong { display: flex; align-items: center; min-width: 0; }
 .oda-aciklama { margin: 0; padding: 8px 16px; border-bottom: 1px solid var(--kenar-ince); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* Messages: system line, dashed chip for a blocked person, ⋮ button */
 /* Mesajlar: sistem satırı, engellenen kişinin kesikli çipi, ⋮ düğmesi */
 .oda-sistem { justify-self: center; max-width: 92%; margin: 8px 0; padding: 4px 12px; border-radius: 12px; background: var(--yuzey-2); color: var(--yazi-2); font-size: 12px; text-align: center; overflow-wrap: anywhere; }
 .oda-engelli { min-width: 0; max-width: 100%; padding: 6px 12px; border: 1px dashed var(--kenar); border-radius: 14px; color: var(--yazi-2); font-size: 13px; }
@@ -399,13 +440,16 @@
 .oda-rol.rol-sahip { background: var(--vurgu); color: var(--vurgu-ustu); }
 .oda-rol.rol-yonetici { background: var(--ton); color: var(--ton-ustu); }
 
+/* General chat (in the center): online users and rules open under the header */
 /* Genel sohbet (merkezde): çevrimiçi ve kurallar başlığın altında açılır */
 .sohbet-bilgi { border-bottom: 1px solid var(--kenar-ince); font-size: 13px; }
 .sohbet-bilgi summary { cursor: pointer; padding: 8px 20px; color: var(--yazi-2); }
 .sohbet-bilgi-ic { display: grid; gap: 14px; max-height: 40vh; overflow-y: auto; padding: 4px 20px 14px; }
 
+/* Windows */
 /* Pencereler */
 .oda-pencere::backdrop { background: rgb(0 0 0 / .55); }
+/* Without JS the window is drawn "open" (without being modal): at a fixed position, with the surroundings darkened */
 /* JS yokken pencere "açık" çizilir (modal olmadan): sabit konumda, çevresi kararır */
 .oda-pencere[open]:not(:modal) { position: fixed; inset: 0; z-index: 60; height: fit-content; box-shadow: 0 0 0 100vmax rgb(0 0 0 / .55), var(--kat-2); }
 .oda-hakkinda { margin: 0; overflow-wrap: anywhere; }
@@ -440,6 +484,7 @@
 .oda-tehlike .onay { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .oda-yol-listesi { display: grid; gap: 8px; margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.5; }
 
+/* Invitation link page */
 /* Davet bağlantısı sayfası */
 .oda-katil { display: grid; justify-items: center; padding: 40px 16px; }
 .oda-katil-kart { display: grid; justify-items: center; gap: 12px; width: min(440px, 100%); padding: 32px 24px; text-align: center; }
@@ -449,6 +494,7 @@
 .oda-katil-kart form { width: 100%; margin-top: 4px; }
 .oda-katil-kart .mesaj-bos-ikon { width: 56px; height: 56px; }
 
+/* Unread room dot in the menu: in the wide sidebar the icon is 20px and the dot sits at the icon's corner */
 /* Menüdeki okunmamış oda noktası: geniş kenar çubuğunda simge 20px, nokta simgenin köşesine oturur */
 @media (min-width: 1181px) { .kenar-menu .menu-nokta { top: -4px; right: -5px; } }
 
@@ -459,6 +505,7 @@
   .sohbet-bilgi summary { padding: 12px 14px; }
   .sohbet-bilgi-ic { padding: 4px 14px 14px; }
 }
+/* While the list is shown on phones (no conversation open) no row is highlighted as "open": general chat is the default open conversation only on desktop/tablet */
 /* Telefonda listeyi gösterirken (konuşma açık değil) hiçbir satır "açık" vurgulanmaz: genel sohbet yalnızca masaüstü/tablette varsayılan açık konuşmadır */
 @media (max-width: 960px) {
   .sohbet-merkez:not(.mesaj-acik) .mesaj-satir.aktif { background: none; color: inherit; }
@@ -467,6 +514,7 @@
   .sohbet-merkez:not(.mesaj-acik) .mesaj-satir.aktif .mesaj-onizleme { color: var(--yazi-2); }
 }
 @media (max-width: 800px) {
+  /* The ⋮ button stays visually 32px (so each message row does not bloat) but its touch area grows to 44px */
   /* ⋮ düğmesi görsel olarak 32px kalır (her mesaj satırı şişmesin) ama dokunma alanı 44px'e genişler */
   .sohbet-mesaj .mesaj-menu-dugme { position: relative; }
   .sohbet-mesaj .mesaj-menu-dugme::after { content: ""; position: absolute; inset: -6px; }
@@ -474,9 +522,11 @@
 
 .kilit-kart .rutbe-cip { margin: 0 2px; }
 .kilit-ek { display: block; margin-top: 4px; }
+/* Signature: small, faint, one line under the message */
 /* İmza: mesajın altında küçük, soluk, tek satır */
 .imza { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--kenar-ince); color: var(--yazi-2); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
 
+/* Solution: the answer accepted by the topic owner sits under the first message with a green border and a "Çözüm" (Solution) chip */
 /* Çözüm: konu sahibinin kabul ettiği cevap yeşil kenarlı, "Çözüm" çipiyle ilk mesajın altında sabit durur */
 .yorum.cozum { border-color: var(--cozum); box-shadow: 0 0 0 1px var(--cozum), var(--kat-1); }
 .cozum-cip {
@@ -484,8 +534,10 @@
   color: var(--cozum); background: color-mix(in srgb, var(--cozum) 16%, transparent); border: 1px solid color-mix(in srgb, var(--cozum) 45%, transparent);
 }
 
+/* ---------- Rank system (sql/13) ---------- */
 /* ---------- Rütbe sistemi (sql/13) ---------- */
 .siralama-baslik { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+/* Profile: rank card */
 /* Profil: rütbe kartı */
 .rutbe-ust { display: flex; align-items: center; gap: 14px; }
 .rutbe-ilerleme { display: grid; gap: 8px; }
@@ -496,10 +548,12 @@
 .rutbe-acilacak { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
 .rutbe-acilacak li { display: inline-flex; align-items: center; gap: 6px; }
 .rutbe-alt { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+/* Profile: points history */
 /* Profil: puan geçmişi */
 .puan-gecmisi { display: grid; padding: 4px 0; }
 .puan-satir { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--kenar-ince); }
 .puan-satir:last-child { border-bottom: 0; }
+/* Points history pagination: "En yeni" (newest) on the left, "Daha eski" (older) on the right; touch target ≥44px */
 /* Puan geçmişi sayfalama: "En yeni" solda, "Daha eski" sağda; dokunma hedefi ≥44px */
 .puan-sayfa { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; }
 .puan-sayfa .baglanti { display: inline-flex; align-items: center; min-height: 44px; }
@@ -507,9 +561,11 @@
 .puan-miktar { font-family: var(--baslik-tipi); font-weight: 700; font-size: 18px; }
 .puan-miktar.artti, .puan-artti { color: var(--cozum); }
 .puan-miktar.azaldi { color: var(--hata); }
+/* /rutbeler page */
 /* /rutbeler sayfası */
 .rutbeler-sayfa { display: grid; gap: 20px; max-width: 760px; margin: 0 auto; padding: 32px 24px 64px; min-width: 0; }
 .yakinda { color: var(--yazi-2); }
+/* On phones there is a back row at the top (partials/geri-baslik.ejs): the page's top spacing is reduced */
 /* Telefonda üstte geri satırı var (partials/geri-baslik.ejs): sayfa üst boşluğu kısılır */
 @media (max-width: 800px) { .rutbeler-sayfa { padding-top: 12px; } }
 .rutbeler-baslik h1 { margin: 0 0 4px; }
@@ -531,6 +587,7 @@
   .rutbe-satir .rutbe-kutu { width: 40px; height: 40px; border-radius: 12px; }
 }
 
+/* The feed control is a SINGLE row: segment (Öne çıkan · Yeni · Takip) + Category button. It used to be three rows (category, source, sorting). */
 /* Akış kontrolü TEK satır: segment (Öne çıkan · Yeni · Takip) + Kategori düğmesi. Eskiden üç satırdı (kategori, kaynak, sıralama). */
 .akis-kontrol { display: flex; align-items: center; gap: 8px 12px; }
 .akis-segment { flex: 0 1 auto; min-width: 0; }
@@ -542,10 +599,13 @@
 .kategori-dugmesi:hover { background: var(--yuzey-2); }
 .kategori-dugmesi.secili { background: var(--ton); color: var(--ton-ustu); border-color: transparent; }
 .kategori-dugmesi-ad { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* On desktop the left menu already has the category list: the button is hidden (the same target does not appear twice) */
 /* Masaüstünde sol menüde kategori listesi zaten var: düğme gizlenir (aynı hedef iki kez durmaz) */
 @media (min-width: 1181px) { .kategori-dugmesi { display: none; } }
 
-/* Kategori seçici: tablet/masaüstünde düğmenin altında açılır menü (konumu quadran.js verir), telefonda alttan açılan sayfa.
+/* Category picker: on tablet/desktop a dropdown under the button (position supplied by rubyyard.js), on phones a bottom sheet.
+   Not drawn at all without JS/popover (the button goes to the /kategoriler page). */
+/* Kategori seçici: tablet/masaüstünde düğmenin altında açılır menü (konumu rubyyard.js verir), telefonda alttan açılan sayfa.
    JS/popover yoksa hiç çizilmez (düğme /kategoriler sayfasına gider). */
 .kategori-secici { width: 320px; padding: 8px; }
 .kategori-secici-baslik { display: none; padding: 4px 12px 12px; font-family: var(--baslik-tipi); font-size: 18px; font-weight: 700; }
@@ -573,6 +633,7 @@
 @media (max-width: 420px) { .akis-segment a.aktif svg { display: none; } }
 @media (max-width: 360px) { .akis-kontrol { gap: 6px; } .akis-segment a { padding: 0 8px; } .kategori-dugmesi { padding: 0 8px 0 12px; } }
 
+/* Profile showcase: pinned topic + at most 3 badge cards. Badge cards sit side by side and wrap below on narrow screens (at least 200px). */
 /* Profil vitrini: sabit konu + en çok 3 rozet kartı. Rozet kartları yan yana, dar ekranda alta sarar (en az 200px). */
 .vitrin { display: grid; gap: 12px; }
 .vitrin-sabit { display: grid; gap: 8px; }
@@ -580,6 +641,7 @@
 .vitrin-rozet { display: grid; justify-items: start; align-content: start; gap: 6px; padding: 12px 16px; }
 .vitrin-bos { margin: 0; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .vitrin-bos .baglanti { display: inline-flex; align-items: center; min-height: 44px; }
+/* Activity row: icon + text + time; the icon has a fixed width, the text wraps if it overflows (no horizontal overflow) */
 /* Etkinlik satırı: ikon + metin + zaman; ikon sabit genişlikte, metin taşarsa kırılır (yatay taşma yok) */
 .etkinlik-satir { align-items: flex-start; }
 .etkinlik-ikon { flex: none; display: inline-flex; padding-top: 2px; }
@@ -592,12 +654,17 @@
   .etkinlik-zaman { flex-basis: 100%; padding-left: 32px; }
 }
 
+/* ---------- Status pages (404, 403, 429, 500, 503), empty states, offline strip (Figma 09 · Error and status pages) ----------
+   All use the same visual language: a rounded-square icon box (--yuzey-2 + thin border), Space Grotesk heading, secondary description.
+   Colors come only from tokens; dark/light theme and "Reduce animations" need no extra work. */
 /* ---------- Durum sayfaları (404, 403, 429, 500, 503), boş durumlar, çevrimdışı şeridi (Figma 09 · Hata ve durum sayfaları) ----------
    Hepsi aynı görsel dili kullanır: yuvarlatılmış kare ikon kutusu (--yuzey-2 + ince kenar), Space Grotesk başlık, ikincil açıklama.
    Renkler yalnızca token'lardan gelir; koyu/açık tema ve "Animasyonları azalt" ek iş istemez. */
 .durum-sayfa { display: grid; place-items: center; min-height: calc(100vh - 160px); padding: 32px 24px; }
 .orta-sayfa .durum-govde { position: relative; }
 .durum-govde { display: grid; justify-items: center; gap: 12px; width: 100%; max-width: 420px; text-align: center; }
+/* Stage: behind it a large code (404) drawn with only an outline, in front a tone-colored icon box. The icon box's thick border
+   in the background color "cuts" the digits: single color and gradient-free but with character. In use without a code (offline etc.) only the box remains. */
 /* Sahne: arkada yalnızca kenar çizgisiyle çizilmiş büyük kod (404), önünde ton renkli ikon kutusu. Kutunun zemin renginde kalın
    çerçevesi rakamı "keser": tek renk ve gradyansız ama karakterli. Kodsuz kullanımda (çevrimdışı vb.) yalnızca kutu kalır. */
 .durum-sahne { position: relative; display: grid; place-items: center; width: 100%; height: 136px; margin-bottom: 4px; }
@@ -615,6 +682,7 @@
 .durum-sahne:not(.durum-sahne-kodsuz) .durum-ikon { position: absolute; left: 50%; bottom: 0; margin-left: -32px; }
 .durum-cip { margin: 0; padding: 4px 10px; border-radius: 8px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); font-size: 12px; font-weight: 600; color: var(--yazi-2); }
 .durum-cip span { font-variant-numeric: tabular-nums; color: var(--yazi); }
+/* Entrance: the stage settles into place slightly, the text follows; under "Reduce animations" the durations are 0 so it goes straight to the final state */
 /* Giriş: sahne hafifçe yerine oturur, metin arkasından gelir; "Animasyonları azalt"ta süreler 0 olduğundan doğrudan son hâl */
 .durum-govde > * { animation: durum-gir var(--sure-yavas) var(--egri-cikis) both; }
 .durum-govde > :nth-child(2) { animation-delay: 40ms; }
@@ -622,6 +690,7 @@
 @keyframes durum-gir { from { opacity: 0; transform: translateY(8px); } }
 .durum-sahne .durum-ikon { animation: durum-ikon-gir var(--sure-yavas) var(--egri-yay) both 60ms; }
 @keyframes durum-ikon-gir { from { opacity: 0; transform: scale(.8); } }
+/* 404 suggestions: category chips (# name), in the site's side-menu style */
 /* 404 önerileri: kategori çipleri (# ad), sitedeki kenar menü diliyle */
 .durum-oneri { display: grid; justify-items: center; gap: 8px; width: 100%; margin-top: 8px; }
 .durum-oneri p { margin: 0; font-size: 13px; color: var(--yazi-2); }
@@ -645,6 +714,7 @@
   .durum-oneri a { min-height: 44px; }
 }
 
+/* Empty state: the small sibling of the status page inside a card (partials/bos-durum.ejs) */
 /* Boş durum: durum sayfasının kart içindeki küçük kardeşi (partials/bos-durum.ejs) */
 .bos-durum { display: grid; justify-items: center; gap: 8px; padding: 32px 24px; text-align: center; }
 .bos-durum-ikon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); color: var(--yazi-2); }
@@ -652,15 +722,19 @@
 .bos-durum-baslik { margin: 4px 0 0; font-family: var(--baslik-tipi); font-weight: 700; font-size: 18px; line-height: 1.3; }
 .bos-durum-metin { margin: 0; max-width: 360px; font-size: 14px; line-height: 1.5; color: var(--yazi-2); }
 .bos-durum .buton { margin-top: 8px; }
+/* Tighter in narrow side columns such as the chat and DM lists */
 /* Sohbet ve DM listeleri gibi dar yan sütunlarda daha sıkı */
 .bos-durum.dar { padding: 20px 12px; }
 
+/* "← Target" back row on phones (partials/geri-baslik.ejs): in sub-pages with no place in the bottom menu it sits at the top of the content.
+   On tablet and desktop the left menu/rail already exists; hidden there. */
 /* Telefonda "← Hedef" geri satırı (partials/geri-baslik.ejs): alt menüde yeri olmayan alt sayfalarda içerik başında durur.
    Tablet ve masaüstünde sol menü/ray zaten var; orada gizli. */
 .geri-baslik { display: none; align-items: center; gap: 4px; min-height: 44px; width: fit-content; margin-left: -4px; padding: 0 8px 0 4px; color: var(--vurgu); font-weight: 600; border-radius: 12px; }
 @media (max-width: 800px) { .geri-baslik { display: inline-flex; } }
 
-/* Bağlantı şeridi (quadran.js "offline"/"online"): üst çubuğun hemen altında yapışkan. Opak zemin: altından geçen içerik görünmesin. */
+/* Connection strip (rubyyard.js "offline"/"online"): sticky just under the top bar. Opaque background: content passing underneath must not show through. */
+/* Bağlantı şeridi (rubyyard.js "offline"/"online"): üst çubuğun hemen altında yapışkan. Opak zemin: altından geçen içerik görünmesin. */
 .cevrimdisi-serit {
   position: sticky; top: 64px; z-index: 9; display: flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 40px; padding: 8px 16px; font-size: 14px; font-weight: 600; text-align: center;

@@ -1,6 +1,10 @@
+/* Ruby (sql/22): icon colors, top-bar balance chip, /yakut shop + wallet, reward dialog, title chip.
+   Colors come only from variables; so the icon stays readable in dark/light themes, its own frame (--yakut-cerceve) is always dark.
+   Motion (animation) rules are switched off by the "reduced motion" block in rubyyard.css: since it sets animation: none !important there,
+   we did not write extra safeguards here; when it is off, the elements simply show in their final state. */
 /* Yakut (sql/22): simge renkleri, üst çubuk bakiye çipi, /yakut mağaza + cüzdan, ödül penceresi, unvan çipi.
    Renkler yalnızca değişkenlerden gelir; koyu/açık temada okunur kalması için simgenin kendi çerçevesi (--yakut-cerceve) sabit koyudur.
-   Hareket (animation) kuralları quadran.css'teki "azaltılmış hareket" bloğuyla kapanır: orada animation: none !important olduğu için
+   Hareket (animation) kuralları rubyyard.css'teki "azaltılmış hareket" bloğuyla kapanır: orada animation: none !important olduğu için
    burada ayrıca koruma yazmadık, kapanınca öğeler doğrudan son hâlinde görünür. */
 :root {
   --yakut-acik: #FF8A9A; --yakut-orta: #E5394F; --yakut-koyu: #A3122B; --yakut-golge: #6B0A1C;
@@ -13,16 +17,18 @@
 .yk-koyu { fill: var(--yakut-koyu); }
 .yk-golge { fill: var(--yakut-golge); }
 .yk-parilti, .yk-isilti { fill: var(--yakut-parilti); }
+/* The glints of the large icon are STATIC in the wallet (something that keeps blinking is distracting); they play once only in the reward dialog (.yakut-odul rules below) */
 /* Büyük simgenin ışıltıları cüzdanda DURAĞAN (sürekli yanıp sönen şey dikkat dağıtır); yalnızca ödül penceresinde bir kez oynar (.yakut-odul kuralları aşağıda) */
 .yk-isilti { transform-box: fill-box; transform-origin: center; }
 @keyframes yk-isilti { 0%, 100% { opacity: .25; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.1); } }
 
-/* ---------- Unvan çipi (yorumda, konuda, profilde ad yanında) ---------- */
+/* ---------- Title chip (next to the name in comments, topics, profile) · Unvan çipi (yorumda, konuda, profilde ad yanında) ---------- */
 .unvan-cip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 8px; background: var(--yuzey-3); border: 1px solid var(--kenar-ince); color: var(--yazi-2); font-size: 12px; font-weight: 600; line-height: 1.5; white-space: nowrap; max-width: 100%; }
+/* On a narrow screen name + rank + (PRE) title may not fit on one line: instead of overflowing it wraps to the next line */
 /* Dar ekranda ad + rütbe + (PRE) unvan tek satıra sığmayabilir: taşmak yerine alt satıra geçer */
 .yazar-satiri { flex-wrap: wrap; row-gap: 4px; }
 
-/* ---------- Premium unvan ("PRE") ----------
+/* ---------- Premium title ("PRE") · Premium unvan ("PRE") ----------
    Mor, ateşimsi ama göz yormayan: çipin üst kenarından en fazla ~6px taşan 3 küçük alev dili yavaşça (3-4 sn) yükselip söner.
    Açık temada okunur karşılıkları ayrı. Animasyon yalnızca :not([data-az-animasyon]) iken ve reduced-motion kapalıyken tanımlı
    (kapalıyken çip durağan mor). */
@@ -45,7 +51,7 @@ html:not([data-az-animasyon]) .unvan-alev i:nth-child(3) { animation-delay: 2.3s
 @media (prefers-reduced-motion: reduce) { .unvan-alev i { animation: none !important; opacity: 0; } }
 [data-az-animasyon] .unvan-alev { display: none; }
 
-/* ---------- /yakut düzeni ---------- */
+/* ---------- /yakut layout · /yakut düzeni ---------- */
 .yakut-sayfa {
   display: grid; gap: 20px; max-width: 1132px; margin: 0 auto; padding: 32px 24px 64px; min-width: 0;
   grid-template-columns: minmax(0, 1fr);
@@ -69,7 +75,7 @@ html:not([data-az-animasyon]) .unvan-alev i:nth-child(3) { animation-delay: 2.3s
 }
 @media (max-width: 800px) { .yakut-sayfa { padding: 12px 12px 40px; } }
 
-/* ---------- Cüzdan ---------- */
+/* ---------- Wallet · Cüzdan ---------- */
 .yakut-cuzdan-kart { display: grid; gap: 12px; padding: 20px; }
 .yakut-bakiye { display: flex; align-items: center; gap: 12px; }
 .yakut-ust-etiket { font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--yazi-2); }
@@ -90,7 +96,7 @@ html:not([data-az-animasyon]) .unvan-alev i:nth-child(3) { animation-delay: 2.3s
 .yakut-bos { padding: 24px 0; text-align: center; }
 .yakut-sayfalar { grid-area: sayfalar; display: flex; align-items: center; justify-content: center; gap: 16px; }
 
-/* ---------- Mağaza ---------- */
+/* ---------- Shop · Mağaza ---------- */
 .yakut-bolum { display: grid; gap: 12px; }
 .yakut-bolum h2 { font-family: var(--baslik-tipi); font-size: 18px; }
 .yakut-bolum h2 .ikincil { font-family: var(--yazi-tipi, inherit); font-size: 13px; font-weight: 400; }
@@ -109,10 +115,10 @@ html:not([data-az-animasyon]) .unvan-alev i:nth-child(3) { animation-delay: 2.3s
 .yakut-kazan { margin: 0; }
 .yakut-otomatik { margin: 0; }
 
-/* ---------- Ödül penceresi ---------- */
+/* ---------- Reward dialog · Ödül penceresi ---------- */
 .yakut-odul {
   position: fixed; inset: 0; margin: auto; height: fit-content; width: 360px; max-width: calc(100vw - 32px);
-  overflow: visible; /* büyük yakut pencerenin üst kenarından yarı taşar */
+  overflow: visible; /* the large ruby overflows half over the top edge of the dialog · büyük yakut pencerenin üst kenarından yarı taşar */
   padding: 76px 24px 24px; text-align: center; color: var(--yazi);
   background: var(--yuzey-2); border: 1px solid var(--kenar-ince); border-radius: 24px; box-shadow: var(--kat-2);
   display: grid; gap: 12px; justify-items: center;
@@ -135,22 +141,29 @@ html:not([data-az-animasyon]) .unvan-alev i:nth-child(3) { animation-delay: 2.3s
 @keyframes yakut-belir { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .yakut-odul .yakut-seri-serit { justify-content: center; }
 @media (max-width: 800px) {
+  /* Without JS (open, not modal) it sits above the bottom menu; in a modal it is on the top layer, so it is not needed */
   /* JS'siz açık hâlde (modal değil) alt menünün üstünde dursun; modalda üst katmanda olduğu için gerekmez */
   .yakut-odul[open]:not(:modal) { bottom: var(--alt-yer, 0); }
+  /* Bottom sheet that opens from below on phones */
   /* Telefonda alttan açılan sayfa */
   .yakut-odul { inset: auto 0 0 0; margin: 0; width: 100%; max-width: none; border-radius: 24px 24px 0 0; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); animation: yakut-sayfa var(--sure-yavas) var(--egri-cikis) both; }
 }
 @keyframes yakut-sayfa { from { transform: translateY(100%); } to { transform: none; } }
 
+/* Breakdown of rewards that arrive at the same time (first day of the month: streak + allowance + premium in one dialog) */
 /* Aynı anda gelen ödüllerin dökümü (ayın ilk günü: seri + harçlık + premium tek pencerede) */
 .yakut-odul-dokum { list-style: none; margin: 4px 0 0; padding: 8px 12px; width: 100%; border-radius: 12px; background: var(--yuzey-3); font-size: 13px; }
 .yakut-odul-dokum li { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; color: var(--yazi-2); }
 .yakut-odul-dokum li span:last-child { color: var(--yazi); font-weight: 600; font-variant-numeric: tabular-nums; }
 
+/* Navigation revision (2026-11-21): Ruby section, Chat tabs, menu badges.
+   The balance chip in the top bar is gone; the ruby appears once at every scale: desktop sidebar card, tablet rail item, phone Profile page card. */
 /* =====================================================================
    Gezinme revizyonu (2026-11-21): Yakut bölümü, Sohbet sekmeleri, menü rozetleri.
    Üst çubuktaki bakiye çipi kalktı; yakut her ölçekte bir kez: masaüstü sol menü kartı, tablet ray öğesi, telefon Profil sayfası kartı.
    ===================================================================== */
+/* An item only on phones (account menu = the phone Profile page): the Ruby card and the Notifications row.
+   On tablet/desktop the same things live in the sidebar/rail and the bell, so there are no duplicates. */
 /* Bir öğe yalnızca telefonda (hesap menüsü = telefonun Profil sayfası): Yakut kartı ve Bildirimler satırı.
    Tablet/masaüstünde aynı şeyler sol menüde/rayda ve zilde durur, tekrar olmasın. */
 @media (min-width: 801px) { .yalniz-telefon { display: none !important; } }
@@ -173,13 +186,17 @@ html:not([data-az-animasyon]) .unvan-alev i:nth-child(3) { animation-delay: 2.3s
   border-radius: 10px; background: var(--yuzey-3); font-size: 13px; font-weight: 600;
 }
 .yb-magaza svg { color: var(--yazi-2); }
+/* Phone (account page): larger, the Shop button on the right of the row, 44px touch target */
 /* Telefon (hesap sayfası): daha büyük, Mağaza düğmesi satırın sağında, 44px dokunma hedefi */
 .yakut-bolumu-hesap { margin: 4px 0 6px; padding: 12px 12px 12px 14px; }
 .yakut-bolumu-hesap .yb-bakiye strong { font-size: 22px; }
-.yakut-bolumu-hesap .yb-alt { white-space: normal; } /* dar telefonda seri + harçlık iki satıra iner, kesilmez */
+/* on a narrow phone streak + allowance wrap onto two lines instead of being cut off */
+/* dar telefonda seri + harçlık iki satıra iner, kesilmez */
+.yakut-bolumu-hesap .yb-alt { white-space: normal; }
 .yakut-bolumu-hesap .yb-magaza { flex: none; height: 44px; padding: 0 10px 0 14px; border-radius: 12px; background: var(--ton); color: var(--ton-ustu); font-size: 14px; }
 .yakut-bolumu-hesap .yb-magaza svg { color: inherit; }
 
+/* In the sidebar: a card on desktop (above Settings, the gap pushes the menu down), a rail item on tablet */
 /* Kenar menüde: masaüstünde kart (Ayarlar'ın üstünde, aradaki boşluk menüyü alta iter), tablette ray öğesi */
 .kenar-yakut { margin-top: auto; width: 100%; }
 .kenar-yakut + .kenar-menu-alt { margin-top: 0; }
@@ -194,6 +211,7 @@ html:not([data-az-animasyon]) .unvan-alev i:nth-child(3) { animation-delay: 2.3s
   .kenar-yakut .kenar-yakut-ray { display: none; }
 }
 
+/* Menu badges: unread DM count on Chat, unread-notification dot on Profile on phones (the person's accent color) */
 /* Menü rozetleri: Sohbet'te okunmamış DM sayısı, telefonda Profil'de okunmamış bildirim noktası (kişinin vurgu rengi) */
 .menu-sayi {
   position: absolute; top: -4px; right: 6px; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
@@ -203,6 +221,7 @@ html:not([data-az-animasyon]) .unvan-alev i:nth-child(3) { animation-delay: 2.3s
 @media (min-width: 1181px) { .kenar-menu .menu-sayi { position: static; margin-left: auto; border: 0; } .kenar-menu .menu-ogesi:has(.menu-sayi) .menu-hap { position: static; } }
 .menu-nokta-vurgu { background: var(--vurgu); }
 
+/* Chat tabs: All · Rooms · DM (partials/sohbet-filtre.ejs) */
 /* Sohbet sekmeleri: Hepsi · Odalar · DM (partials/sohbet-filtre.ejs) */
 .sohbet-filtre { display: flex; gap: 2px; padding: 3px; margin-top: 12px; border-radius: 12px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); }
 .sohbet-filtre a {
@@ -214,5 +233,6 @@ html:not([data-az-animasyon]) .unvan-alev i:nth-child(3) { animation-delay: 2.3s
 .sohbet-filtre a.secili { background: var(--ton); color: var(--ton-ustu); }
 .sohbet-filtre-sayi { display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--vurgu); color: var(--vurgu-ustu); font-size: 11px; font-weight: 700; }
 @media (max-width: 800px) { .sohbet-filtre a { min-height: 44px; } }
+/* Type of the row in the All list (DM / Room) */
 /* Hepsi listesinde satırın türü (DM / Oda) */
 .sohbet-tur { flex: none; padding: 1px 6px; border-radius: 6px; background: var(--yuzey-3); color: var(--yazi-2); font-size: 10px; font-weight: 700; letter-spacing: .04em; }

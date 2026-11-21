@@ -24,20 +24,32 @@ import { katmanlar } from "./onizleme-katmanlar.ts";
 import { sayfalar } from "./onizleme-sayfalar.ts";
 
 const app = express();
+// PORT can be changed through an environment variable (to try a second copy at the same time); 3000 if not given
 // PORT ortam değişkeniyle değiştirilebilir (aynı anda ikinci bir kopya denemek için); verilmezse 3000
 const PORT = Number(process.env.PORT) || 3000;
 
+// The "X-Powered-By: Express" header tells an attacker which software to target; it is unnecessary information, so it is turned off.
 // "X-Powered-By: Express" başlığı saldırgana hangi yazılımı hedefleyeceğini söyler; gereksiz bilgi, kapatılır.
 app.disable("x-powered-by");
+// If the site is put behind a reverse proxy (nginx, Caddy, Cloudflare), set TRUST_PROXY=1: then req.ip becomes the real visitor
+// IP (the rate limiter does not put everyone in one bucket) and req.secure recognizes HTTPS (the cookie becomes Secure). Without a proxy
+// X-Forwarded-For is NOT trusted, because an attacker can forge this header and bypass the rate limit.
 // Site bir ters vekilin (nginx, Caddy, Cloudflare) arkasına konursa TRUST_PROXY=1 verilir: o zaman req.ip gerçek ziyaretçi
 // IP'si olur (hız sınırı herkesi tek kovaya atmaz) ve req.secure HTTPS'i tanır (çerez Secure olur). Vekil yokken
 // X-Forwarded-For'a GÜVENİLMEZ, çünkü saldırgan bu başlığı uydurup hız sınırını atlatabilir.
 if (process.env.TRUST_PROXY) app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
 
+// Security headers (by hand instead of a package, so it is visible what each one does):
+// - CSP: tells the browser to run scripts only from our own site. Even if escaping is forgotten in a template one day, an injected
+//   <script> or onclick="..." will NOT RUN (a second line of defense against XSS). That is why templates have no inline
+//   script/event attributes; confirmations go through data-onay in rubyyard.js. Inline style (style="--x:..") is allowed: effects use it.
+// - frame-ancestors 'none' + X-Frame-Options: the site cannot be put in another site's iframe (invisible-frame click tricking, clickjacking).
+// - nosniff: the browser does not guess the file type (an uploaded image cannot be interpreted as a script).
+// - Referrer-Policy: on a link to another site only our domain name is sent (paths such as room invite codes do not leak).
 // Güvenlik başlıkları (paket yerine elle; her birinin ne işe yaradığı görülsün diye):
 // - CSP: tarayıcıya yalnızca kendi sitemizden betik çalıştırmasını söyler. İleride bir şablonda kaçırma unutulsa bile
 //   araya sokulan <script> ya da onclick="..." ÇALIŞMAZ (XSS'e ikinci savunma hattı). Bu yüzden şablonlarda satır içi
-//   betik/olay özniteliği yok; onaylar data-onay ile quadran.js'te. Satır içi stil (style="--x:..") serbest: efektler kullanıyor.
+//   betik/olay özniteliği yok; onaylar data-onay ile rubyyard.js'te. Satır içi stil (style="--x:..") serbest: efektler kullanıyor.
 // - frame-ancestors 'none' + X-Frame-Options: site başka bir sitenin iframe'ine konamaz (görünmez çerçeveyle tıklatma, clickjacking).
 // - nosniff: tarayıcı dosya türünü tahmin etmez (yüklenen bir görsel betik gibi yorumlanamaz).
 // - Referrer-Policy: başka siteye giden bağlantıda adresimizin yalnızca alan adı gider (oda davet kodu gibi yollar sızmaz).
@@ -46,9 +58,11 @@ const CSP = [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: blob:",   // blob: avatar/banner kırpma önizlemesi için
+  "img-src 'self' data: blob:", // blob: is for the avatar/banner crop preview · blob: avatar/banner kırpma önizlemesi için
   "connect-src 'self'",
-  "frame-src https://www.youtube-nocookie.com",   // yalnızca YouTube kartı oynatılınca açılan iframe (yorum eki kartları)
+  // only the iframe that opens when a YouTube card is played (comment attachment cards)
+  // yalnızca YouTube kartı oynatılınca açılan iframe (yorum eki kartları)
+  "frame-src https://www.youtube-nocookie.com",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -66,8 +80,11 @@ app.use((req, res, next) => {
 app.set("view engine", "ejs");
 app.set("views", "views");
 
-// public/ klasöründeki dosyalar (CSS gibi) doğrudan sunulur: /css/quadran.css
+// Files in the public/ folder (like CSS) are served directly: /css/rubyyard.css
+// public/ klasöründeki dosyalar (CSS gibi) doğrudan sunulur: /css/rubyyard.css
 app.use(express.static("public"));
+// Uploaded avatar/banner files (src/yukleme.ts): their names are random (uuid) and never change, so they are cached for a long time.
+// nosniff: the browser does not look at the content and reinterpret the file as another type (we only write WebP, an extra guarantee).
 // Yüklenen avatar/banner dosyaları (src/yukleme.ts): adları rastgele (uuid) ve değişmez olduğundan uzun süre önbelleğe alınır.
 // nosniff: tarayıcı dosyayı içeriğine bakıp başka türe yorumlamaz (yalnızca WebP olarak yazıyoruz, ek güvence).
 app.use("/yuklemeler", express.static("yuklemeler", {
@@ -75,20 +92,28 @@ app.use("/yuklemeler", express.static("yuklemeler", {
   setHeaders: (res) => { res.setHeader("X-Content-Type-Options", "nosniff"); },
 }));
 
+// Offline page (public/cevrimdisi.html): the service worker (public/sw.js) caches it and shows it when there is no network.
+// A separate route keeps the address extensionless; no-cache: when the server copy changes the worker gets the fresh copy.
 // Çevrimdışı sayfası (public/cevrimdisi.html): service worker (public/sw.js) bunu önbelleğe alır, ağ yokken gösterir.
 // Adresi uzantısız tutmak için ayrı rota; no-cache: sunucudaki hâli değişince worker güncel kopyayı alsın.
 app.get("/cevrimdisi", (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.sendFile("cevrimdisi.html", { root: "public" });
 });
+// Turns form bodies (application/x-www-form-urlencoded) into req.body
 // Form gövdelerini (application/x-www-form-urlencoded) req.body'ye çevirir
 app.use(express.urlencoded({ extended: false }));
+// Session + the common data every page needs (signed-in user, notification counts...)
 // Oturum + her sayfada gereken ortak veriler (giriş yapan kullanıcı, bildirim sayıları...)
 app.use(oturum);
 app.use(ortakVeriler);
+// Verifies the hidden _csrf field on every POST (the body was parsed above, so it can be read here)
 // Her POST'ta gizli _csrf alanını doğrular (gövde yukarıda çözümlendiği için burada okunabilir)
 app.use(csrfKoru);
 
+// The rank chip/privilege is resolved by id (src/rutbe.ts rutbeBulId). If an id is not found in the cache while rendering
+// (e.g. a rank was just added from another process) the page must not silently go out with a gray chip: the cache is refreshed ONCE and the page
+// is rendered again. If it is still missing, a warning has already been written to the console, and the page is shown anyway.
 // Rütbe çipi/ayrıcalığı numarayla çözülür (src/rutbe.ts rutbeBulId). Çizim sırasında bir numara önbellekte bulunamazsa
 // (ör. rütbe başka bir süreçten az önce eklendi) sayfa sessizce gri çiple gitmesin: önbellek BİR KEZ tazelenir ve sayfa
 // yeniden çizilir. Hâlâ eksikse uyarı zaten konsola yazılmıştır, yine de sayfa gösterilir.
@@ -98,6 +123,7 @@ app.use((req, res, next) => {
     if (typeof secenek === "function") { cb = secenek; secenek = undefined; }
     const bitir = (hata: Error | null, html?: string) =>
       cb ? cb(hata, html) : hata ? next(hata) : res.send(html);
+    // Every render has its own "missing" state (src/rutbe.ts): flags of concurrent requests do not get mixed up.
     // Her çizimin kendi "eksik" durumu var (src/rutbe.ts): eşzamanlı isteklerin bayrakları birbirine karışmaz.
     const durum = { eksik: false };
     rutbeCizimiBaslat(durum, () => orijinal(gorunum, secenek, (hata: Error | null, html?: string) => {
@@ -114,6 +140,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// Maintenance mode (sql/24, panel: Registration and access): while on, staff use the site normally (a "Maintenance mode is on" strip at the top,
+// partials/duyuru.ejs), everyone else sees the 503 maintenance page. It is placed here because the session and user info are ready in ortakVeriler.
+// Left open: /giris (so staff can sign in), /cikis (so the session can be closed), /cevrimdisi (the service worker page);
+// static files (/css, /js, /sw.js) are already served further up, and the maintenance page depends on them.
 // Bakım modu (sql/24, panel: Kayıt ve erişim): açıkken yetkililer siteyi normal kullanır (üstte "Bakım modu açık" şeridi,
 // partials/duyuru.ejs), diğer herkes 503 bakım sayfasını görür. Oturum ve kullanıcı bilgisi ortakVeriler'de hazır olduğu için
 // buraya konuldu. Açık kalanlar: /giris (yetkili girebilsin), /cikis (oturum kapatılabilsin), /cevrimdisi (service worker sayfası);
@@ -127,21 +157,26 @@ app.use(async (req, res, next) => {
   durumSayfasi(req, res, 503, { metin: site.bakimMetni || undefined });
 });
 
+// Actual pages
 // Gerçek sayfalar
-app.use(cikis);        // /cikis: dış bağlantı onay sayfası
+app.use(cikis); // /cikis: external link confirmation page · /cikis: dış bağlantı onay sayfası
 app.use(hesap);
-app.use(takip);        // /takip: takip et/bırak, /profil/:ad/takipciler|takip-edilenler
+// /takip: follow/unfollow, /profil/:ad/takipciler|takip-edilenler
+// /takip: takip et/bırak, /profil/:ad/takipciler|takip-edilenler
+app.use(takip);
 app.use(forum);
 app.use(rutbeRotasi);  // /rutbeler
 app.use(premiumRotasi); // /premium
-app.use(yakutRotasi);   // /yakut: cüzdan, mağaza, unvanlar (sql/22)
+app.use(yakutRotasi); // /yakut: wallet, shop, titles (sql/22) · /yakut: cüzdan, mağaza, unvanlar (sql/22)
 app.use(mesaj);
 app.use(iletisim);
-app.use(odalar);       // /oda: özel odalar (davetle girilen grup sohbetleri)
+app.use(odalar); // /oda: private rooms (group chats joined by invitation) · /oda: özel odalar (davetle girilen grup sohbetleri)
 app.use(moderasyon);
-app.use(yonetim);      // /yonetim: gelişmiş yönetim paneli (moderatör + admin)
+app.use(yonetim); // /yonetim: advanced admin panel (moderator + admin) · /yonetim: gelişmiş yönetim paneli (moderatör + admin)
 app.use(duyuruRotasi); // POST /duyuru/kapat
 
+// Design preview (with sample data): /onizleme/konu, /onizleme/profil ...
+// Only open in development: pages rendered with fake data (e.g. admin view) must not appear on the live site.
 // Tasarım önizlemesi (örnek veriyle): /onizleme/konu, /onizleme/profil ...
 // Yalnızca geliştirmede açık: sahte verilerle (örn. admin görünümü) çizilen sayfalar yayındaki sitede görünmemeli.
 if (process.env.NODE_ENV !== "production") {
@@ -150,18 +185,22 @@ if (process.env.NODE_ENV !== "production") {
   app.use("/onizleme", sayfalar);  // /onizleme/mesajlar, /bildirimler, /ara, /siralama, /sohbet, /moderasyon, /sifremi-unuttum
 }
 
+// The report dialog (partials/sikayet-penceresi.ejs) appears on many pages; the reason list and the Turkish "-i form" helper should be ready in every template
 // Şikâyet penceresi (partials/sikayet-penceresi.ejs) birçok sayfada yer alır; sebep listesi ve Türkçe "-i hâli" yardımcısı her şablonda hazır olsun
 app.locals.sikayetSebepleri = SEBEP_LISTESI;
 app.locals.belirtme = belirtme;
+// Rank chip (partials/rutbe.ejs) and, in user content, links depending on the author's rank (src/rutbe.ts)
 // Rütbe çipi (partials/rutbe.ejs) ve kullanıcı içeriğinde yazar rütbesine göre bağlantı (src/rutbe.ts)
 app.locals.rutbeBulId = rutbeBulId;
 app.locals.bulunmaEki = bulunmaEki;
 app.locals.icerikHtml = icerikHtml;
 app.locals.baglantiKartlari = baglantiKartlari; app.locals.disBaglantiHtml = disBaglantiHtml; app.locals.cikisAdresi = cikisAdresi;
+// Profile effects and avatar decorations (src/profil-gorunum.ts): fixed data, templates draw it
 // Profil efektleri ve avatar süsleri (src/profil-gorunum.ts): sabit veri, şablonlar çizer
 app.locals.EFEKTLER = EFEKTLER; app.locals.SUSLER = SUSLER; app.locals.SVG = SVG;
 app.locals.EFEKT_ADLARI = EFEKT_ADLARI; app.locals.SUS_ADLARI = SUS_ADLARI;
 
+// Helper available in all templates: writes things like "2 hours ago"
 // Bütün şablonlarda kullanılabilen yardımcı: "2 saat önce" gibi yazar
 app.locals.zaman = (tarih: Date) => {
   const dakika = Math.floor((Date.now() - new Date(tarih).getTime()) / 60000);
@@ -175,18 +214,25 @@ app.locals.zaman = (tarih: Date) => {
   return new Date(tarih).toLocaleDateString("tr-TR");
 };
 
+// If no address matches, the 404 page
 // Hiçbir adres eşleşmezse 404 sayfası
 app.use((req, res) => {
   durumSayfasi(req, res, 404);
 });
 
+// Unexpected error: the server does not crash, a short message goes to the user, details are written to the console
 // Beklenmeyen hata: sunucu çökmez, kullanıcıya kısa bir mesaj gider, ayrıntı konsola yazılır
 app.use((hata: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // Details go only to the console; the user gets the common 500 page (the error message does not leak).
   // Ayrıntı yalnızca konsola gider; kullanıcıya ortak 500 sayfası gösterilir (hata iletisi sızmaz).
   console.error(hata);
-  if (res.headersSent) return next(hata); // yanıt yarıda kaldıysa Express bağlantıyı kapatsın
+  // if the response was left half-sent, let Express close the connection
+  // yanıt yarıda kaldıysa Express bağlantıyı kapatsın
+  if (res.headersSent) return next(hata);
   res.status(500);
   if (String(req.get("accept") ?? "").includes("application/json")) return void res.json({ hata: "Sunucu hatası." });
+  // If the error came up in ortakVeriler (e.g. the database is down) there is no menu data: it is rendered plain, without the menu.
+  // If an error also occurs while rendering the page (it falls to the callback) we fall back to plain text: the handler's own error does not loop forever.
   // Hata ortakVeriler'de (ör. veritabanı kapalı) çıktıysa menü verileri yok: menüsüz (sade) çizilir.
   // Sayfa çizilirken de hata olursa (callback'e düşer) düz metne dönülür: işleyicinin kendi hatası sonsuz döngü yapmaz.
   res.render("durum", { kod: 500, sade: !res.locals.menuKategoriler, yenileAdresi: req.method === "GET" ? yerelAdres(req.originalUrl) : "/" }, (h2: Error | null, html?: string) => {

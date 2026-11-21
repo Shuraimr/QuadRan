@@ -17,11 +17,13 @@
       <span class="etiket"><%= konu.kategori %></span>
       <% if (konu.pinned_at) { %><span class="etiket">Sabit</span><% } %>
       <% if (konu.cozuldu) { %><span class="cozum-cip"><%- include("ikon", { ad: "onay", boyut: 13 }) %>Çözüldü</span><% } %>
-      <%# Yazarın adı ve avatarı üye kartını açar (JS yoksa profile gider; quadran.js data-uye-karti) %>
+      <%# The author's name and avatar open the member card (without JS it goes to the profile; rubyyard.js data-uye-karti) %>
+      <%# Yazarın adı ve avatarı üye kartını açar (JS yoksa profile gider; rubyyard.js data-uye-karti) %>
       <%- include("avatar", { ad: konu.yazar, url: konu.avatar_url, sus: konu.avatar_susu, etiket: "a", href: "/profil/" + encodeURIComponent(konu.yazar), ek: 'data-uye-karti="' + konu.yazar.replace(/"/g, "") + '" tabindex="-1"', bos: true }) %>
       <a class="kullanici" href="/profil/<%= encodeURIComponent(konu.yazar) %>" data-uye-karti="<%= konu.yazar %>"><%= konu.yazar %></a>
       <% if (konu.rutbe) { %><%- include("rutbe", { rutbeAd: konu.rutbe, rutbeId: konu.rutbe_id }) %><% } %>
       <%- include("unvan", { unvan: konu.unvan, premium: konu.premium }) %>
+      <%# No time separator: when the line wrapped, a lone "·" was left at the start; the gap between items is separator enough %>
       <%# Zaman ayraçsız: satır kırılınca başta yalnız bir "·" kalıyordu; aradaki boşluk (gap) yeterli ayraç %><span class="zaman"><%= zaman(konu.created_at) %></span>
     </div>
     <h2><a href="/konu/<%= konu.id %>"><%= konu.title %></a></h2>

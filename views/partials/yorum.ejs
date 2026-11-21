@@ -1,4 +1,9 @@
 <%#
+  Comment row (Figma-approved phone design):
+  top: avatar + [name · rank · title] / time below, ⋮ menu on the right (solution, edit, delete, report, staff actions);
+  bottom: horizontal vote group + Reply. The vote column moved off the left: text reads at full width and touch targets can be 44px.
+  The menu is a popover; if popovers are unsupported the items stay as a visible list (no JS needed).
+
   Yorum satırı (Figma onaylı telefon tasarımı):
   üst: avatar + [ad · rütbe · unvan] / altında zaman, sağda ⋮ menüsü (çözüm, düzenle, sil, şikâyet, yetkili işlemleri);
   alt: yatay oy grubu + Cevapla. Oy sütunu soldan kalktı: metin tam genişlikte okunur, dokunma hedefleri 44px olabilir.
@@ -25,6 +30,7 @@
       </div>
       <button class="ikon-dugme yorum-menu-dugmesi" type="button" popovertarget="yorum-menusu-<%= mesaj.id %>" data-menu-ac aria-label="Yorum işlemleri"><%- include("ikon", { ad: "daha", boyut: 20 }) %></button>
       <div class="acilir-menu acilir-menu-konumlu yorum-menusu" id="yorum-menusu-<%= mesaj.id %>" popover aria-label="Yorum işlemleri">
+        <%# Solution mark: only the topic owner (and staff) sees it; one button both marks and unmarks %>
         <%# Çözüm işareti: yalnızca konunun sahibi (ve yetkililer) görür; tek düğme hem işaretler hem kaldırır %>
         <% if (cozumDugmesi_) { %>
           <form method="post" action="/konu/<%= konu.id %>/cozum"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="post_id" value="<%= mesaj.id %>">

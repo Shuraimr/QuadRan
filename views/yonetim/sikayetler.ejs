@@ -1,4 +1,9 @@
 <%#
+  Reports (list/detail): /yonetim/sikayetler?durum=&tur=&sebep=&id=
+  gruplar [{ tur, hedef_id, adet, bekleyen, durum, son, rid, aktif, hedef (hedefOnizleme) }], sf, qs { durum, tur, sebep }, yol, filtreli
+  secili (report id), sikayet (selected report row), detay { h (target), digerleri, gecmis, sayilar { uyari, ban }, bekleyenVar, kisitli }
+  Action: POST /yonetim/sikayetler/islem  fields: rid, tur, hedef_id, eylem (sil|uyar|banla|reddet), sure, sebep (required)
+  Desktop: 420px list + detail. Tablet: detail is a side layer above the list. Phone: list and detail are separate views (if ?id is present the list is hidden).
   Şikâyetler (ana/ayrıntı): /yonetim/sikayetler?durum=&tur=&sebep=&id=
   gruplar [{ tur, hedef_id, adet, bekleyen, durum, son, rid, aktif, hedef (hedefOnizleme) }], sf, qs { durum, tur, sebep }, yol, filtreli
   secili (şikâyet no), sikayet (seçili şikâyet satırı), detay { h (hedef), digerleri, gecmis, sayilar { uyari, ban }, bekleyenVar, kisitli }
@@ -9,7 +14,9 @@
 <% const durumAd_ = { bekliyor: "Bekliyor", islendi: "İşlendi", reddedildi: "Reddedildi" }; %>
 <div class="yn-md<%= sikayet ? ' detay-var' : '' %>">
   <section class="yn-md-liste" aria-label="Şikâyet listesi">
-    <%# Durum en sık değişen filtre: açılır liste yerine tek tıkla seçilen hap düğmeleri (Figma tasarımı).
+    <%# Status is the most frequently changed filter: pill buttons chosen with one tap instead of a dropdown (Figma design).
+        The type and reason selections are kept, so changing the status does not reset the other filters.
+        Durum en sık değişen filtre: açılır liste yerine tek tıkla seçilen hap düğmeleri (Figma tasarımı).
         Tür ve sebep seçimi korunur, böylece durum değişince diğer filtreler sıfırlanmaz. %>
     <nav class="siralama yn-durum-haplari" aria-label="Durum">
       <% for (const [d, e] of [["bekliyor","Bekleyen"],["islendi","İşlendi"],["reddedildi","Reddedildi"],["hepsi","Tümü"]]) { %>
@@ -65,7 +72,8 @@
           <% if (s.tur === "kullanici") { %><a class="baglanti kucuk" href="/profil/<%= h.yazar %>">Sitede gör →</a>
           <% } else if (s.tur !== "ozel_mesaj" && s.tur !== "oda_mesaji") { %><a class="baglanti kucuk" href="<%= h.link %>">Sitede gör →</a><% } %></div>
         <% if (s.tur === "ozel_mesaj" || s.tur === "oda_mesaji") { %>
-          <%# GİZLİLİK: yalnızca şikâyet edilen mesaj ve çevresi (öncesinden 3, sonrasından 2 mesaj); oda mesajlarında yetkili odayı gezemez %>
+          <%# PRIVACY: only the reported message and its surroundings (3 before, 2 after); for room messages staff cannot browse the room
+              GİZLİLİK: yalnızca şikâyet edilen mesaj ve çevresi (öncesinden 3, sonrasından 2 mesaj); oda mesajlarında yetkili odayı gezemez %>
           <% if (s.tur === "oda_mesaji") { %><p class="ikincil kucuk">Oda: <strong><%= h.oda %></strong></p><% } %>
           <div class="moderasyon-baglam">
             <% for (const b of h.baglam) { %><div class="moderasyon-baglam-satir<%= b.hedef ? ' hedef' : '' %><%= b.silindi ? ' silinmis-icerik' : '' %>"><strong><%= b.gonderen %></strong> <span><%= b.icerik %></span></div><% } %>

@@ -1,4 +1,17 @@
 <%#
+  Search: /ara?q=...&sekme=konular|kullanicilar|kategoriler
+  Expected data:
+  q            string   the searched text (may be empty)
+  sekme        "konular" | "kullanicilar" | "kategoriler"   (konular if missing)
+  sayilar      { konular, kullanicilar, kategoriler }       total result count of each tab
+  konular      [ post card data ]   same fields as partials/gonderi-karti:
+               { id, title, kategori, yazar, rutbe, created_at, ozet, yorum_sayisi, skor }
+               (topics + first post + categories + users; deleted_at IS NULL)
+  kullanicilar [ { username, rutbe, points, konu_sayisi, bio } ]   (users; deleted_at IS NULL)
+  kategoriler  [ { id, name, konu_sayisi } ]                       (categories)
+  It is enough for only the selected tab's list to be filled.
+  Highlighting: matches in the topic title are wrapped in <mark>. The text is first split into parts and each part
+  is HTML-escaped, then the matching parts are wrapped (the search never runs inside escaped text).
   Arama: /ara?q=...&sekme=konular|kullanicilar|kategoriler
   Beklenen veriler:
   q            string   aranan metin (boş olabilir)
@@ -24,8 +37,10 @@
   const arKullanicilar = locals.kullanicilar || [];
   const arKategoriler = locals.kategoriler || [];
 
+  // The same escape table as EJS's escaped output (the tag with an equals sign)
   // EJS'in kaçırmalı çıktısıyla (eşittir işaretli etiket) aynı kaçırma tablosu
   const arKac = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&#34;", "'": "&#39;" }[c]));
+  // Safe highlighting: split the raw text by the query, escape each part, wrap only the matches in <mark>
   // Güvenli vurgulama: ham metni sorguya göre böl, her parçayı kaçır, yalnızca eşleşenleri <mark> ile sar
   const arVurgula = (metin) => {
     const ham = String(metin);
@@ -81,6 +96,7 @@
       <div class="ara-liste">
         <% for (const k of arKonular) { %>
           <%
+            // Produce the card with the partial, replace the escaped text in the title with the highlighted version
             // Kartı partial ile üret, başlıktaki kaçırılmış metni vurgulu sürümle değiştir
             const arKart = include("partials/gonderi-karti", { konu: k });
             const arAranan = ">" + arKac(k.title) + "</a>";

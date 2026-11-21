@@ -1,4 +1,18 @@
 <%#
+  Status page body (404, 403, 429, 500, 503 and offline): icon box, title, description, actions.
+  views/durum.ejs and public/cevrimdisi.html share the same visual language; empty states (partials/bos-durum.ejs) are its smaller sibling.
+  Expected data:
+  ikon     name from ikon.ejs
+  baslik   title
+  metin    description
+  arama    if true, a search box under the description (GET /ara, field q)
+  saniye   429: remaining time from the server; rubyyard.js counts down via data-geri-sayim, plain text stays if JS is off
+  eylemler [ { href, etiket, tur: "tonal" | "cerceveli" | "birincil" } ]
+  kod      (optional) 404/500...: a large outline-only number in the background + a "Page not found · 404" chip.
+           Why: it gives the page character without piling on color (no gradient/image); the code is also visible so it can be quoted when asking for support.
+  etiket   short name next to the code ("Sayfa yok")
+  kategoriler (optional, 404) [ { id, name } ]: "Maybe look here" chips; an exit path for a lost visitor
+
   Durum sayfası gövdesi (404, 403, 429, 500, 503 ve çevrimdışı): ikon kutusu, başlık, açıklama, eylemler.
   views/durum.ejs ve public/cevrimdisi.html aynı görsel dili kullanır; boş durumlar (partials/bos-durum.ejs) bunun küçük kardeşi.
   Beklenen veriler:
@@ -6,7 +20,7 @@
   baslik   başlık
   metin    açıklama
   arama    true ise açıklamanın altında arama kutusu (GET /ara, alan q)
-  saniye   429: sunucudan gelen kalan süre; quadran.js data-geri-sayim ile geriye sayar, JS yoksa düz metin kalır
+  saniye   429: sunucudan gelen kalan süre; rubyyard.js data-geri-sayim ile geriye sayar, JS yoksa düz metin kalır
   eylemler [ { href, etiket, tur: "tonal" | "cerceveli" | "birincil" } ]
   kod      (isteğe bağlı) 404/500...: arkada büyük, yalnızca kenar çizgisiyle çizilmiş rakam + "Sayfa yok · 404" çipi.
            Neden: sayfaya karakter verir ama renk yığmaz (gradyan/görsel yok); kod da destek isterken söylenebilsin diye görünür.
@@ -22,7 +36,8 @@
   <h1 class="durum-baslik" id="durum-baslik"><%= baslik %></h1>
   <p class="durum-metin"><%= metin %></p>
   <% if (locals.saniye) { %>
-    <%# Geri sayım: sunucu ilk değeri yazar (JS yoksa bu düz metin kalır); quadran.js her saniye günceller ve sıfırda "Yenile" bağlantısını gösterir %>
+    <%# Countdown: the server writes the first value (stays as plain text if JS is off); rubyyard.js updates it every second and shows the "Yenile" (refresh) link at zero.
+        Geri sayım: sunucu ilk değeri yazar (JS yoksa bu düz metin kalır); rubyyard.js her saniye günceller ve sıfırda "Yenile" bağlantısını gösterir %>
     <p class="durum-sayim" data-geri-sayim="<%= saniye %>" role="timer">Tekrar deneyebilmene <strong data-geri-sayim-deger><%= Math.floor(saniye / 60) %>:<%= String(saniye % 60).padStart(2, "0") %></strong> kaldı</p>
   <% } %>
   <% if (locals.arama) { %>

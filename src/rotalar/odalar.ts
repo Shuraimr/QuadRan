@@ -1,3 +1,19 @@
+// Private rooms: group chats entered only by invitation or an invite link (sql/12_odalar.sql).
+//
+//   GET  /oda/yeni                       "Open a room" (a page without JS; with JS it is a dialog on /sohbet)
+//   POST /oda                            create a room
+//   GET  /oda/:id                        open the room (members only; non-members get 404, the room's existence is not revealed)
+//   GET  /oda/:id/uyeler|davet|baglantilar|ayarlar|ayril   same room page with the matching dialog open (fallback without JS)
+//   POST /oda/:id/mesaj, /mesaj/:mid/sil, /sessiz, /ayril, /ayarlar, /sil
+//   POST /oda/:id/davet, /davet/:did/iptal     invite a person / withdraw a pending invite (admins)
+//   POST /oda/davet/:did/kabul|ret             the invitee's answer
+//   GET/POST /oda/katil/:kod             join via link
+//   POST /oda/:id/uye/:uid/yonetici|sahiplik|cikar   member actions
+//   GET  /oda/:id/kisi-ara?q=            search people to invite (JSON)
+//
+// Permissions: member (read/write, mute, leave, report) < room admin (+ invite, links, remove, delete messages, name/description) < owner
+// (+ promote admins, transfer ownership, delete the room). Site staff (admin/moderator) cannot browse room messages; they only
+// see the report context and can close and reopen the room (yonetim-oda.ts).
 // Özel odalar: yalnızca davetle ya da davet bağlantısıyla girilen grup sohbetleri (sql/12_odalar.sql).
 //
 //   GET  /oda/yeni                       "Oda aç" (JS yokken sayfa; JS varsa /sohbet'te pencere)
@@ -32,6 +48,7 @@ export const odalar = express.Router();
 const PANELLER = ["uyeler", "davet", "baglantilar", "ayarlar", "ayril"] as const;
 type Uyelik = NonNullable<Awaited<ReturnType<typeof uyelik>>>;
 
+// After a form submitted from a dialog, return to that same dialog (so consecutive removals/invites are easy)
 // Form pencereden gönderildiyse işlemden sonra aynı pencereye dön (art arda çıkarma/davet kolay olsun)
 function odaGeri(req: express.Request, odaId: number) {
   const p = metin(req.body?.panel);
@@ -39,6 +56,7 @@ function odaGeri(req: express.Request, odaId: number) {
 }
 
 // ---------------------------------------------------------------------------
+// Gate: on /oda/:id/... addresses the room id must be valid and I must be a member; otherwise 404.
 // Kapı: /oda/:id/... adreslerinde oda numarası geçerli ve ben üyeyim; değilsem 404.
 // ---------------------------------------------------------------------------
 async function uyeGerekli(req: express.Request, res: express.Response, next: express.NextFunction) {
@@ -48,6 +66,7 @@ async function uyeGerekli(req: express.Request, res: express.Response, next: exp
   res.locals.oda = oda;
   next();
 }
+// Management actions: must be room admin/owner and the room must not be closed by staff
 // Yönetim işlemleri: yönetici/sahip olmalı ve oda yetkililerce kapatılmamış olmalı
 function yoneticiGerekli(req: express.Request, res: express.Response, next: express.NextFunction) {
   const oda: Uyelik = res.locals.oda;
@@ -65,11 +84,13 @@ function sahipGerekli(req: express.Request, res: express.Response, next: express
 const giris = girisGerekli("Odalar için giriş yapman gerekiyor.");
 
 // ---------------------------------------------------------------------------
+// Open a room
 // Oda aç
 // ---------------------------------------------------------------------------
 odalar.get("/oda/yeni", giris, async (req, res) => {
   const durum = await olusturmaDurumu(res.locals.kullanici);
   if (!durum.izinli) {
+    // The rule is also written on the lock card in /sohbet; this is a short explanation for people who arrive by direct URL
     // Kural /sohbet'teki kilit kartında da yazıyor; doğrudan adresle gelene kısa açıklama
     bildir(req, "hata", !durum.rutbeYeter ? `Oda açmak için ${durum.kilit.rutbe?.name ?? "yeterli rütbe"} olmalısın · ${durum.kilit.kalan} puan kaldı.` : `En çok ${durum.sinir} oda açabilirsin.`);
     return res.redirect("/sohbet");
@@ -90,6 +111,7 @@ odalar.post("/oda", giris, async (req, res) => {
   const yasak = await yasakliIfade(ad, aciklama);
   if (yasak) { bildir(req, "hata", `Oda adında ya da açıklamasında yasaklı bir ifade var: “${yasak}”.`); return res.redirect("/oda/yeni"); }
 
+  // Room + owner membership + opening row must be written together: if it stops halfway we would be left with an ownerless room
   // Oda + sahip üyeliği + açılış satırı birlikte yazılmalı: yarım kalırsa sahipsiz oda kalır
   const bag = await pool.getConnection();
   let odaId = 0;
@@ -111,6 +133,7 @@ odalar.post("/oda", giris, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Answering an invite (the invited person)
 // Davete cevap (davet edilen kişi)
 // ---------------------------------------------------------------------------
 async function davetiBul(req: express.Request, res: express.Response) {
@@ -127,12 +150,15 @@ odalar.post("/oda/davet/:did/kabul", giris, async (req, res, next) => {
   const d = await davetiBul(req, res);
   if (!d) { bildir(req, "hata", "Bu davet artık geçerli değil."); return res.redirect("/sohbet"); }
   if (d.kapali) { bildir(req, "hata", "Bu oda yöneticiler tarafından kapatıldı, şu an katılamazsın."); return res.redirect("/sohbet"); }
+  // On joining, `son_okunan_id` is set to the current last message so past messages do not count as unread
   // Katılış: geçmiş mesajlar okunmamış sayılmasın diye son_okunan_id şu anki son mesaja ayarlanır
   const [e]: any = await pool.query(
     `INSERT IGNORE INTO room_members (room_id, user_id, rol, son_okunan_id)
      VALUES (?, ?, 'uye', (SELECT COALESCE(MAX(id), 0) FROM room_messages WHERE room_id = ?))`, [d.room_id, ben.id, d.room_id]);
   await pool.query("UPDATE room_invites SET durum = 'kabul' WHERE id = ?", [d.id]);
-  await pool.query("DELETE FROM room_bans WHERE room_id = ? AND user_id = ?", [d.room_id, ben.id]); // davetle dönene eski çıkarma engeli kalkar
+  // someone returning by invite has the old removal ban lifted
+  // davetle dönene eski çıkarma engeli kalkar
+  await pool.query("DELETE FROM room_bans WHERE room_id = ? AND user_id = ?", [d.room_id, ben.id]);
   if (e.affectedRows > 0) {
     const mid = await sistemMesaji(d.room_id, ben.id, `${d.eden_ad} odaya ${belirtme(ben.username)} ekledi`);
     await pool.query("UPDATE room_members SET son_okunan_id = ? WHERE room_id = ? AND user_id = ?", [mid, d.room_id, ben.id]);
@@ -149,6 +175,7 @@ odalar.post("/oda/davet/:did/ret", giris, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Join via invite link: /oda/katil/KOD
 // Davet bağlantısıyla katıl: /oda/katil/KOD
 // ---------------------------------------------------------------------------
 type Hal = "ok" | "yok" | "iptal" | "doldu" | "sinir" | "kapali" | "yasak" | "uye";
@@ -187,6 +214,7 @@ odalar.get("/oda/katil/:kod", girisGerekli("Odaya katılmak için giriş yapman 
 
 odalar.post("/oda/katil/:kod", girisGerekli("Odaya katılmak için giriş yapman gerekiyor."), async (req, res) => {
   const ben = res.locals.kullanici;
+  // Keep the use count race-free (two people must not take the last slot at once): lock the row and do check + write in one transaction
   // Kullanım sayısı yarışa girmesin (iki kişi son hakkı aynı anda almasın): satırı kilitleyip kontrol + yazma tek işlemde
   const bag = await pool.getConnection();
   let sonuc: Awaited<ReturnType<typeof baglantiDurumu>>;
@@ -219,13 +247,16 @@ odalar.post("/oda/katil/:kod", girisGerekli("Odaya katılmak için giriş yapman
 });
 
 // ---------------------------------------------------------------------------
+// The room page and the fallback dialog addresses
 // Odanın sayfası ve yedek pencere adresleri
 // ---------------------------------------------------------------------------
 async function odaCiz(req: express.Request, res: express.Response, panel: string, ekstra: Record<string, unknown> = {}) {
   const ben = res.locals.kullanici;
   const oda: Uyelik = res.locals.oda;
-  const detay = await odaDetayi(oda, ben.id); // okundu işaretler
-  res.locals.okunmamisOda = await okunmamisOdaVar(ben.id); // menüdeki nokta okuduktan sonraki halini göstersin
+  const detay = await odaDetayi(oda, ben.id); // marks messages as read · okundu işaretler
+  // so the menu dot shows the state after reading
+  // menüdeki nokta okuduktan sonraki halini göstersin
+  res.locals.okunmamisOda = await okunmamisOdaVar(ben.id);
   res.render("oda", {
     baslik: oda.ad, oda, ...detay, hub: await hubVerisi(ben), panelAcik: panel, aktifMenu: "sohbet", aktifOda: oda.id,
     yonetebilir: yonetir(oda.rol), taban: `${req.protocol}://${req.get("host")}`, kalanSure, aramaQ: "", aramaSonuc: null, ...ekstra,
@@ -245,6 +276,7 @@ for (const panel of PANELLER) {
     const oda: Uyelik = res.locals.oda;
     const yetkisiz = (["davet", "baglantilar", "ayarlar"].includes(panel) && (!yonetir(oda.rol) || oda.kapali)) || (panel === "ayril" && oda.rol !== "sahip");
     if (yetkisiz) return res.redirect(`/oda/${oda.id}`);
+    // Invite search without JS: GET ?q= renders the results on the server
     // JS'siz davet araması: GET ?q= ile sonuçlar sunucuda çizilir
     const aramaQ = panel === "davet" ? metin(req.query.q).slice(0, 32) : "";
     await odaCiz(req, res, panel, { aramaQ, aramaSonuc: panel === "davet" ? await davetAra(res.locals.kullanici.id, oda.id, aramaQ) : null });
@@ -252,6 +284,7 @@ for (const panel of PANELLER) {
 }
 
 // ---------------------------------------------------------------------------
+// Message
 // Mesaj
 // ---------------------------------------------------------------------------
 odalar.post("/oda/:id/mesaj", giris, uyeGerekli, async (req, res) => {
@@ -267,11 +300,13 @@ odalar.post("/oda/:id/mesaj", giris, uyeGerekli, async (req, res) => {
   if (yasak) { bildir(req, "hata", `Mesajında yasaklı bir ifade var: “${yasak}”.`); return res.redirect(geri); }
   odaMesaj.say("u" + ben.id);
   const [r]: any = await pool.query("INSERT INTO room_messages (room_id, user_id, content) VALUES (?, ?, ?)", [oda.id, ben.id, content]);
+  // A message I wrote myself should not show up as unread to me
   // Kendi yazdığım mesaj bana okunmamış görünmesin
   await pool.query("UPDATE room_members SET son_okunan_id = ? WHERE room_id = ? AND user_id = ?", [r.insertId, oda.id, ben.id]);
   res.redirect(`${geri}#o-${r.insertId}`);
 });
 
+// Delete message: my own, or anyone's if I am an admin. Soft delete; reports stay open (so staff can still judge the author).
 // Mesaj sil: kendi mesajım ya da yöneticiysem herkesinki. Yumuşak silme; şikâyetler açık kalır (yetkili yazarı yine değerlendirebilsin).
 odalar.post("/oda/:id/mesaj/:mid/sil", giris, uyeGerekli, async (req, res) => {
   const ben = res.locals.kullanici;
@@ -287,6 +322,7 @@ odalar.post("/oda/:id/mesaj/:mid/sil", giris, uyeGerekli, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Mute / leave
 // Sessize al / ayrıl
 // ---------------------------------------------------------------------------
 odalar.post("/oda/:id/sessiz", giris, uyeGerekli, async (req, res) => {
@@ -311,6 +347,7 @@ odalar.post("/oda/:id/ayril", giris, uyeGerekli, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Room settings (name, description) and deletion
 // Oda ayarları (ad, açıklama) ve silme
 // ---------------------------------------------------------------------------
 odalar.post("/oda/:id/ayarlar", giris, uyeGerekli, yoneticiGerekli, async (req, res) => {
@@ -331,6 +368,7 @@ odalar.post("/oda/:id/ayarlar", giris, uyeGerekli, yoneticiGerekli, async (req, 
 
 odalar.post("/oda/:id/sil", giris, uyeGerekli, sahipGerekli, async (req, res) => {
   const oda: Uyelik = res.locals.oda;
+  // confirm() does not work without JS: the server asks for the confirmation checkbox too
   // JS yokken confirm() çalışmaz: sunucu da onay kutusunu ister
   if (req.body.onay !== "1") { bildir(req, "hata", "Odayı silmek için onay kutusunu işaretlemelisin."); return res.redirect(odaGeri(req, oda.id)); }
   await pool.query("UPDATE rooms SET deleted_at = NOW() WHERE id = ?", [oda.id]);
@@ -341,6 +379,7 @@ odalar.post("/oda/:id/sil", giris, uyeGerekli, sahipGerekli, async (req, res) =>
 });
 
 // ---------------------------------------------------------------------------
+// Invite a person (admins)
 // Kişi davet et (yöneticiler)
 // ---------------------------------------------------------------------------
 odalar.post("/oda/:id/davet", giris, uyeGerekli, yoneticiGerekli, async (req, res) => {
@@ -350,6 +389,7 @@ odalar.post("/oda/:id/davet", giris, uyeGerekli, yoneticiGerekli, async (req, re
   const [[hedef]]: any = await pool.query("SELECT id, username FROM users WHERE username = ? AND deleted_at IS NULL", [metin(req.body.kullanici)]);
   if (!hedef) { bildir(req, "hata", "Kullanıcı bulunamadı."); return res.redirect(geri); }
   if (hedef.id === ben.id) { bildir(req, "hata", "Kendini davet edemezsin."); return res.redirect(geri); }
+  // A block in either direction prevents the invite (we do not say who blocked whom)
   // Engel iki yönde de davete izin vermez (kimin kimi engellediğini söylemiyoruz)
   const [[e]]: any = await pool.query(`SELECT ${engelSql("?", "?")} AS engel`, [ben.id, hedef.id, hedef.id, ben.id]);
   if (Number(e.engel) > 0) { bildir(req, "hata", "Bu kişiyi davet edemezsin."); return res.redirect(geri); }
@@ -372,9 +412,10 @@ odalar.post("/oda/:id/davet/:did/iptal", giris, uyeGerekli, yoneticiGerekli, asy
 });
 
 // ---------------------------------------------------------------------------
+// Invite links
 // Davet bağlantıları
 // ---------------------------------------------------------------------------
-const SURELER: Record<string, number | null> = { "1": 1, "7": 7, "0": null }; // gün; 0 = süresiz
+const SURELER: Record<string, number | null> = { "1": 1, "7": 7, "0": null }; // days; 0 = no expiry · gün; 0 = süresiz
 const SINIRLAR: Record<string, number | null> = { "0": null, "1": 1, "5": 5, "10": 10, "25": 25 };
 const ENFAZLA_ETKIN_BAGLANTI = 10;
 
@@ -390,6 +431,7 @@ odalar.post("/oda/:id/baglanti", giris, uyeGerekli, yoneticiGerekli, async (req,
         AND (kullanim_siniri IS NULL OR kullanim < kullanim_siniri)`, [oda.id]);
   if (Number(n.n) >= ENFAZLA_ETKIN_BAGLANTI) { bildir(req, "hata", `En çok ${ENFAZLA_ETKIN_BAGLANTI} etkin bağlantı olabilir. Önce birini iptal et.`); return res.redirect(geri); }
   const gun = SURELER[sureAnahtar];
+  // If the code collides (very unlikely) the UNIQUE constraint raises an error; retry a few times
   // Kod çakışırsa (çok düşük ihtimal) UNIQUE hata verir; birkaç kez yeniden dene
   for (let deneme = 0; deneme < 5; deneme++) {
     try {
@@ -416,6 +458,7 @@ odalar.post("/oda/:id/baglanti/:lid/iptal", giris, uyeGerekli, yoneticiGerekli, 
 });
 
 // ---------------------------------------------------------------------------
+// Member actions: promote / demote admin, transfer ownership, remove from room
 // Üye işlemleri: yönetici yap / al, sahipliği devret, odadan çıkar
 // ---------------------------------------------------------------------------
 async function hedefUye(req: express.Request, res: express.Response) {
@@ -444,6 +487,7 @@ odalar.post("/oda/:id/uye/:uid/sahiplik", giris, uyeGerekli, sahipGerekli, async
   const geri = odaGeri(req, oda.id);
   const h = await hedefUye(req, res); if (!h) return;
   if (h.id === ben.id) { bildir(req, "hata", "Sahipliği kendine devredemezsin."); return res.redirect(geri); }
+  // The new owner is also subject to the per-person room limit
   // Yeni sahip de kişi başı oda sınırına tabidir
   const durum = await olusturmaDurumu({ id: h.id, points: 0, rol: "uye" });
   if (durum.sinirDolu) { bildir(req, "hata", `${h.username} zaten en çok oda sayısına (${durum.sinir}) sahip.`); return res.redirect(geri); }
@@ -467,9 +511,11 @@ odalar.post("/oda/:id/uye/:uid/cikar", giris, uyeGerekli, yoneticiGerekli, async
   const geri = odaGeri(req, oda.id);
   const h = await hedefUye(req, res); if (!h) return;
   if (h.id === ben.id) { bildir(req, "hata", "Kendini çıkaramazsın; odadan ayrılabilirsin."); return res.redirect(geri); }
+  // Nobody can remove the owner; an admin can remove only ordinary members, only the owner can remove an admin
   // Sahip kimse tarafından çıkarılamaz; yönetici yalnızca sıradan üyeyi çıkarır, yöneticiyi yalnızca sahip çıkarır
   if (h.rol === "sahip" || (h.rol === "yonetici" && oda.rol !== "sahip")) { bildir(req, "hata", "Bu üyeyi çıkarma yetkin yok."); return res.redirect(geri); }
   await pool.query("DELETE FROM room_members WHERE room_id = ? AND user_id = ?", [oda.id, h.id]);
+  // Cannot come back via a link for 24 hours (can come back via an invite: accepting lifts the ban)
   // 24 saat bağlantıyla geri dönemesin (davetle dönebilir: kabulde engel kalkar)
   await pool.query(
     "INSERT INTO room_bans (room_id, user_id, bitis) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 24 HOUR)) ON DUPLICATE KEY UPDATE bitis = VALUES(bitis)", [oda.id, h.id]);

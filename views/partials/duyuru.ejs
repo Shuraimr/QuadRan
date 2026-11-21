@@ -1,9 +1,14 @@
 <%#
+  Announcement strip (written from the admin panel: Site settings). bas.ejs includes it on non-minimal pages.
+  Expected data: locals.duyuru { metin, tur: "info" | "uyari" } (filled by oturum.ts; null if absent or dismissed)
+  The "Kapat" (close) button stores this announcement version in the session (POST /duyuru/kapat); when the announcement changes the strip shows again.
+
   Duyuru şeridi (yönetim panelinden yazılır: Site ayarları). bas.ejs, sade olmayan sayfalara ekler.
   Beklenen veri: locals.duyuru { metin, tur: "info" | "uyari" } (oturum.ts doldurur; yoksa ya da kapatılmışsa null)
   "Kapat" düğmesi oturumda bu duyuru sürümünü saklar (POST /duyuru/kapat); duyuru değişince şerit yeniden çıkar.
 %>
-<%# Bakım modu açıkken yalnızca yetkililer siteyi görür (server.ts bakimSeridi'ni koyar): onlara hatırlatma %>
+<%# While maintenance mode is on only staff can see the site (server.ts sets `bakimSeridi`): a reminder for them
+    Bakım modu açıkken yalnızca yetkililer siteyi görür (server.ts bakimSeridi'ni koyar): onlara hatırlatma %>
 <% if (locals.bakimSeridi) { %>
   <div class="duyuru duyuru-bakim" role="status">
     <%- include("ikon", { ad: "anahtar", boyut: 18 }) %>

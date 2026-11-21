@@ -1,13 +1,13 @@
-name: quadran
+name: rubyyard
 
 services:
   db:
     image: mysql:8.4
-    container_name: quadran-db
+    container_name: rubyyard-db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: quadran
+      MYSQL_DATABASE: rubyyard
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       TZ: Europe/Istanbul
@@ -15,12 +15,12 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - quadran_data:/var/lib/mysql
+      - rubyyard_data:/var/lib/mysql
       - ./sql:/docker-entrypoint-initdb.d:z
 
   adminer:
     image: adminer
-    container_name: quadran-adminer
+    container_name: rubyyard-adminer
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -28,4 +28,4 @@ services:
       - db
 
 volumes:
-  quadran_data:
+  rubyyard_data:

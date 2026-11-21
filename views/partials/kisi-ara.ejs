@@ -1,4 +1,8 @@
 <%#
+  New message: user search. Used in two places:
+  - in the dialog (dialog: true): JS fetches results from /mesajlar/kisi-ara as you type (data-kisi-ara, data-kisi-sonuc)
+  - on the /mesajlar/yeni page: the form is sent with GET, results are rendered on the server (no JS needed)
+  Expected data: dialog (bool), aramaQ (string), sonuclar [ { username, rutbe } ]
   Yeni mesaj: kullanıcı arama. İki yerde kullanılır:
   - pencerede (dialog: true): JS yazdıkça /mesajlar/kisi-ara'dan sonuç getirir (data-kisi-ara, data-kisi-sonuc)
   - /mesajlar/yeni sayfasında: form GET ile gönderilir, sonuçlar sunucuda çizilir (JS gerekmez)

@@ -1,4 +1,12 @@
 <%#
+  Expected data:
+  ayar  { username, bio, email, avatar_url, banner_url, profil_efekti, avatar_susu, profil_renk_ana, profil_renk_vurgu, profil_renk_gecis, premium_aktif, tema ("koyu"|"acik"|"sistem"), vurgu ("safir"|"zumrut"|"kehribar"|"ametist"|"yakut"),
+          menu_sagda (bool), kompakt (bool), az_animasyon (bool) }
+  ayar.konum, ayar.web_sitesi, ayar.dm_izni ("herkes"|"kimse"), ayar.cevrimici_goster (bool), ayar.engelliler [ { username } ]
+  ayar.imza (string | null), imzaKilit { acik, ad, rutbe, kalan }   the signature field exists only if the rank allows it (kilitBilgisi)
+  hatalar { username, bio, konum, web_sitesi, imza }   (optional)
+  Forms: POST /ayarlar/avatar|banner (multipart) · /ayarlar/avatar|banner/kaldir · /ayarlar/profil-gorunumu · POST /ayarlar/profil (username, bio, konum, web_sitesi, imza) · POST /ayarlar/gorunum · POST /ayarlar/gizlilik (dm_izni, cevrimici_goster)
+           · POST /engel/<ad>/kaldir · POST /hesap/sil
   Beklenen veriler:
   ayar  { username, bio, email, avatar_url, banner_url, profil_efekti, avatar_susu, profil_renk_ana, profil_renk_vurgu, profil_renk_gecis, premium_aktif, tema ("koyu"|"acik"|"sistem"), vurgu ("safir"|"zumrut"|"kehribar"|"ametist"|"yakut"),
           menu_sagda (bool), kompakt (bool), az_animasyon (bool) }
@@ -12,11 +20,15 @@
 <%- include("partials/ust-cubuk") %>
 <% const h = locals.hatalar || {}; %>
 <div class="ayarlar">
+  <%# The section navigation lives in one place only (no repetition in the persistent UI):
+      on desktop (>1180) it is the rows under Settings in the left sidebar (partials/kenar-menu), and this list is hidden;
+      on tablet (801–1180) this nav is the strip that sticks under the top bar (title + section tabs); on phone it is horizontal chips at the top. %>
   <%# Bölüm gezintisi tek yerde durur (kalıcı arayüzde tekrar yok):
       masaüstü (>1180) sol kenar menüde Ayarlar'ın altındaki satırlar (partials/kenar-menu), buradaki liste gizli;
       tablet (801–1180) bu nav üst çubuğun altına yapışan şerittir (başlık + bölüm sekmeleri); telefon üstte yatay çipler. %>
   <div class="ayar-gezinti">
     <header class="ayar-baslik"><h1>Ayarlar</h1><p class="ikincil">Profilin, görünüm ve hesabınla ilgili her şey</p></header>
+    <%# On desktop this nav is hidden (the sections are in the sidebar); a screen reader hears only one "Settings sections" navigation %>
     <%# Masaüstünde bu nav gizlidir (bölümler kenar menüde); ekran okuyucu yalnızca bir "Ayarlar bölümleri" gezintisi duyar %>
     <nav class="kategoriler" aria-label="Ayarlar bölümleri">
       <a class="kategori-ogesi aktif" href="#profil" data-bolum-bag><%- include("partials/ikon", { ad: "kisi" }) %> Profil</a>
@@ -37,6 +49,7 @@
         <textarea name="bio" maxlength="280" style="min-height: 104px"><%= ayar.bio || '' %></textarea>
       </label>
       <div class="yardim"><span><%= h.bio || "Profilinde görünür" %></span><span>en fazla 280</span></div>
+      <%# Location and website are short fields: side by side on wide screens (stacked on phones) %>
       <%# Konum ve web sitesi kısa alanlar: geniş ekranda yan yana (telefonda alt alta) %>
       <div class="iki-alan"><div>
       <label class="alan <%= h.konum ? 'hatali' : '' %>"><span>Konum</span>
@@ -49,6 +62,7 @@
       </label>
       <div class="yardim"><span><%= h.web_sitesi || "http:// ya da https:// ile başlamalı" %></span></div>
       </div></div>
+      <%# Signature (rank privilege): the field if unlocked, otherwise a lock card (which rank unlocks it and the points remaining) %>
       <%# İmza (rütbe ayrıcalığı): açıksa alan, kapalıysa kilit kartı (hangi rütbede açılacağı ve kalan puan) %>
       <% if (locals.imzaKilit && !imzaKilit.acik) { %>
         <%- include("partials/kilit", { kilit: imzaKilit }) %>
@@ -61,6 +75,7 @@
       <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
     </form>
 
+    <%# Showcase: badges (at most 3) and one topic pinned at the top of the profile. It has no separate row in the section navigation: it sits right under the Profile section. %>
     <%# Vitrin: profilin üstünde öne çıkan rozetler (en çok 3) ve bir konu. Bölüm gezintisinde ayrı satırı yok: Profil bölümünün hemen altında durur. %>
     <form class="kart bolum" id="vitrin" method="post" action="/ayarlar/vitrin"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <div><h2>Vitrin</h2><p class="ikincil kucuk">Profilinin en üstünde öne çıkanlar</p></div>

@@ -1,4 +1,5 @@
 SET NAMES utf8mb4;
+-- Categories: the sections of the forum
 -- Kategoriler: forumun bölümleri
 CREATE TABLE categories (
     id          SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -6,6 +7,7 @@ CREATE TABLE categories (
     description VARCHAR(255) NULL
 );
 
+-- Topics: each topic belongs to a category and is opened by one user
 -- Konular: her konu bir kategoride, bir kullanıcı tarafından açılır
 CREATE TABLE topics (
     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -19,6 +21,7 @@ CREATE TABLE topics (
     FOREIGN KEY (user_id)     REFERENCES users(id)      ON DELETE RESTRICT
 );
 
+-- Posts: everything written to a topic (including the first post)
 -- Mesajlar: konuya yazılan her şey (ilk mesaj dahil)
 CREATE TABLE posts (
     id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

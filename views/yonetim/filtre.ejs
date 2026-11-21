@@ -1,3 +1,4 @@
+<%# Auto filter: a { yasakli[] }, yasakliMetin, duzenleyebilir (admin only). A moderator sees the list but cannot change it. %>
 <%# Otomatik filtre: a { yasakli[] }, yasakliMetin, duzenleyebilir (yalnızca admin). Moderatör listeyi görür, değiştiremez. %>
 <%- include("duzen-ust", { baslik: "Otomatik filtre", aktif: "filtre" }) %>
 <form class="kart yn-kart yn-form" method="post" action="/yonetim/filtre"><%- include("csrf") %>

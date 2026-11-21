@@ -1,4 +1,12 @@
 <%#
+  Private room: /oda/:id  (and /oda/:id/uyeler|davet|baglantilar|ayarlar|ayril: the same page with the relevant window open; no-JS fallback path)
+  Expected data (src/rotalar/odalar.ts odaCiz):
+  oda        { id, ad, aciklama, rol ("sahip"|"yonetici"|"uye"), sessiz, kapali (closed by moderators) }
+  mesajlar   [ { id, tur ("mesaj"|"sistem"), content, created_at, user_id, yazar, rutbe, oda_rol, engelli } ]  oldest to newest, last 100
+  uyeler     [ { id, username, rutbe, rol, cevrimici } ], cevrimiciSayisi, baglantilar, bekleyenDavetler (only filled for managers)
+  hub, aktifOda  for the left list; yonetebilir (bool); panelAcik; taban; kalanSure
+  Send: POST /oda/:id/mesaj (content) · Delete: POST /oda/:id/mesaj/:mid/sil · Report: /sikayet?oda_mesaj_id=
+  A message from a person I blocked: a dashed-border "Show" chip opened with <details> (no JS needed).
   Özel oda: /oda/:id  (ve /oda/:id/uyeler|davet|baglantilar|ayarlar|ayril: aynı sayfa, ilgili pencere açık; JS'siz yedek yol)
   Beklenen veriler (src/rotalar/odalar.ts odaCiz):
   oda        { id, ad, aciklama, rol ("sahip"|"yonetici"|"uye"), sessiz, kapali (yetkililer kapattı) }
@@ -11,6 +19,7 @@
 <%- include("partials/bas", { baslik: oda.ad }) %>
 <%- include("partials/ust-cubuk") %>
 <%
+  // Group consecutive messages: the same person, less than 10 minutes apart, and no system row/blocked chip in between
   // Art arda gelen mesajları grupla: aynı kişi, aralarında 10 dakikadan az ve araya sistem satırı/engelli çipi girmemiş
   const odOgeler = [];
   let odSon = null;
@@ -49,6 +58,7 @@
           <button class="acilir-oge" type="submit"><%- include("partials/ikon", { ad: oda.sessiz ? "zil" : "sessiz", boyut: 20 }) %><span class="acilir-ad"><%= oda.sessiz ? "Sesi aç" : "Sessize al" %></span></button>
         </form>
         <% if (oda.rol === "sahip") { %>
+          <%# The owner cannot leave: the item opens a window explaining what they should do %>
           <%# Sahip ayrılamaz: öğe, ne yapması gerektiğini anlatan pencereyi açar %>
           <a class="acilir-oge acilir-oge-tehlikeli" href="/oda/<%= oda.id %>/ayril" data-oda-panel="ayril"><%- include("partials/ikon", { ad: "cikis", boyut: 20 }) %><span class="acilir-ad">Odadan ayrıl</span></a>
         <% } else { %>
@@ -67,6 +77,7 @@
           <% if (m.tur === "sistem") { %>
             <div class="oda-sistem" id="o-<%= m.id %>"><%= m.content %></div>
           <% } else if (m.engelli) { %>
+            <%# A message from a person I blocked: dashed chip; opens without JS thanks to <details> %>
             <%# Engellediğim kişinin mesajı: kesikli çip; <details> sayesinde JS'siz açılır %>
             <div class="sohbet-mesaj yeni" id="o-<%= m.id %>">
               <span class="sohbet-yer"></span>

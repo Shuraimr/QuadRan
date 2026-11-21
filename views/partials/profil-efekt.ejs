@@ -1,4 +1,10 @@
 <%#
+  Profile effect layer (Figma 33:4…35:579): particles playing on top of the card. Data comes from `EFEKTLER` (constant) in src/profil-gorunum.ts.
+  Expected: efekt (key or empty), katman ("arka" | "on"), tum (bool: preview, all 6 effects at once; unselected ones are `hidden`)
+  "arka" (back): called INSIDE the banner box (particles are positioned relative to the banner); "on" (front): over the whole card, small and semi-transparent.
+  The layer is pointer-events:none and aria-hidden; motion lives in public/css/efektler.css (shown static under reduced motion).
+  Positions are pixels for a 300×440 card; they are converted to percentages here.
+
   Profil efekti katmanı (Figma 33:4…35:579): kartın üstünde oynayan parçacıklar. Veriler src/profil-gorunum.ts EFEKTLER (sabit).
   Beklenen: efekt (anahtar ya da boş), katman ("arka" | "on"), tum (bool: önizleme, 6 efekt birden; seçili olmayan `hidden`)
   "arka": banner kutusunun İÇİNDE çağrılır (parçacıklar banner'a göre konumlanır); "on": bütün kartın üstünde, küçük ve yarı saydam.

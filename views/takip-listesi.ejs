@@ -1,3 +1,11 @@
+<%# Followers / following list: /profil/:username/takipciler and /takip-edilenler (src/rotalar/takip.ts)
+   Expected data:
+   profil        { username }
+   tur           "takipciler" | "takip-edilenler"   the open tab
+   kisiler       [ { username, points, rutbe, rutbe_id, avatar_url, avatar_susu } ]   newest follow first
+   sayfa, sayfaSayisi   pagination of 50
+   takipciSayisi, takipSayisi   the numbers in the tab labels
+   The layout is the same as the user list of the /ara page (ara-sayfa, ara-satir, siralama tabs): no new CSS. %>
 <%#
   Takipçiler / takip edilenler listesi: /profil/:username/takipciler ve /takip-edilenler (src/rotalar/takip.ts)
   Beklenen veriler:

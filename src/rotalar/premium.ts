@@ -1,3 +1,5 @@
+// /premium: a placeholder for now. There is NO real payment; premium is given by the admin from the panel (yonetim-kullanici.ts).
+// The page shows the person's OWN card (as it is now, not with premium features selected) and points to Settings.
 // /premium: şimdilik yer tutucu. Gerçek ödeme YOK; premium yönetici tarafından panelden verilir (yonetim-kullanici.ts).
 // Sayfa kişinin KENDİ kartını (premium özellikleri seçili hâliyle değil, şu anki hâliyle) gösterir ve Ayarlar'a yönlendirir.
 import express from "express";

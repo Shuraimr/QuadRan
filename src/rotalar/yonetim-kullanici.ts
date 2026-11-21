@@ -1,3 +1,6 @@
+// Admin panel: Members (list, member card, roles) and actions on a member.
+// Moderators can also open the list and the card: on the card they can only warn and (only members with the "uye" role) suspend.
+// Role, points, badges, temporary password, closing sessions and closing an account are admin-only (sadeceAdmin on the routes).
 // Yönetim paneli: Üyeler (liste, üye kartı, roller) ve üye üzerindeki işlemler.
 // Liste ve kartı moderatör de açar: kartta yalnızca uyarı ve (yalnızca "uye" rolündekilere) uzaklaştırma yapabilir.
 // Rol, puan, rozet, geçici şifre, oturumları kapatma ve hesap kapatma yalnızca admin (route'larda sadeceAdmin).
@@ -25,6 +28,10 @@ const SIRALAR: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
+// List: /yonetim/uyeler?q=&rol=&banli=&silinmis=&kayit=24s&sirala=&yon=&sayfa=
+// The WHERE parts are fixed strings in the code; values from the user always go into the parameter array (?).
+// The ORDER BY column name is never taken from the user: it is picked from the SIRALAR table (an allow-list).
+// Email: only admins see and search it (a moderator does not need personal data).
 // Liste: /yonetim/uyeler?q=&rol=&banli=&silinmis=&kayit=24s&sirala=&yon=&sayfa=
 // WHERE parçaları koddaki sabit metinlerdir; kullanıcıdan gelen değerler hep parametre dizisine (?) girer.
 // ORDER BY için sütun adı kullanıcıdan alınmaz: SIRALAR tablosundan seçilir (izin listesi).
@@ -74,6 +81,8 @@ yonetimKullanici.get("/yonetim/uyeler", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Roles (admin only): the list of admins and moderators + changing a role.
+// This route must be defined BEFORE the "/:id" pattern; otherwise "roller" would be mistaken for a member id.
 // Roller (yalnızca admin): yönetici ve moderatörlerin listesi + rol değiştirme.
 // Bu route "/:id" kalıbından ÖNCE tanımlı olmalı; yoksa "roller" bir üye numarası sanılır.
 // ---------------------------------------------------------------------------
@@ -90,6 +99,7 @@ yonetimKullanici.get("/yonetim/uyeler/roller", sadeceAdmin, async (req, res) => 
 });
 
 // ---------------------------------------------------------------------------
+// Member card: /yonetim/uyeler/:id?sekme=ozet|icerik|sikayet|yaptirim|islem
 // Üye kartı: /yonetim/uyeler/:id?sekme=ozet|icerik|sikayet|yaptirim|islem
 // ---------------------------------------------------------------------------
 const SEKMELER = ["ozet", "icerik", "sikayet", "yaptirim", "islem"] as const;
@@ -126,12 +136,14 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
   );
   for (const s in ist) ist[s] = Number(ist[s]);
 
+  // Only the data needed for the tab is fetched
   // Sekmeye göre yalnızca gereken veri çekilir
   const veri: Record<string, any> = {};
   if (sekme === "ozet") {
     const [konular]: any = await pool.query("SELECT id, title, created_at FROM topics WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT 5", [id]);
     const [mesajlar]: any = await pool.query("SELECT id, content, topic_id, created_at FROM posts WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT 5", [id]);
     const yaptirimlar = await yaptirimGecmisi(id, undefined, 5);
+    // "Recent events" timeline: we merge three sources into one list and sort by date
     // "Son olaylar" zaman çizelgesi: üç kaynağı tek listede birleştirip tarihe göre sıralarız
     const olaylar = [
       ...konular.map((t: any) => ({ zaman: t.created_at, tur: "konu", metin: "Konu açtı: " + t.title, link: "/konu/" + t.id })),
@@ -146,6 +158,7 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
     [veri.mesajlar] = (await pool.query("SELECT id, content, created_at, deleted_at, topic_id FROM posts WHERE user_id = ? ORDER BY id DESC LIMIT 20", [id])) as any;
     [veri.sohbet] = (await pool.query("SELECT id, content, created_at, deleted_at FROM chat_messages WHERE user_id = ? ORDER BY id DESC LIMIT 20", [id])) as any;
   } else if (sekme === "sikayet") {
+    // Reports about them: the person themself, topic messages, chat and private messages (the CONTENT of a private message is not shown)
     // Hakkındaki şikâyetler: kişinin kendisi, konu mesajları, sohbet ve özel mesajları (özel mesajın İÇERİĞİ gösterilmez)
     [veri.hakkinda] = (await pool.query(
       `SELECT reports.id, reports.hedef_tur, reports.sebep, reports.durum, reports.created_at, bildiren.username AS bildiren
@@ -161,6 +174,7 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
   } else if (sekme === "yaptirim") {
     veri.yaptirimlar = await yaptirimGecmisi(id, undefined, 50);
   } else {
+    // Audit-log tab: an admin sees actions done to this person and by this person; a moderator sees only their own actions
     // İşlem kaydı sekmesi: admin bu kişiye yapılan ve bu kişinin yaptığı işlemleri görür; moderatör yalnızca kendi işlemlerini
     [veri.islemler] = (await pool.query(
       `SELECT audit_log.id, audit_log.eylem, audit_log.hedef_tur, audit_log.hedef_id, audit_log.ayrinti, audit_log.created_at, users.username AS aktor
@@ -171,6 +185,7 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
       admin ? [id, id] : [id, yapan.id])) as any;
   }
 
+  // Admin: badge options and role list (for the forms of the action panel)
   // Admin: rozet seçenekleri ve rol listesi (işlem panelinin formları için)
   let rozetler: any[] = veri.rozetler ?? [], tumRozetler: any[] = [], roller: any[] = [];
   if (admin) {
@@ -180,11 +195,13 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
     [roller] = (await pool.query("SELECT name FROM roles ORDER BY id")) as any;
   }
 
+  // Which actions can this staff member perform on this member? (not on themself; a moderator cannot act on admins and moderators)
   // Bu yetkili bu üyeye hangi işlemleri yapabilir? (kendisi, yönetici ve moderatörler için moderatör yapamaz)
   const hedef = await kullaniciGetir(id);
   const banHatasi = await islemHatasi(yapan, hedef, true);
   const islemEngeli = await islemHatasi(yapan, hedef); // son yönetici kuralı olmadan (uyarı, ban kaldırma, rol vb. için)
 
+  // Suspension header: who, when, and the total number of days (the ban row is on the user, "who" is in the audit log)
   // Uzaklaştırma başlığı: kim, ne zaman, toplam kaç gün (ban satırı kullanıcıda, "kim" işlem kaydında)
   let banBilgi: any = null;
   if (k.banli) {
@@ -210,10 +227,12 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
+// Actions. All are POST + CSRF (middleware). The result is shown as a toast and we return to the detail page.
 // İşlemler. Hepsi POST + CSRF (ara katman). Sonuç toast olarak gösterilip detay sayfasına dönülür.
 // ---------------------------------------------------------------------------
 const detay = (id: number) => `/yonetim/uyeler/${id}`;
 
+// Change role (admin only)
 // Rol değiştir (yalnızca admin)
 yonetimKullanici.post("/yonetim/uyeler/:id/rol", sadeceAdmin, async (req, res, next) => {
   const id = sayi(req.params.id);
@@ -222,7 +241,9 @@ yonetimKullanici.post("/yonetim/uyeler/:id/rol", sadeceAdmin, async (req, res, n
   const hedef = await kullaniciGetir(id);
   const [roller]: any = await pool.query("SELECT id FROM roles WHERE name = ?", [yeniRol]);
   let hata = !roller[0] ? "Geçersiz rol." : null;
-  hata ??= await islemHatasi(res.locals.kullanici, hedef, yeniRol !== "admin"); // admin düşürülüyorsa son yönetici korunur
+  // if an admin is being demoted, the last admin is protected
+  // admin düşürülüyorsa son yönetici korunur
+  hata ??= await islemHatasi(res.locals.kullanici, hedef, yeniRol !== "admin");
   if (!hata && hedef!.silindi) hata = "Kapatılmış hesabın rolü değiştirilemez.";
   if (!hata && hedef!.rol === yeniRol) hata = "Kullanıcı zaten bu rolde.";
   if (hata) { bildir(req, "hata", hata); return res.redirect(geriAdres(req, detay(id))); }
@@ -234,6 +255,7 @@ yonetimKullanici.post("/yonetim/uyeler/:id/rol", sadeceAdmin, async (req, res, n
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Set points (admin only): a +/- difference and a mandatory reason
 // Puan ayarla (yalnızca admin): +/- fark ve zorunlu sebep
 yonetimKullanici.post("/yonetim/uyeler/:id/puan", sadeceAdmin, async (req, res, next) => {
   const id = sayi(req.params.id);
@@ -247,6 +269,7 @@ yonetimKullanici.post("/yonetim/uyeler/:id/puan", sadeceAdmin, async (req, res, 
   if (!hata && hedef!.silindi) hata = "Kapatılmış hesabın puanı değiştirilemez.";
   if (hata) { bildir(req, "hata", hata); return res.redirect(geriAdres(req, detay(id))); }
 
+  // The previous/next points come from the values puanEkle reads under its lock: separate SELECTs could write a wrong record if another operation slipped in between.
   // Önceki/sonraki puan puanEkle'nin kilit altında okuduğu değerlerden gelir: ayrı SELECT'ler başka bir işlemin araya girmesiyle yanlış kayıt yazabilirdi.
   const { eski: onceki, yeni: sonraki } = await puanEkle(id, fark, "duzeltme"); // puan sıfırın altına inmez; geçmişe "düzeltme" olarak yazılır
   await denetim(req, res, "kullanici.puan", "kullanici", id, { fark, sebep, onceki, sonraki });
@@ -255,6 +278,8 @@ yonetimKullanici.post("/yonetim/uyeler/:id/puan", sadeceAdmin, async (req, res, 
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Give / take rubies (admin only): the amount is signed (+give, -take), a REASON IS REQUIRED; it is written to yakut_log as 'yonetim' (aciklama = reason)
+// and goes into the audit log. A take cannot push the balance below zero: if it is insufficient, yakutEkle writes nothing.
 // Yakut ver / al (yalnızca admin): miktar işaretli (+ver, -al), SEBEP ZORUNLU; yakut_log'a 'yonetim' olarak yazılır (açıklama = sebep)
 // ve işlem kaydına düşer. Alma bakiyeyi sıfırın altına indiremez: yakutEkle yetersizse hiçbir şey yazmaz.
 yonetimKullanici.post("/yonetim/uyeler/:id/yakut", sadeceAdmin, async (req, res, next) => {
@@ -275,6 +300,8 @@ yonetimKullanici.post("/yonetim/uyeler/:id/yakut", sadeceAdmin, async (req, res,
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Warn (admin and moderator): the member gets a "moderasyon" notification (with the reason inside) and it is written to the audit log.
+// A moderator can only warn members with the "uye" role (islemHatasi). It is independent of any report, a direct warning.
 // Uyar (admin ve moderatör): üyeye "moderasyon" bildirimi gider (sebep içinde), işlem kaydına yazılır.
 // Moderatör yalnızca "uye" rolündekileri uyarabilir (islemHatasi). Şikâyetten bağımsız, doğrudan uyarıdır.
 yonetimKullanici.post("/yonetim/uyeler/:id/uyar", async (req, res, next) => {
@@ -287,12 +314,15 @@ yonetimKullanici.post("/yonetim/uyeler/:id/uyar", async (req, res, next) => {
   if (!hata && (sebep.length < 3 || sebep.length > 200)) hata = "Uyarı sebebi 3 ile 200 karakter arasında olmalı.";
   if (hata) { bildir(req, "hata", hata); return res.redirect(geriAdres(req, detay(id))); }
   await bildirimGonder({ alan: id, yapan: null, tur: "moderasyon", metin: `Moderatörler seni uyardı: ${sebep}. Lütfen topluluk kurallarına dikkat et.`, link: "/profil/" + hedef!.username });
+  // yazar + kullanici_id: the sanction history ties this record to the person (src/yaptirim.ts)
   // yazar + kullanici_id: Yaptırım geçmişi bu kaydı kişiye bağlar (src/yaptirim.ts)
   await denetim(req, res, "kullanici.uyar", "kullanici", id, { yazar: hedef!.username, kullanici_id: id, sebep });
   bildir(req, "basari", `${hedef!.username} uyarıldı.`);
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Ban (admin and moderator; a moderator bans only a member with the "uye" role, the rules are in islemler.ts).
+// A permanent ban goes through a confirmation page; a reason is always required (banla() checks it, here we also check BEFORE the confirmation).
 // Ban (admin ve moderatör; moderatör yalnızca "uye" rolündekini banlar, kurallar islemler.ts'te).
 // Kalıcı ban onay sayfasından geçer; sebep her zaman zorunlu (banla() kontrol eder, burada onaydan ÖNCE de bakıyoruz).
 yonetimKullanici.post("/yonetim/uyeler/:id/ban", async (req, res, next) => {
@@ -320,6 +350,8 @@ yonetimKullanici.post("/yonetim/uyeler/:id/ban-kaldir", async (req, res, next) =
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Close all of their sessions (admin only): oturum_surumu goes up by 1, oturum.ts compares it on every request, and open sessions drop.
+// Considered dangerous: reason required + confirmation page; the reason goes to the audit log and the member's notification.
 // Bütün oturumlarını kapat (yalnızca admin): oturum_surumu 1 artar, oturum.ts her istekte karşılaştırır, açık oturumlar düşer.
 // Tehlikeli sayılır: sebep zorunlu + onay sayfası; sebep işlem kaydına ve üyenin bildirimine gider.
 yonetimKullanici.post("/yonetim/uyeler/:id/oturumlari-kapat", sadeceAdmin, async (req, res, next) => {
@@ -339,6 +371,8 @@ yonetimKullanici.post("/yonetim/uyeler/:id/oturumlari-kapat", sadeceAdmin, async
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Grant / remove premium (admin only). There is NO real payment: the end date is given by hand. The duration starts from today (it replaces, not adds to, the current duration);
+// "suresiz" (unlimited) is a far-future date (PREMIUM_SURESIZ), "kaldir" deletes the date. Premium is independent of role and can be given to the admin themself too.
 // Premium ver / kaldır (yalnızca admin). Gerçek ödeme YOK: bitiş tarihi elle verilir. Süre bugünden başlar (mevcut süreye eklenmez, değiştirir);
 // "süresiz" çok ileri bir tarihtir (PREMIUM_SURESIZ), "kaldir" tarihi siler. Premium rolden bağımsızdır, adminin kendisine de verilebilir.
 yonetimKullanici.post("/yonetim/uyeler/:id/premium", sadeceAdmin, async (req, res, next) => {
@@ -359,6 +393,7 @@ yonetimKullanici.post("/yonetim/uyeler/:id/premium", sadeceAdmin, async (req, re
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Grant / revoke a badge (admin only)
 // Rozet ver / al (yalnızca admin)
 yonetimKullanici.post("/yonetim/uyeler/:id/rozet-ver", sadeceAdmin, async (req, res, next) => {
   const id = sayi(req.params.id);
@@ -369,7 +404,7 @@ yonetimKullanici.post("/yonetim/uyeler/:id/rozet-ver", sadeceAdmin, async (req, 
   if (hata) { bildir(req, "hata", hata); return res.redirect(geriAdres(req, detay(id))); }
   const [var_]: any = await pool.query("SELECT 1 FROM user_badges WHERE user_id = ? AND badge_id = ?", [id, rozetler[0].id]);
   if (var_[0]) { bildir(req, "hata", "Kullanıcı bu rozete zaten sahip."); return res.redirect(geriAdres(req, detay(id))); }
-  await rozetVer(id, rozetler[0].name); // bildirimi de gönderir
+  await rozetVer(id, rozetler[0].name); // also sends the notification · bildirimi de gönderir
   await denetim(req, res, "kullanici.rozet_ver", "kullanici", id, { rozet: rozetler[0].name });
   bildir(req, "basari", `“${rozetler[0].name}” rozeti verildi.`);
   res.redirect(geriAdres(req, detay(id)));
@@ -380,6 +415,9 @@ yonetimKullanici.post("/yonetim/uyeler/:id/rozet-al", sadeceAdmin, async (req, r
   if (!id) return next();
   const [rozetler]: any = await pool.query("SELECT id, name FROM badges WHERE id = ?", [sayi(req.body.badge_id)]);
   if (!rozetler[0]) { bildir(req, "hata", "Rozet bulunamadı."); return res.redirect(geriAdres(req, detay(id))); }
+  // Deleting the badge + taking back the badge points happen in ONE transaction: if it were left half-done, the badge would go but the points would stay.
+  // The amount taken back comes not from that day's puan_rozet setting but from the "still open" amount in points_log
+  // (SUM('rozet') + SUM('rozet_geri') for this badge); the setting may have changed since.
   // Rozet silme + rozet puanını geri alma TEK transaction'da: yarım kalırsa rozet gider ama puan kalırdı.
   // Geri alınan miktar o günkü puan_rozet ayarından değil points_log'daki "hâlâ açık" miktardan gelir
   // (SUM('rozet') + SUM('rozet_geri') bu rozet için); ayar sonradan değişmiş olabilir.
@@ -387,7 +425,9 @@ yonetimKullanici.post("/yonetim/uyeler/:id/rozet-al", sadeceAdmin, async (req, r
   let silindi = false;
   try {
     await baglanti.beginTransaction();
-    await baglanti.query("SELECT id FROM users WHERE id = ? FOR UPDATE", [id]); // eşzamanlı iki "rozet al" aynı puanı iki kez düşmesin
+    // so two concurrent "revoke badge" calls do not deduct the same points twice
+    // eşzamanlı iki "rozet al" aynı puanı iki kez düşmesin
+    await baglanti.query("SELECT id FROM users WHERE id = ? FOR UPDATE", [id]);
     const [sonuc]: any = await baglanti.query("DELETE FROM user_badges WHERE user_id = ? AND badge_id = ?", [id, rozetler[0].id]);
     silindi = sonuc.affectedRows > 0;
     if (silindi) {
@@ -409,6 +449,7 @@ yonetimKullanici.post("/yonetim/uyeler/:id/rozet-al", sadeceAdmin, async (req, r
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Close the account (admin only): the same soft delete as /hesap/sil. Confirmed by typing the username.
 // Hesabı kapat (yalnızca admin): /hesap/sil ile aynı yumuşak silme. Kullanıcı adını yazarak onaylanır.
 yonetimKullanici.post("/yonetim/uyeler/:id/hesap-kapat", sadeceAdmin, async (req, res, next) => {
   const id = sayi(req.params.id);
@@ -420,24 +461,30 @@ yonetimKullanici.post("/yonetim/uyeler/:id/hesap-kapat", sadeceAdmin, async (req
   const sebep = metin(req.body.sebep);
   if (!hata && (sebep.length < 3 || sebep.length > 200)) hata = "Hesabı kapatmak için 3 ile 200 karakter arasında bir sebep yazmalısın.";
   if (hata) { bildir(req, "hata", hata); return res.redirect(geriAdres(req, detay(id))); }
+  // Confirmation by typing the username + the (below) confirmation page: two steps. The notification is written before the account closes.
   // Kullanıcı adını yazarak onay + (aşağıdaki) onay sayfası: iki adım. Bildirim, hesap kapanmadan önce yazılır.
   if (onayIste(req, res, { baslik: "Hesabı kapat", metin: `${hedef!.username} hesabı kapatılacak (kullanıcı adı ve e-posta anonimleşir, giriş yapamaz). Sebep: “${sebep}”. Onaylıyor musun?`, buton: "Evet, hesabı kapat", iptal: detay(id), aktif: "uyeler" })) return;
   await bildirimGonder({ alan: id, yapan: null, tur: "moderasyon", metin: `Hesabın yönetici tarafından kapatıldı. Sebep: ${sebep}`, link: "/" });
 
+  // The username and email change so that the same ones can register again (the same rule as hesap/sil)
   // Kullanıcı adı ve e-posta değişir ki aynısı tekrar kayıt olabilsin (hesap/sil ile aynı kural)
   const [[dosyalar]]: any = await pool.query("SELECT avatar_url, banner_url FROM users WHERE id = ?", [id]);
   await pool.query(
-    `UPDATE users SET deleted_at = NOW(), username = CONCAT('silinmis_', id), email = CONCAT('silinmis_', id, '@quadran.invalid'),
+    `UPDATE users SET deleted_at = NOW(), username = CONCAT('silinmis_', id), email = CONCAT('silinmis_', id, '@rubyyard.invalid'),
             bio = NULL, avatar_url = NULL, banner_url = NULL, avatar_hareketli = 0, banner_hareketli = 0,
             profil_efekti = NULL, avatar_susu = NULL, profil_renk_ana = NULL, profil_renk_vurgu = NULL, profil_renk_gecis = 0, password_hash = '' WHERE id = ?`,
     [id]
   );
-  await dosyaSil(dosyalar?.avatar_url); await dosyaSil(dosyalar?.banner_url); // yüklenen dosyalar diskten de silinir
+  // uploaded files are deleted from disk too
+  // yüklenen dosyalar diskten de silinir
+  await dosyaSil(dosyalar?.avatar_url); await dosyaSil(dosyalar?.banner_url);
   await denetim(req, res, "kullanici.hesap_kapat", "kullanici", id, { eski_ad: hedef!.username, sebep });
   bildir(req, "basari", `${hedef!.username} hesabı kapatıldı.`);
   res.redirect(geriAdres(req, detay(id)));
 });
 
+// Reset password (admin only): a random temporary password is generated and shown ONCE.
+// The password is written neither to the database in plain text, nor to the audit log, nor to the session; it appears only in the body of this response.
 // Şifreyi sıfırla (yalnızca admin): rastgele geçici şifre üretilir ve BİR KEZ gösterilir.
 // Şifre ne veritabanına düz yazılır, ne işlem kaydına, ne de oturuma; yalnızca bu yanıtın gövdesinde görünür.
 const ALFABE = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"; // 0/O, 1/l/I gibi karışanlar yok
@@ -450,14 +497,20 @@ yonetimKullanici.post("/yonetim/uyeler/:id/sifre-sifirla", sadeceAdmin, async (r
   if (hata) { bildir(req, "hata", hata); return res.redirect(geriAdres(req, detay(id))); }
 
   let gecici = "";
-  for (let i = 0; i < 12; i++) gecici += ALFABE[randomInt(ALFABE.length)]; // randomInt: güvenli rastgele (Math.random değil)
+  // randomInt: secure random (not Math.random)
+  // randomInt: güvenli rastgele (Math.random değil)
+  for (let i = 0; i < 12; i++) gecici += ALFABE[randomInt(ALFABE.length)];
+  // oturum_surumu + 1: the user's open sessions drop, they must log in again with the temporary password
   // oturum_surumu + 1: kullanıcının açık oturumları düşer, geçici şifreyle yeniden girmesi gerekir
   await pool.query("UPDATE users SET password_hash = ?, oturum_surumu = oturum_surumu + 1 WHERE id = ?", [await sifreHashle(gecici), id]);
+  // Pending "forgot password" links die too
   // Bekleyen "şifremi unuttum" bağlantıları da ölür
   await pool.query("UPDATE password_resets SET used_at = COALESCE(used_at, NOW()) WHERE user_id = ?", [id]);
   await denetim(req, res, "kullanici.sifre_sifirla", "kullanici", id, { kullanici: hedef!.username });
   await bildirimGonder({ alan: id, yapan: null, tur: "moderasyon", metin: "Şifren yönetici tarafından sıfırlandı. Giriş yaptıktan sonra şifreni değiştir.", link: "/hesap/sifre" });
 
-  res.set("Cache-Control", "no-store"); // tarayıcı/ara önbellek geçici şifreyi saklamasın
+  // so the browser/proxy cache does not store the temporary password
+  // tarayıcı/ara önbellek geçici şifreyi saklamasın
+  res.set("Cache-Control", "no-store");
   res.render("yonetim/gecici-sifre", { baslik: "Geçici şifre", aktif: "uyeler", k: hedef, gecici });
 });

@@ -1,3 +1,8 @@
+<%# Room dialogs: Members, Invite (person), Invite links, Room settings, Leave room (explanation only for the owner).
+   Each one is a <dialog>. With JS they open from the menu (data-oda-panel); without JS the menu links go to /oda/:id/<panel>
+   and the room page renders that dialog OPEN (panelAcik); the close link returns to /oda/:id. Actions are POST and after an action we return to the same dialog.
+   Expected data: oda { id, ad, aciklama, rol, kapali }, uyeler [{ id, username, rutbe, rol, cevrimici }], baglantilar, bekleyenDavetler,
+   yonetebilir, panelAcik, aramaQ, aramaSonuc [{ username, rutbe }] | null, taban (https://site), kalanSure (helper), kullanici %>
 <%#
   Oda pencereleri: Üyeler, Davet et (kişi), Davet bağlantıları, Oda ayarları, Odadan ayrıl (yalnızca sahip için açıklama).
   Her biri bir <dialog>. JS varsa menüden açılır (data-oda-panel); JS yokken menüdeki bağlantılar /oda/:id/<panel> adresine gider
@@ -16,7 +21,7 @@
   </nav>`;
 %>
 
-<%# ---------- Üyeler ---------- %>
+<%# ---------- Members · Üyeler ---------- %>
 <dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-uyeler" aria-labelledby="oda-uyeler-baslik"<%- opAc_ === "uyeler" ? " open" : "" %> data-geri="<%= opGeri_ %>">
   <div class="yeni-mesaj-ic">
     <div class="yeni-mesaj-ust">
@@ -27,6 +32,7 @@
     <ul class="oda-uyeler">
       <% for (const u of uyeler) {
            const benMi = u.id === kullanici.id;
+           // Who can do what to whom: the owner to everyone except the owner, an admin only to ordinary members; in a closed room nobody
            // Kim kime ne yapabilir: sahip sahip dışındaki herkese, yönetici yalnızca sıradan üyeye; kapalı odada hiç kimse
            const islemVar = !oda.kapali && !benMi && u.rol !== "sahip" && (oda.rol === "sahip" || (oda.rol === "yonetici" && u.rol === "uye")); %>
         <li class="oda-uye">
@@ -60,7 +66,7 @@
 </dialog>
 
 <% if (opYon_) { %>
-<%# ---------- Davet et: kişi ---------- %>
+<%# ---------- Invite: person · Davet et: kişi ---------- %>
 <dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-davet" aria-labelledby="oda-davet-baslik"<%- opAc_ === "davet" ? " open" : "" %> data-geri="<%= opGeri_ %>">
   <div class="yeni-mesaj-ic">
     <div class="yeni-mesaj-ust">
@@ -97,7 +103,7 @@
   </div>
 </dialog>
 
-<%# ---------- Davet bağlantıları ---------- %>
+<%# ---------- Invite links · Davet bağlantıları ---------- %>
 <dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-baglantilar" aria-labelledby="oda-baglantilar-baslik"<%- opAc_ === "baglantilar" ? " open" : "" %> data-geri="<%= opGeri_ %>">
   <div class="yeni-mesaj-ic">
     <div class="yeni-mesaj-ust">
@@ -133,7 +139,7 @@
   </div>
 </dialog>
 
-<%# ---------- Oda ayarları ---------- %>
+<%# ---------- Room settings · Oda ayarları ---------- %>
 <dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-ayarlar" aria-labelledby="oda-ayarlar-baslik"<%- opAc_ === "ayarlar" ? " open" : "" %> data-geri="<%= opGeri_ %>">
   <div class="yeni-mesaj-ic">
     <div class="yeni-mesaj-ust">
@@ -158,7 +164,7 @@
 <% } %>
 
 <% if (oda.rol === "sahip") { %>
-<%# ---------- Odadan ayrıl (sahip): ayrılamaz, ne yapacağı açıklanır ---------- %>
+<%# ---------- Leave room (owner): cannot leave, what to do instead is explained · Odadan ayrıl (sahip): ayrılamaz, ne yapacağı açıklanır ---------- %>
 <dialog class="yeni-mesaj-penceresi oda-pencere" id="oda-ayril" aria-labelledby="oda-ayril-baslik"<%- opAc_ === "ayril" ? " open" : "" %> data-geri="<%= opGeri_ %>">
   <div class="yeni-mesaj-ic">
     <div class="yeni-mesaj-ust">

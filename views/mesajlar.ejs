@@ -1,3 +1,14 @@
+<%# Private messages: /mesajlar and /mesajlar/:kullanici
+   Expected data:
+   q           string (optional)  username searched in the conversation list (GET /mesajlar?q=)
+   konusmalar  [ { kullanici, rutbe, son_mesaj, son_zaman (Date), okunmamis (number), son_benden (bool, optional) } ]
+               grouped by the other person from the messages table; newest first by son_zaman
+   acik        null or { kullanici, rutbe, mesajlar: [ { id, benim (bool: sender_id is the signed-in person), content, created_at, read_at } ] }
+               (mesajlar[].silindi: true if a moderator removed it, an info text comes instead of content)
+               mesajlar is ordered oldest to newest. If null the "Pick a conversation" empty state shows
+   acik.cevrimici (bool: seen within the last 5 min AND not hiding their status), acik.durum ("izinli" | "ben_engelledim" | "kapali")
+   yeni        if true the "New message" search shows on the right (no-JS path: GET /mesajlar/yeni?q=); aramaQ, sonuclar [ { username, rutbe } ]
+   Send: POST /mesajlar/<kullanici>  field: content · Delete: POST /mesajlar/mesaj/<id>/sil · Block: POST /engel/<kullanici>[/kaldir] %>
 <%#
   Özel mesajlar: /mesajlar ve /mesajlar/:kullanici
   Beklenen veriler:
@@ -33,6 +44,7 @@
     return new Date(d).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
   };
 
+  // Split messages into days and consecutive groups (same person, same day, less than 10 minutes apart)
   // Mesajları günlere ve art arda gelen gruplara ayır (aynı kişi, aynı gün, aralarında 10 dakikadan az)
   const mjOgeler = [];
   let mjSonBenim = null;
@@ -50,6 +62,7 @@
       sonZaman = t;
       if (m.benim) mjSonBenim = { grup: sonGrup, mesaj: m };
     }
+    // The "Seen" note only shows under my last message
     // "Görüldü" notu yalnızca benim son mesajımın altında görünür
     if (mjSonBenim && mjSonBenim.mesaj.read_at) mjSonBenim.grup.goruldu = mjSonBenim.mesaj.read_at;
   }
@@ -59,6 +72,7 @@
     <div class="mesaj-liste-ust">
       <div class="mesaj-liste-baslik">
         <h1>Sohbet</h1>
+        <%# "New message" is hidden only on the new-message page: the same search is already open there, so the same action does not appear in two places %>
         <%# "Yeni mesaj" yalnızca yeni mesaj sayfasında yok: orada zaten aynı arama açık, aynı eylem iki yerde durmasın %>
         <% if (!locals.yeni) { %><a class="buton buton-tonal yeni-mesaj-dugme" href="/mesajlar/yeni" data-yeni-mesaj-ac><%- include("partials/ikon", { ad: "kalem", boyut: 18 }) %> Yeni mesaj</a><% } %>
       </div>
@@ -110,6 +124,7 @@
     <% } else { %>
       <header class="mesaj-ust">
         <a class="ikon-dugme mesaj-geri" href="/mesajlar" aria-label="Konuşma listesine dön"><%- include("partials/ikon", { ad: "cevap", boyut: 20 }) %></a>
+        <%# The ONLY link to the profile: avatar and name together; the status line is inside the link too, no second link %>
         <%# Profile giden TEK bağlantı: avatar ve ad birlikte; durum satırı da bağlantının içinde, ikinci bağlantı yok %>
         <a class="mesaj-ust-kimlik" href="/profil/<%= mjAcik.kullanici %>">
           <%- include("partials/avatar", { ad: mjAcik.kullanici, url: mjAcik.avatar_url, sus: mjAcik.avatar_susu, sinif: "avatar-48", bos: true }) %>
@@ -124,6 +139,7 @@
         </a>
         <button class="ikon-dugme mesaj-ust-menu-dugme" type="button" popovertarget="mesaj-ust-menusu" data-menu-ac aria-label="Konuşma işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
         <div class="acilir-menu acilir-menu-konumlu" id="mesaj-ust-menusu" popover aria-label="Konuşma işlemleri">
+          <%# "Unblock" lives only in the card below (the same action must not appear in two places); in the menu, blocking is offered only if you have not blocked them %>
           <%# "Engeli kaldır" yalnızca aşağıdaki kartta durur (aynı eylem iki yerde çıkmasın); menüde engellemek yalnızca engelli değilsen var %>
           <% if (mjAcik.durum !== "ben_engelledim") { %>
             <form method="post" action="/engel/<%= encodeURIComponent(mjAcik.kullanici) %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
@@ -152,6 +168,7 @@
                       <div class="mesaj-balon" id="mt-<%= m.id %>"><%- icerikHtml(m.content, o.benim ? locals.kullanici.rutbe_id : mjAcik.rutbe_id, o.benim ? locals.kullanici.rol : mjAcik.yazar_rol) %></div>
                       <button class="mesaj-menu-dugme" type="button" popovertarget="mesaj-menusu-<%= m.id %>" data-menu-ac aria-label="Mesaj işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 18 }) %></button>
                       <div class="acilir-menu acilir-menu-konumlu mesaj-menusu" id="mesaj-menusu-<%= m.id %>" popover aria-label="Mesaj işlemleri">
+                        <%# Copy only works with JS; without JS the CSS hides it (invisible if the .js class is missing) %>
                         <%# Kopyala yalnızca JS'le çalışır; JS yokken CSS gizler (.js sınıfı yoksa görünmez) %>
                         <button class="acilir-oge mesaj-kopyala" type="button" data-kopyala="#mt-<%= m.id %>"><%- include("partials/ikon", { ad: "kopyala", boyut: 20 }) %><span class="acilir-ad">Kopyala</span></button>
                         <% if (o.benim) { %>
@@ -159,6 +176,7 @@
                             <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("partials/ikon", { ad: "cop", boyut: 20 }) %><span class="acilir-ad">Sil</span></button>
                           </form>
                         <% } else { %>
+                          <%# Only the RECIPIENT can report: it appears on incoming (not mine), non-deleted messages %>
                           <%# Yalnızca ALICI şikâyet edebilir: gelen (benim olmayan), silinmemiş mesajlarda çıkar %>
                           <a class="acilir-oge" href="/sikayet?mesaj_id=<%= m.id %>" data-sikayet-ac data-mesaj-id="<%= m.id %>" data-yazar="<%= mjAcik.kullanici %>" data-baslik="Bu özel mesajı şikâyet et"><%- include("partials/ikon", { ad: "bayrak", boyut: 20 }) %><span class="acilir-ad">Şikâyet et</span></a>
                         <% } %>

@@ -1,3 +1,4 @@
+<%# Roles (admin): yetkililer [{id, username, rol, last_seen_at, engel}], roller [{name}]. Changing a role: POST /yonetim/uyeler/:id/rol (field: rol) %>
 <%# Roller (admin): yetkililer [{id, username, rol, last_seen_at, engel}], roller [{name}]. Rol değiştirme: POST /yonetim/uyeler/:id/rol (alan: rol) %>
 <%- include("duzen-ust", { baslik: "Üyeler", aktif: "uyeler" }) %>
 <div class="yn-sekmeler siralama"><a href="/yonetim/uyeler">Üyeler</a><a class="aktif" href="/yonetim/uyeler/roller">Roller</a></div>

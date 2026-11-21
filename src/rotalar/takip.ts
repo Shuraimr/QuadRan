@@ -1,3 +1,4 @@
+// Follow system (sql/20_takip.sql): follow / unfollow and the follower / following lists.
 // Takip sistemi (sql/20_takip.sql): takip et / bırak ve takipçi–takip edilen listeleri.
 import express from "express";
 import { pool } from "../db.ts";
@@ -6,10 +7,14 @@ import { rutbeSutunlari, bildirimGonder, bildir, girisGerekli, sayi } from "../y
 
 export const takip = express.Router();
 
+// Follow/unfollow: at most 30 actions per minute per person. It slows down spam by following and unfollowing repeatedly
+// to flood the other person with notifications; normal use is unaffected. `say()` is only called once validation passes.
 // Takip/bırak: kişi başı dakikada en çok 30 işlem. Sürekli takip–bırak yapıp karşı tarafa
 // bildirim yağdırmayı (spam) yavaşlatır; normal kullanımı etkilemez. say() yalnızca doğrulama geçince çağrılır.
 const takipHizi = new HizSiniri(30, 1);
 
+// Find the target user and check whether the action can be done.
+// Returns: the target row; null = not found (404); undefined = the response was already sent (error toast + redirect).
 // Hedef kullanıcıyı bul ve işlemin yapılıp yapılamayacağını denetle.
 // Dönüş: hedef satırı; null = bulunamadı (404); undefined = yanıt zaten verildi (hata toast'u + yönlendirme).
 async function hedefiBul(req: express.Request, res: express.Response) {
@@ -23,6 +28,7 @@ async function hedefiBul(req: express.Request, res: express.Response) {
     res.redirect(profil);
     return undefined;
   }
+  // If there is a block in ANY direction between them there is no follow; we do not say who blocked (same reasoning as src/gizlilik.ts).
   // Aralarında HERHANGİ bir yönde engel varsa takip yok; kimin engellediğini söylemiyoruz (src/gizlilik.ts ile aynı gerekçe).
   const [[e]]: any = await pool.query(
     "SELECT COUNT(*) AS n FROM user_blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)",
@@ -48,6 +54,8 @@ takip.post("/takip/:kullanici", girisGerekli(), async (req, res, next) => {
   if (hedef === undefined) return;
   if (!hedef) return next();
   const ben = res.locals.kullanici;
+  // INSERT IGNORE: no error if already following, `affectedRows` is 0. We send the notification only on a REALLY new follow;
+  // otherwise it would be possible to fill the other person's notifications by sending repeated requests.
   // INSERT IGNORE: zaten takipteyse hata vermez, affectedRows 0 olur. Bildirimi yalnızca GERÇEKTEN yeni takipte
   // gönderiyoruz; yoksa art arda istek göndererek karşı tarafın bildirimlerini doldurmak mümkün olurdu.
   const [sonuc]: any = await pool.query("INSERT IGNORE INTO user_follows (follower_id, followed_id) VALUES (?, ?)", [ben.id, hedef.id]);
@@ -71,8 +79,11 @@ takip.post("/takip/:kullanici/birak", girisGerekli(), async (req, res, next) => 
   res.redirect("/profil/" + encodeURIComponent(hedef.username));
 });
 
+// Lists: "takipciler" = those who follow this person, "takip-edilenler" = those this person follows.
+// Both use the same query; only which column is "this person" and which is the "listed person" changes.
 // Listeler: "takipciler" = bu kişiyi takip edenler, "takip-edilenler" = bu kişinin takip ettikleri.
 // İkisi aynı sorguyu kullanır; yalnızca hangi sütunun "bu kişi", hangisinin "listelenen kişi" olduğu değişir.
+// Column names are constants in the code (not user input), so concatenating them into SQL is safe.
 // Sütun adları koddaki sabitlerdir (kullanıcı girdisi değil), bu yüzden SQL'e birleştirmek güvenli.
 const SAYFA_BOYUTU = 50;
 

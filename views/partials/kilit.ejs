@@ -1,4 +1,7 @@
 <%#
+  Lock card (dashed border): if a privilege is not unlocked yet, why and how much is left.
+  "<Privilege> unlocks at <rank chip> rank · N points left · How to earn points?"
+  Expected data: kilit { ad, rutbe { name } | null, kalan } (src/rutbe.ts `kilitBilgisi`), optional ek (short extra explanation text)
   Kilit kartı (kesikli kenarlı): bir ayrıcalık henüz açılmadıysa neden ve ne kadar kaldığı.
   "<Ayrıcalık> <rütbe çipi> rütbesinde açılır · N puan kaldı · Nasıl puan kazanılır?"
   Beklenen veri: kilit { ad, rutbe { name } | null, kalan } (src/rutbe.ts kilitBilgisi), isteğe bağlı ek (kısa ek açıklama metni)

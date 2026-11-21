@@ -1,4 +1,11 @@
 <%#
+  Change e-mail: /hesap/eposta   (login required, same look as the settings page)
+  Expected data:
+  mevcutEposta  string   current address (shown for information only)
+  hatalar       { email, sifre }   (optional)
+  degerler      { email }          to keep the form filled after an error
+  Form: POST /hesap/eposta  fields: email, sifre
+
   E-posta değiştir: /hesap/eposta   (giriş gerekli, ayarlar sayfasıyla aynı görünüm)
   Beklenen veriler:
   mevcutEposta  string   şu anki adres (yalnızca bilgi için gösterilir)

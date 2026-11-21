@@ -1,4 +1,7 @@
 <%#
+  Body of the general chat (header, message feed, text box). Used in two layouts on /sohbet:
+  guest (merkez_ = false: Online and Rules side column on the right) and member (merkez_ = true: chat hub, info in the <details> under the header).
+  Expected data is the same as sohbet.ejs (shMesajlar, shOgeler, shCevrimici, shKurallar); merkez_ (bool)
   Genel sohbetin gövdesi (başlık, mesaj akışı, yazı kutusu). /sohbet'te iki yerleşimde kullanılır:
   misafir (merkez_ = false: sağda Çevrimiçi ve Kurallar yan sütunu) ve üye (merkez_ = true: sohbet merkezi, bilgiler başlığın altındaki <details>'te).
   Beklenen veriler sohbet.ejs ile aynı (shMesajlar, shOgeler, shCevrimici, shKurallar); merkez_ (bool)
@@ -10,6 +13,7 @@
       <% if (shCevrimici.length) { %><span class="kucuk ikincil"><%= shCevrimici.length %> kişi çevrimiçi</span><% } %>
     </header>
     <% if (merkez_) { %>
+      <%# No side column in the chat hub: the online list and rules open under the header (no JS needed) %>
       <%# Sohbet merkezinde yan sütun yok: çevrimiçi listesi ve kurallar başlığın altında açılır (JS gerekmez) %>
       <details class="sohbet-bilgi">
         <summary>Çevrimiçi olanlar ve kurallar</summary>

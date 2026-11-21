@@ -1,4 +1,10 @@
 <%#
+  /yakut: wallet panel + store (Figma 14 · Yakut, direction B). Data comes from src/rotalar/yakut.ts:
+  kat (selected category), kategoriler [{id, ad}], unvanlar [{id, ad, fiyat, sahip}], seciliUnvan (id or null), susler/efektler/efektRenkleri (names from profil-gorunum.ts),
+  cuzdan { kazanilan, harcanan, seriGun, dongu, yarin, son [], sebepler, harclik, harclikTarih, premium, sonraki }, kazan { enAz, enCok, seriGunluk, seriYedinci, premiumAylik }
+  Layout: on desktop the store is the left column and a sticky wallet sits on the right; on tablet/phone it is a single column with the wallet under the heading.
+  Decoration/effect/highlight products say "Coming soon" (Yakında): a feature that is not ready is not promised, so there is no buy button.
+
   /yakut: cüzdan paneli + mağaza (Figma 14 · Yakut, B yönü). Veriler: src/rotalar/yakut.ts
   kat (seçili kategori), kategoriler [{id, ad}], unvanlar [{id, ad, fiyat, sahip}], seciliUnvan (id ya da null), susler/efektler/efektRenkleri (profil-gorunum.ts adları),
   cuzdan { kazanilan, harcanan, seriGun, dongu, yarin, son [], sebepler, harclik, harclikTarih, premium, sonraki }, kazan { enAz, enCok, seriGunluk, seriYedinci, premiumAylik }
@@ -10,6 +16,7 @@
 <% const bak_ = kullanici.yakut || 0, tr_ = (n) => Number(n).toLocaleString("tr-TR"); %>
 <main class="yakut-sayfa">
   <header class="yakut-baslik">
+    <%# Yakut is reached from the Profile page; the account menu is a popover, so "back" = the person's own profile %>
     <%# Yakut'a Profil sayfasından gelinir; hesap menüsü popover olduğu için geri = kişinin kendi profili %>
     <%- include("partials/geri-baslik", { href: "/profil/" + encodeURIComponent(kullanici.username), etiket: "Profil" }) %>
     <h1>Yakut</h1>

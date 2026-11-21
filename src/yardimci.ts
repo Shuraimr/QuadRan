@@ -1,3 +1,4 @@
+// Small helpers shared by the route files.
 // Route dosyalarının ortak kullandığı küçük yardımcılar.
 import type { Request, Response, NextFunction } from "express";
 import { pool } from "./db.ts";
@@ -5,6 +6,10 @@ import { rutbeler, rutbeBul, acilanlar, yetkiliMi } from "./rutbe.ts";
 import { puanKurallari } from "./ayarlar.ts";
 
 // ---------------------------------------------------------------------------
+// Rank: the highest threshold in the ranks table that the points have passed.
+// Many queries need the same subquery, so we generate it as text.
+// The parameter is a TABLE NAME (it never comes from the user), so concatenating text is safe here.
+//   rutbeSql("users")  ->  (SELECT ranks.name ... WHERE ranks.min_points <= users.points ...)
 // Rütbe: ranks tablosunda puanı geçilen en yüksek eşik.
 // Birçok sorguda aynı alt sorgu gerektiği için metin olarak üretiyoruz.
 // Parametre bir TABLO ADI (kullanıcıdan gelmez), bu yüzden metin birleştirmek burada güvenli.
@@ -12,12 +17,18 @@ import { puanKurallari } from "./ayarlar.ts";
 // ---------------------------------------------------------------------------
 export const rutbeSql = (tablo: string) =>
   `(SELECT ranks.name FROM ranks WHERE ranks.min_points <= ${tablo}.points ORDER BY ranks.min_points DESC LIMIT 1)`;
+// The same rank's ID. If the chip colour/icon and privileges were looked up by name, renaming a rank in the panel would stop
+// matching the old name in the cache and the chip would silently fall back to grey; the id never changes, so everywhere resolves by id.
 // Aynı rütbenin NUMARASI. Çip rengi/simgesi ve ayrıcalıklar ada göre aranırsa, rütbe panelden yeniden adlandırıldığında
 // önbellekteki eski adla eşleşmez ve çip sessizce griye düşer; numara ise değişmez, bu yüzden her yerde numarayla çözülür.
 export const rutbeIdSql = (tablo: string) =>
   `(SELECT ranks.id FROM ranks WHERE ranks.min_points <= ${tablo}.points ORDER BY ranks.min_points DESC LIMIT 1)`;
+// A user's role (admin / moderator / uye)
 // Bir kullanıcının rolü (admin / moderator / uye)
 export const rolSql = (tablo: string) => `(SELECT roles.name FROM roles WHERE roles.id = ${tablo}.role_id)`;
+// The title that is SHOWN for a person (sql/22; NULL if none). Rule (user decision 2026-11-21): the title they picked (`unvan_id`) if any; otherwise
+// the MOST EXPENSIVE of the active titles they own (the most recently acquired if prices tie). An inactive title is not shown even if selected (it stays owned).
+// The rule lives in one place because it was added to `rutbeSutunlari`: comments, topics, profile and card all read it from the same query.
 // Kişinin GÖSTERİLEN unvanı (sql/22; yoksa NULL). Kural (kullanıcı kararı 2026-11-21): seçtiği unvan (unvan_id) varsa o; seçmediyse
 // sahip olduğu aktif unvanların EN PAHALISI (fiyat eşitse en son alınan). Pasif unvan seçili olsa bile gösterilmez (sahiplikte kalır).
 // Kural tek yerde dursun diye rutbeSutunlari'na eklendi: yorum, konu, profil, kart, hepsi aynı sorgudan alır.
@@ -27,24 +38,34 @@ export const unvanSql = (tablo: string) =>
      (SELECT unvanlar.ad FROM kullanici_unvanlari JOIN unvanlar ON unvanlar.id = kullanici_unvanlari.unvan_id
        WHERE kullanici_unvanlari.user_id = ${tablo}.id AND unvanlar.aktif = 1
        ORDER BY unvanlar.fiyat DESC, kullanici_unvanlari.alindi DESC LIMIT 1))`;
+// Every query that shows a user takes these columns together (premium: for the "PRE" prefix of the title chip): rutbe (name), rutbe_id (chip/privilege lookup) and yazar_rol
+// (staff exemption: links, signature). Templates: include("rutbe", { rutbeAd: x.rutbe, rutbeId: x.rutbe_id }),
+// icerikHtml(metin, x.rutbe_id, x.yazar_rol).
 // Kullanıcı gösteren her sorgu bu sütunları (premium: unvan çipinin "PRE" öneki için) birlikte alır: rutbe (ad), rutbe_id (çip/ayrıcalık çözümü) ve yazar_rol
 // (yönetici/moderatör muafiyeti: bağlantı, imza). Şablonlar: include("rutbe", { rutbeAd: x.rutbe, rutbeId: x.rutbe_id }),
 // icerikHtml(metin, x.rutbe_id, x.yazar_rol).
 export const rutbeSutunlari = (tablo: string) =>
   `${rutbeSql(tablo)} AS rutbe, ${rutbeIdSql(tablo)} AS rutbe_id, ${rolSql(tablo)} AS yazar_rol, ${unvanSql(tablo)} AS unvan, ${premiumSql(tablo)} AS premium, ${avatarSutunlari(tablo)}`;
 
+// Are premium privileges on (SQL expression): a `premium_bitis` that has not expired OR the admin role.
+// User decision (2026-11-20): the founder/admin can use premium features without granting themselves premium in the panel.
+// Moderators are not exempt. All queries use this expression so the rule lives in one place (premium.ts › `premiumMu` reads the SQL result).
 // Premium ayrıcalıkları açık mı (SQL ifadesi): süresi geçmemiş premium_bitis YA DA admin rolü.
 // Kullanıcı kararı (2026-11-20): kurucu/admin premium özelliklerini panelden kendine premium vermeden kullanabilir.
 // Moderatör muaf değil. Kural tek yerde dursun diye bütün sorgular bu ifadeyi kullanır (premium.ts › premiumMu SQL sonucunu okur).
 export const premiumSql = (tablo: string) =>
   `(${tablo}.premium_bitis > NOW() OR ${tablo}.role_id = (SELECT id FROM roles WHERE name = 'admin'))`;
 
+// So the avatar image shows everywhere (partials/avatar.ejs), every query that shows a user takes `avatar_url` + `avatar_susu`.
+// Instead of writing a separate helper it was added to `rutbeSutunlari`: that is already in every user query, so it changes in one place.
+// The decoration comes ONLY for premium members (sql/18): when premium ends the choice is not deleted but is hidden (it returns if renewed).
 // Avatar resmi her yerde görünsün diye (partials/avatar.ejs) kullanıcı gösteren her sorgu avatar_url + avatar_susu alır.
 // Ayrı bir yardımcı yazmak yerine rutbeSutunlari'na eklendi: o zaten her kullanıcı sorgusunda var, tek yerden değişir.
 // Süs YALNIZCA premium üyede gelir (sql/18): premium bitince seçim silinmez ama görünmez (yenilenirse geri gelir).
 export const avatarSutunlari = (tablo: string) =>
   `${tablo}.avatar_url AS avatar_url, IF(${premiumSql(tablo)}, ${tablo}.avatar_susu, NULL) AS avatar_susu`;
 
+// Full display columns for the profile card/header (banner, effect, colours). Those tied to premium come back NULL if the user is not premium.
 // Profil kartı/üst bölümü için tam görünüm sütunları (banner, efekt, renkler). Premium'a bağlı olanlar premium değilse NULL gelir.
 export const profilGorunumSutunlari = (tablo: string) =>
   `${tablo}.avatar_url AS avatar_url, ${tablo}.banner_url AS banner_url, ${tablo}.banner_konum AS banner_konum, (${premiumSql(tablo)}) AS premium_aktif,
@@ -54,11 +75,22 @@ export const profilGorunumSutunlari = (tablo: string) =>
    IF(${premiumSql(tablo)}, ${tablo}.profil_renk_vurgu, NULL) AS profil_renk_vurgu,
    IF(${premiumSql(tablo)}, ${tablo}.profil_renk_gecis, 0) AS profil_renk_gecis`;
 
+// A message's vote total (score)
 // Bir mesajın oy toplamı (skor)
 export const skorSql = (postTablosu: string) =>
   `(SELECT COALESCE(SUM(post_votes.value), 0) FROM post_votes WHERE post_votes.post_id = ${postTablosu}.id)`;
 
 // ---------------------------------------------------------------------------
+// Points: EVERY change to `users.points` goes through here and writes one row to points_log (sql/13).
+// Values are not hard-coded: they come from site_settings (src/ayarlar.ts > puanKurallari).
+// Points never drop below 0; the amount written to the log is the ACTUAL applied difference (not the requested one), so a user's
+// log total always equals `users.points`.
+//   sebep: konu | cevap | oy | gunluk | seri | cozum | rozet | duzeltme | silme  (silme = reverted gain)
+//          | baslangic (total before the points history) | cozum_geri (reverted solution points) | davet (not used yet)
+//          | rozet_geri (reverted badge points) | geri_yukleme (points given back when a deleted message is restored)
+//   ilgiliId: konu -> topic id, cevap/oy/cozum/cozum_geri/silme/geri_yukleme -> message id, rozet/rozet_geri -> badge id
+//   baglanti: the caller's connection if it is inside a transaction. Then the rank-up check is left to the caller
+//   (adding a notification may wait on the users row lock): call rutbeKontrol(userId, eski, yeni) after the commit.
 // Puan: users.points'e giden HER değişiklik buradan geçer ve points_log'a bir satır yazar (sql/13).
 // Değerler kodda sabit değil: site_settings'ten gelir (src/ayarlar.ts > puanKurallari).
 // Puan 0'ın altına inmez; log'a yazılan miktar UYGULANAN gerçek farktır (istenen değil), böylece bir kullanıcının
@@ -70,6 +102,7 @@ export const skorSql = (postTablosu: string) =>
 //   baglanti: çağıran bir transaction içindeyse onun bağlantısı. O durumda rütbe atlama kontrolü çağırana kalır
 //   (bildirim eklemek users satırının kilidini bekleyebilir): commit'ten sonra rutbeKontrol(userId, eski, yeni) çağır.
 // ---------------------------------------------------------------------------
+// "davet" (invite): will be wired in at the referral stage (CLAUDE.md roadmap 3.4); nothing calls it for now.
 // "davet": referans aşamasında (CLAUDE.md yol haritası 3.4) bağlanacak; şimdilik hiçbir yerden çağrılmaz.
 export type PuanSebebi = "konu" | "cevap" | "oy" | "gunluk" | "seri" | "cozum" | "rozet" | "duzeltme" | "silme" | "baslangic" | "cozum_geri" | "davet" | "rozet_geri" | "geri_yukleme";
 
@@ -77,6 +110,8 @@ export async function puanEkle(
   userId: number, miktar: number, sebep: PuanSebebi, ilgiliId: number | null = null,
   baglanti?: { query: Function }
 ): Promise<{ eski: number; yeni: number }> {
+  // If no connection was given we open our own small transaction: reading + updating + logging are written together
+  // (the row is locked, so two concurrent requests do not overwrite each other's points).
   // Bağlantı verilmediyse kendi küçük transaction'ımızı açarız: okuma + güncelleme + log birlikte yazılır
   // (satır kilitli olduğu için iki eşzamanlı istek birbirinin puanını ezmez).
   const kendi = !baglanti;
@@ -102,6 +137,12 @@ export async function puanEkle(
   }
 }
 
+// Topic-opening / reply-writing points, with a daily cap (`site_settings.puan_gunluk_tavan`; 0 = unlimited). Why: opening and deleting topics
+// or piling up very short replies is the easiest way to farm points; even though deleting reverts the points, rank/vote rights can be earned in between.
+// Earned today = today's positive 'konu' + 'cevap' rows (negative 'silme' rows are NOT counted: so the cap is not reopened by deleting and farmed again).
+// The amount to give is clipped to the remaining allowance (e.g. cap 6: 5 + 5 -> 5 and 1); once the allowance is used up no points are written at all,
+// but the content is still published (the caller already does that separately). Read + write happen in one transaction with the user row locked:
+// two concurrent requests from the same person cannot see the same "remaining" and exceed the cap. Staff are subject to the same rule.
 // Konu açma / cevap yazma puanı, günlük tavanla (site_settings.puan_gunluk_tavan; 0 = sınırsız). Neden: konu açıp silmek
 // ya da çok kısa cevap yığmak puan kasmanın en kolay yoludur; silince puan geri alınsa da arada rütbe/oy hakkı kazanılır.
 // Bugün kazanılan = bugünkü pozitif 'konu' + 'cevap' satırları ('silme' eksi satırları HESABA KATILMAZ: silerek tavan
@@ -119,7 +160,7 @@ export async function tavanliPuanEkle(userId: number, miktar: number, sebep: "ko
       "SELECT COALESCE(SUM(miktar), 0) AS n FROM points_log WHERE user_id = ? AND sebep IN ('konu', 'cevap') AND miktar > 0 AND created_at >= CURDATE()",
       [userId]);
     const verilecek = Math.min(miktar, Math.max(0, tavan - Number(bugun.n)));
-    const p = await puanEkle(userId, verilecek, sebep, ilgiliId, bag); // 0 ise puanEkle hiçbir şey yazmaz
+    const p = await puanEkle(userId, verilecek, sebep, ilgiliId, bag); // if 0, `puanEkle` writes nothing · 0 ise puanEkle hiçbir şey yazmaz
     await bag.commit();
     if (p.yeni !== p.eski) await rutbeKontrol(userId, p.eski, p.yeni);
     return p;
@@ -131,6 +172,11 @@ export async function tavanliPuanEkle(userId: number, miktar: number, sebep: "ko
   }
 }
 
+// Takes back the solution points given to the author when the solution mark is removed (or the solution reply is deleted).
+// The amount to revert is what is "still open": the total of 'cozum' given for this reply minus what was already reverted ('cozum_geri').
+// So the same solution cannot be reverted twice (even with concurrent requests, or delete + unmark together); since the amount given
+// depended on the setting of that day, it is read from the log when reverting (the setting may have changed since).
+// baglanti: the caller's transaction connection (row locks are taken inside it); the return value is the old/new points for the rank check.
 // Çözüm işareti kalkarken (ya da çözüm cevabı silinirken) yazara verilen çözüm puanını geri alır.
 // Geri alınacak miktar "hâlâ açık" olandır: bu cevap için verilen 'cozum' toplamı eksi daha önce geri alınanlar ('cozum_geri').
 // Böylece aynı çözüm iki kez geri alınamaz (eşzamanlı istek ya da silme + işaret kaldırma birlikte olsa bile); verilen
@@ -139,7 +185,9 @@ export async function tavanliPuanEkle(userId: number, miktar: number, sebep: "ko
 export async function cozumPuaniGeriAl(
   cevap: { id: number; user_id: number }, konuSahibi: number, baglanti: { query: Function }
 ): Promise<{ eski: number; yeni: number } | null> {
-  if (cevap.user_id === konuSahibi) return null; // kendi cevabında zaten puan verilmemişti
+  // no points were given for one's own reply anyway
+  // kendi cevabında zaten puan verilmemişti
+  if (cevap.user_id === konuSahibi) return null;
   const [[acik]]: any = await baglanti.query(
     `SELECT COALESCE(SUM(miktar), 0) AS n FROM points_log
       WHERE user_id = ? AND ilgili_id = ? AND sebep IN ('cozum', 'cozum_geri')`, [cevap.user_id, cevap.id]);
@@ -148,6 +196,13 @@ export async function cozumPuaniGeriAl(
   return await puanEkle(cevap.user_id, -kalan, "cozum_geri", cevap.id, baglanti);
 }
 
+// If the deleted message relates to the topic's SOLUTION, the solution mark is removed (`topics.cozum_post_id = NULL`) and the open solution points are reverted.
+// Two cases: 1) the deleted message is the solution reply itself, 2) the deleted message is the topic's FIRST message (the topic is being deleted): when the topic goes,
+// the points given to the solution reply lose their validity too; otherwise the reply's author would keep points from a deleted topic.
+// Runs inside the caller's transaction (the topic row is locked first, then the points; same order as /konu/:id/cozum).
+// The returned list is for the rank check (`rutbeKontrol` after the commit); empty if there are no points to revert.
+// NOTE: if the message or topic is later RESTORED, the solution mark and solution points do NOT come back automatically; if the topic owner wants,
+// they pick the reply as the solution again (the points are then given again). This way "delete -> restore" cannot duplicate points.
 // Silinen mesaj konunun ÇÖZÜMÜYLE ilgiliyse çözüm işareti kalkar (topics.cozum_post_id = NULL) ve açık çözüm puanı geri alınır.
 // İki durum var:
 //   1) silinen mesaj çözüm cevabının kendisi, 2) silinen mesaj konunun İLK mesajı (konu siliniyor): konu gidince
@@ -161,7 +216,10 @@ export async function silinenCozumuTemizle(
 ): Promise<{ kisi: number; eski: number; yeni: number }[]> {
   const [[konu]]: any = await baglanti.query("SELECT user_id, cozum_post_id FROM topics WHERE id = ? FOR UPDATE", [mesaj.topic_id]);
   if (!konu || !konu.cozum_post_id) return [];
-  if (!mesaj.ilk_mi && konu.cozum_post_id !== mesaj.id) return []; // başka bir cevap silindi, çözüm etkilenmez
+  // another reply was deleted, the solution is unaffected
+  // başka bir cevap silindi, çözüm etkilenmez
+  if (!mesaj.ilk_mi && konu.cozum_post_id !== mesaj.id) return [];
+  // The solution reply's author: the deleted message itself or (if the topic is being deleted) the reply marked as the solution
   // Çözüm cevabının yazarı: silinen mesajın kendisi ya da (konu siliniyorsa) çözüm olarak işaretli cevap
   let cevap = { id: mesaj.id, user_id: mesaj.user_id };
   if (konu.cozum_post_id !== mesaj.id) {
@@ -175,6 +233,14 @@ export async function silinenCozumuTemizle(
 }
 
 // ---------------------------------------------------------------------------
+// When a message is deleted, the points its author earned from it are reverted (deletion by staff and self-deletion take the same path).
+// The amount is NOT computed from today's setting but from the points_log record (the "still open" gain): the setting may have changed since,
+// the points may have been clipped at 0, and the same message must not be reverted twice (even if two staff delete at the same moment).
+//   open = this message's gain ('konu' -> topic id, 'cevap' -> message id)
+//        + the 'silme' and 'geri_yukleme' rows written earlier for this message (silme negative, geri_yukleme positive).
+// Points from votes on the message stay: those were points given by others.
+// Runs inside the caller's transaction; the author's users row is locked first so no other request slips in while the total is read.
+// The return value is for the rank check (on a drop `rutbeKontrol` does nothing, but it is returned for symmetry); null if there are no points to revert.
 // Mesaj silinince yazarın o mesajdan kazandığı puan geri alınır (yetkili silişi de, kendi silişi de aynı yoldan geçer).
 // Miktar bugünkü ayardan DEĞİL, points_log'daki kayıttan hesaplanır ("hâlâ açık" kazanç): ayar sonradan değişmiş olabilir,
 // puan 0'da kırpılmış olabilir ve aynı mesaj iki kez geri alınmamalı (iki yetkili aynı anda silse bile).
@@ -198,6 +264,9 @@ export async function mesajPuaniniGeriAl(
   return { kisi: mesaj.user_id, ...p };
 }
 
+// The mirror image: when staff RESTORE a deleted message the reverted points are given back to the author (so a person does not lose out if staff deleted by mistake).
+// The amount to give back = the negative of the sum of the 'silme' + 'geri_yukleme' rows written for this message; if the sum is
+// 0 or positive (already given back / never reverted) nothing is done, so delete -> restore -> restore cannot duplicate points.
 // Simetriği: yetkili silinen mesajı GERİ GETİRİNCE yazara geri alınan puan geri verilir (yetkili yanlışlıkla sildiyse
 // kişi kaybetmesin). Geri verilecek miktar = bu mesaj için yazılmış 'silme' + 'geri_yukleme' toplamının eksisi; toplam
 // 0 ya da artıysa (zaten geri verilmiş / hiç geri alınmamış) bir şey yapılmaz, böylece sil → geri al → geri al puan çoğaltmaz.
@@ -214,12 +283,16 @@ export async function mesajPuaniniGeriVer(
   return { kisi: mesaj.user_id, ...p };
 }
 
+// If a rank was JUMPED (if points dropped nothing happens, privileges are just recalculated): sends a "rutbe" notification
+// and fills `users.kutlama_rutbe_id`; `ortakVeriler` draws the celebration toast on the next page.
 // Rütbe ATLANDIYSA (puan düştüyse hiçbir şey olmaz, ayrıcalıklar yalnızca yeniden hesaplanır): "rutbe" bildirimi
 // gönderir ve users.kutlama_rutbe_id'yi doldurur; ortakVeriler bir sonraki sayfada kutlama bildirim çubuğunu çizer.
 export async function rutbeKontrol(userId: number, eskiPuan: number, yeniPuan: number) {
-  await rutbeler(); // önbellek taze olsun
+  await rutbeler(); // keep the cache fresh · önbellek taze olsun
   const eski = rutbeBul(eskiPuan), yeni = rutbeBul(yeniPuan);
   if (!eski || !yeni || yeni.min_points <= eski.min_points) return;
+  // Admins/moderators already have every privilege (`izinli()` treats them as exempt): saying "You can now ..." would be misleading,
+  // so only the rank name is mentioned.
   // Yönetici/moderatör zaten bütün ayrıcalıklara sahip (izinli() onları muaf sayar): "Artık ... yapabilirsin" demek yanıltıcı olur,
   // yalnızca rütbe adı söylenir.
   const [[rol]]: any = await pool.query(
@@ -234,6 +307,7 @@ export async function rutbeKontrol(userId: number, eskiPuan: number, yeniPuan: n
 }
 
 // ---------------------------------------------------------------------------
+// Create a notification. A person does not get notifications from themselves.
 // Bildirim oluştur. Kişi kendi kendine bildirim almaz.
 // ---------------------------------------------------------------------------
 type BildirimTuru = "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon" | "duyuru" | "oda" | "rutbe" | "takip";
@@ -246,6 +320,7 @@ export async function bildirimGonder(b: { alan: number; yapan: number | null; tu
   );
 }
 
+// Give a badge: if they already have it, INSERT IGNORE does nothing (PRIMARY KEY user_id + badge_id).
 // Rozet ver: daha önce almışsa INSERT IGNORE hiçbir şey yapmaz (PRIMARY KEY user_id + badge_id).
 export async function rozetVer(userId: number, rozetAdi: string) {
   const [sonuc]: any = await pool.query(
@@ -253,8 +328,12 @@ export async function rozetVer(userId: number, rozetAdi: string) {
     [userId, rozetAdi]
   );
   if (sonuc.affectedRows > 0) {
+    // A new badge brings points (set in the panel, `puan_rozet`); `ilgili_id` = the badge's id
     // Yeni rozet puan getirir (panelden ayarlanır, puan_rozet); ilgili_id = rozetin numarası
     const [[rozet]]: any = await pool.query("SELECT id FROM badges WHERE name = ?", [rozetAdi]);
+    // If a 'rozet' point row was EVER written for this person and this badge (even if the badge was later taken back) the badge is still
+    // given but no points are: otherwise an admin could farm points by a "take badge -> give again" loop, or a user by a win-lose
+    // repeat. When a badge is taken back the points already drop via 'rozet_geri'.
     // Bu kişiye bu rozet için daha önce HİÇ 'rozet' puanı yazıldıysa (rozet sonradan geri alınmış olsa bile) rozet yine
     // verilir ama puan verilmez: yoksa yönetici "rozeti al → yeniden ver" döngüsüyle ya da kullanıcı kazan-kaybet
     // tekrarıyla puan kasabilirdi. Rozet geri alınınca puan zaten 'rozet_geri' ile düşer.
@@ -271,11 +350,14 @@ async function kullaniciAdi(id: number): Promise<string> {
   return satirlar[0]?.username ?? "";
 }
 
+// For quoting in messages: shortens long text
 // Mesajlarda alıntı için: uzun metni kısaltır
 export const kisalt = (metin: string, uzunluk = 60) =>
   metin.length > uzunluk ? metin.slice(0, uzunluk - 1).trimEnd() + "…" : metin;
 
 // ---------------------------------------------------------------------------
+// Toast (notification bar): shown once on the next page (a "flash" message).
+// Stored in the session; oturum.ts picks it up and deletes it when it renders the page.
 // Bildirim çubuğu (toast): bir sonraki sayfada bir kez gösterilir ("flash" mesaj).
 // Oturumda saklanır, oturum.ts sayfayı çizerken alıp siler.
 // ---------------------------------------------------------------------------
@@ -284,6 +366,9 @@ export function bildir(req: Request, tur: "basari" | "hata", metin: string, eyle
 }
 
 // ---------------------------------------------------------------------------
+// Open redirect protection:
+// if ?don=https://kotu-site.com is given we must NOT go there after login.
+// Accept only addresses that start with "/" but not with "//" (that do not go to another domain).
 // Açık yönlendirme (open redirect) koruması:
 // ?don=https://kotu-site.com verilirse girişten sonra oraya GİTMEMELİYİZ.
 // Yalnızca "/" ile başlayan ama "//" ile başlamayan (başka alan adına gitmeyen) adresleri kabul et.
@@ -294,16 +379,21 @@ export function yerelAdres(adres: unknown, varsayilan = "/"): string {
     : varsayilan;
 }
 
+// Convert an id from a form/URL to a positive integer; null if that fails
 // Formdan/adresten gelen id'yi pozitif tam sayıya çevir; olmuyorsa null
 export function sayi(deger: unknown): number | null {
   const n = Number(deger);
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+// Text from a form: an empty string if missing, otherwise trimmed at both ends
 // Formdan gelen metin: yoksa boş string, varsa baş/son boşluk kırpılmış
 export const metin = (deger: unknown) => (typeof deger === "string" ? deger.trim() : "");
 
 // ---------------------------------------------------------------------------
+// Login-required middleware.
+//   On GET requests: sends to /giris?don=<current address>, and returns there after login.
+//   On POST requests: uses the Referer header to go back to the page it came from.
 // Giriş zorunlu ara katmanı.
 //   GET isteklerinde: /giris?don=<şu anki adres> ile girişe gönderir, girişten sonra geri döner.
 //   POST isteklerinde: geldiği sayfaya dönmek için Referer başlığını kullanır.
@@ -317,16 +407,20 @@ export function girisGerekli(not = "Bu işlem için giriş yapman gerekiyor.") {
   };
 }
 
+// Shared status pages (views/durum.ejs: 403, 404, 429, 500, 503). A page for the browser, JSON for whoever asks for it (fetch);
+// so no plain-text answers like "Forbidden" remain and the person always meets the site layout (menus) and does not get lost.
 // Ortak durum sayfaları (views/durum.ejs: 403, 404, 429, 500, 503). Tarayıcıya sayfa, JSON isteyene (fetch) JSON döner;
 // böylece düz metin "Forbidden" gibi cevaplar kalmaz ve kişi her zaman site düzeniyle (menüler) karşılaşıp kaybolmaz.
 export function durumSayfasi(req: Request, res: Response, kod: 403 | 404 | 429 | 500 | 503, secenek: { metin?: string; saniye?: number } = {}) {
   res.status(kod);
   if (kod === 429 && secenek.saniye) res.setHeader("Retry-After", String(secenek.saniye));
   if (String(req.get("accept") ?? "").includes("application/json")) return res.json({ hata: secenek.metin ?? ({ 403: "Bu işlem için yetkin yok.", 404: "Bulunamadı.", 429: "Çok fazla istek geldi.", 500: "Sunucu hatası.", 503: "Site bakımda." } as const)[kod] });
+  // "Try again/refresh" link goes back to the same address; only meaningful on GET (we cannot repeat a POST via a link) and only for an on-site path
   // "Tekrar dene/yenile" bağlantısı aynı adrese döner; yalnızca GET'te anlamlı (POST'u bağlantıyla tekrarlayamayız) ve yalnızca site içi yol
   return res.render("durum", { kod, yenileAdresi: req.method === "GET" ? yerelAdres(req.originalUrl) : "/", ...secenek });
 }
 
+// 403 for everyone except moderators and admins
 // Moderatör ve admin dışındakiler için 403
 export function yetkiliGerekli(req: Request, res: Response, next: NextFunction) {
   if (["admin", "moderator"].includes(res.locals.kullanici?.rol)) return next();
@@ -336,6 +430,7 @@ export function yetkiliGerekli(req: Request, res: Response, next: NextFunction) 
   res.redirect(geriAdres(req));
 }
 
+// After a POST go back to the page it came from (if the Referer is the same site), otherwise to the default
 // POST'tan sonra geldiği sayfaya dön (Referer aynı sitedense), yoksa varsayılan
 export function geriAdres(req: Request, varsayilan = "/") {
   return yerelAdres(refererYolu(req), varsayilan);
@@ -346,7 +441,7 @@ function refererYolu(req: Request): string | undefined {
   if (!referer) return undefined;
   try {
     const url = new URL(referer);
-    if (url.host !== req.get("host")) return undefined; // başka siteden gelmiş
+    if (url.host !== req.get("host")) return undefined; // came from another site · başka siteden gelmiş
     return url.pathname + url.search + url.hash;
   } catch {
     return undefined;
@@ -354,6 +449,10 @@ function refererYolu(req: Request): string | undefined {
 }
 
 // ---------------------------------------------------------------------------
+// Active ban: `banned_at` is set AND (`banned_until` empty = permanent, or not yet passed).
+// "banned_at IS NOT NULL" alone is not enough: when a timed ban ends the row can stay filled for a while.
+// We compare the time in SQL (NOW()), not in JavaScript: the database should be the single clock source.
+// The parameter is a TABLE NAME (it never comes from the user), so concatenating text is safe.
 // Aktif ban: banned_at dolu VE (banned_until boş = kalıcı, ya da henüz geçmemiş).
 // "banned_at IS NOT NULL" tek başına yetmez: süreli ban bittiğinde satır bir süre dolu kalabilir.
 // Zamanı JavaScript'te değil SQL'de (NOW()) karşılaştırıyoruz: tek saat kaynağı veritabanı olsun.
@@ -362,9 +461,13 @@ function refererYolu(req: Request): string | undefined {
 export const banliSql = (tablo: string) =>
   `(${tablo}.banned_at IS NOT NULL AND (${tablo}.banned_until IS NULL OR ${tablo}.banned_until > NOW()))`;
 
+// % and _ are special characters in LIKE; if the user types them we put a \ before them so they are searched literally.
 // LIKE içinde % ve _ özel karakterdir; kullanıcı yazarsa harfi harfine aransın diye önlerine \ koyarız.
 export const likeKac = (s: string) => "%" + s.replace(/[\\%_]/g, "\\$&") + "%";
 
+// Turkish locative suffix (-da/-de/-ta/-te), with an apostrophe: "Usta'da", "Gezgin'de", "Çaylak'ta". Rank names can change in the panel, so
+// a fixed "'da" cannot be written. Rule: if the last VOWEL is back (a ı o u) it is da/ta, if front (e i ö ü) it is de/te; if the last LETTER is a voiceless
+// consonant (mnemonic "fıstıkçı şahap": f s t k ç ş h p) the t form.
 // Türkçe bulunma eki (-da/-de/-ta/-te), kesme işaretiyle: "Usta'da", "Gezgin'de", "Çaylak'ta". Rütbe adları panelden değişebildiği için
 // sabit "'da" yazılamaz. Kural: son ÜNLÜ kalınsa (a ı o u) da/ta, inceyse (e i ö ü) de/te; son HARF sert ünsüzse (fıstıkçı şahap:
 // f s t k ç ş h p) t'li biçim.

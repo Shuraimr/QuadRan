@@ -1,4 +1,16 @@
 <%#
+  Side menu: one source, two views (in CSS).
+  801-1180px: an 88px icon rail (FAB + icons). 1181px and up: a 248px permanent left sidebar with labels,
+  with the category list under Categories (hidden in the rail). Not visible on phones (there is the bottom menu).
+  Expected data (all optional):
+  menuKategoriler  [ { id, name } ] (oturum.ts, cached); kategoriId the selected category (only in the feed)
+  aktifMenu   "akis" | "kategoriler" | "sohbet" | "siralama" | "yakut" | "ayarlar" (defaults to "akis")
+  ayarBolum   which section row looks selected on other settings pages ("hesap": /hesap/sifre|eposta, "profil-gorunumu": /premium)
+  ayarSayfasi if true we are on the /ayarlar page: on desktop the section rows under Settings are in-page anchors (#profil...)
+              and carry data-bolum-bag (rubyyard.js highlights the section currently being read). On other settings pages (/hesap/sifre) they become /ayarlar#…
+  okunmamisOda  if true a small dot on the Chat item (an unread message in a room that is not muted; src/odalar.ts)
+  kullanici   { username } if logged in; otherwise "Open topic" and "Settings" are not shown
+  statik      if true it is shown inside the page without being fixed (only for the preview page)
   Kenar menü: tek kaynak, iki görünüm (CSS'te).
   801-1180px: 88px'lik simge rayı (FAB + simgeler). 1181px ve üstü: 248px'lik etiketli kalıcı sol kenar çubuğu,
   Kategoriler'in altında kategori listesiyle (rayda gizli). Telefonda görünmez (orada alt menü var).
@@ -7,12 +19,13 @@
   aktifMenu   "akis" | "kategoriler" | "sohbet" | "siralama" | "yakut" | "ayarlar" (yoksa "akis")
   ayarBolum   başka ayar sayfalarında hangi bölüm satırı seçili görünsün ("hesap": /hesap/sifre|eposta, "profil-gorunumu": /premium)
   ayarSayfasi true ise /ayarlar sayfasındayız: masaüstünde Ayarlar'ın altındaki bölüm satırları sayfa içi çapadır (#profil...)
-              ve data-bolum-bag taşır (quadran.js o an okunan bölümü vurgular). Başka ayar sayfalarında (/hesap/sifre) /ayarlar#… olur.
+              ve data-bolum-bag taşır (rubyyard.js o an okunan bölümü vurgular). Başka ayar sayfalarında (/hesap/sifre) /ayarlar#… olur.
   okunmamisOda  true ise Sohbet öğesinde küçük nokta (sessize alınmamış bir odada okunmamış mesaj var; src/odalar.ts)
   kullanici   giriş yapmışsa { username }; yoksa "Konu aç" ve "Ayarlar" gösterilmez
   statik      true ise sayfanın içinde sabit olmadan gösterilir (yalnızca önizleme sayfası için)
 %>
 <% const kategoriId_ = locals.kategoriId || 0;
+   // When a category is selected the feed item is not counted as active: the selected one is the category row
    // Kategori seçiliyken akış öğesi aktif sayılmaz: seçili olan kategori satırıdır
    const aktifMenu_ = (locals.aktifMenu || "akis") === "akis" && kategoriId_ ? "kategoriler" : (locals.aktifMenu || "akis"); const uye_ = !!locals.kullanici;
    const ogeler_ = [
@@ -27,13 +40,16 @@
   <% } %>
   <div class="kenar-menu-liste">
     <% for (const o of ogeler_) { %>
-      <%# Kategori seçiliyken "Kategoriler" yalnızca rayda (tablet) aktif görünür; geniş çubukta aktif olan alt satırdır (.kisa-aktif) %>
+      <%# When a category is selected, "Categories" looks active only in the rail (tablet); in the wide bar the active one is the sub row (.kisa-aktif)
+          Kategori seçiliyken "Kategoriler" yalnızca rayda (tablet) aktif görünür; geniş çubukta aktif olan alt satırdır (.kisa-aktif) %>
       <a data-oge="<%= o.id %>" class="menu-ogesi<%= aktifMenu_ === o.id ? (o.id === 'kategoriler' && kategoriId_ ? ' kisa-aktif' : ' aktif') : '' %>" href="<%= o.href %>"<%- aktifMenu_ === o.id && !kategoriId_ ? ' aria-current="page"' : '' %>>
         <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %><% if (o.id === "sohbet" && (locals.okunmamisMesaj || 0) > 0) { %><span class="menu-sayi" role="img" aria-label="<%= locals.okunmamisMesaj %> okunmamış özel mesaj"><%= locals.okunmamisMesaj > 99 ? "99+" : locals.okunmamisMesaj %></span><% } else if (o.id === "sohbet" && locals.okunmamisOda) { %><span class="menu-nokta" role="img" aria-label="Okunmamış oda mesajı var"></span><% } %></span>
         <span class="menu-etiket"><%= o.ad %></span>
       </a>
     <% } %>
-    <%# Masaüstü (1181+): "Kategoriler" bir öğe değil, listenin bölüm başlığı. Sıralama'dan SONRA DOM'da durur ki klavye sırası
+    <%# Desktop (1181+): "Categories" is not an item but the list's section heading. It sits AFTER Sorting in the DOM so the keyboard order
+        matches what is on screen (it used to be moved with CSS order). Hidden in the rail; there the icon item above is shown.
+        Masaüstü (1181+): "Kategoriler" bir öğe değil, listenin bölüm başlığı. Sıralama'dan SONRA DOM'da durur ki klavye sırası
         ekrandakiyle aynı olsun (eskiden CSS order ile taşınıyordu). Rayda gizli; rayda yukarıdaki simgeli öğe görünür. %>
     <div class="kenar-kategori-grubu">
       <a class="kenar-bolum-basligi<%= aktifMenu_ === 'kategoriler' && !kategoriId_ ? ' aktif' : '' %>" href="/kategoriler"<%- aktifMenu_ === "kategoriler" && !kategoriId_ ? ' aria-current="page"' : '' %>><span>Kategoriler</span><span class="kenar-tumu" aria-hidden="true">Tümü</span></a>
@@ -47,13 +63,19 @@
     </div>
   </div>
   <% if (uye_) { const ayarda_ = aktifMenu_ === "ayarlar";
+       // Sub rows open only if we can show a section as selected (the Settings page, or a sub page that was given ayarBolum);
+       // otherwise the Settings item becomes a filled pill as before, so the position marker in the menu is never lost.
        // Alt satırlar yalnızca bir bölüm seçili gösterebiliyorsak açılır (Ayarlar sayfası ya da ayarBolum verilen alt sayfa);
        // aksi hâlde Ayarlar öğesi eskisi gibi dolu hap olur, menüde konum işareti hiç kaybolmaz.
        const acik_ = ayarda_ && (locals.ayarSayfasi || locals.ayarBolum);
+       // Settings sections (same as the section ids in ayarlar.ejs). On desktop they appear as sub rows while Settings is open:
+       // a single left menu instead of a separate second menu column. Since the side menu is fixed it also stays in place while scrolling.
        // Ayarlar bölümleri (ayarlar.ejs'teki bölüm kimlikleriyle aynı). Masaüstünde Ayarlar açıkken alt satır olarak görünür:
        // ayrı bir ikinci menü sütunu yerine tek sol menü. Kenar menü sabit (fixed) olduğu için kaydırırken de yerinde durur.
        const ayarBolumleri_ = [["profil", "Profil"], ["profil-gorunumu", "Profil görünümü"], ["gorunum", "Görünüm"], ["gizlilik", "Gizlilik"], ["hesap", "Hesap ve güvenlik"]]; %>
-    <%# Yakut: masaüstünde Ayarlar'ın üstünde kart (bakiye, seri, Mağaza ve cüzdan), tablette rayda simge + bakiye. Telefonda yok
+    <%# Ruby: on desktop a card above Settings (balance, streak, Store and wallet), in the rail on tablet an icon + balance. Not on phones
+        (it is on the Profile page there). It replaced the balance chip in the top bar (user decision 2026-11-21).
+        Yakut: masaüstünde Ayarlar'ın üstünde kart (bakiye, seri, Mağaza ve cüzdan), tablette rayda simge + bakiye. Telefonda yok
         (orada Profil sayfasında). Üst çubuktaki bakiye çipinin yerini aldı (kullanıcı kararı 2026-11-21). %>
     <div class="kenar-yakut">
       <%- include("yakut-bolumu", { tur: "kenar" }) %>

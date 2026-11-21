@@ -1,10 +1,16 @@
-/* QuadRan · profil kartı, profil efektleri, avatar süsleri ve Ayarlar › Profil görünümü (sql/18).
+/* rubyyard · profile card, profile effects, avatar decorations and Settings › Profile appearance (sql/18).
+   Sizes come from the site's own system: card 16px radius + --kat-1 (popover --kat-2), avatar is a rounded square,
+   buttons .buton, chips .rutbe-cip / .etiket, fields .alan. Only the colors the user picks (--pk-ana, --pk-vurgu) are free. */
+/* rubyyard · profil kartı, profil efektleri, avatar süsleri ve Ayarlar › Profil görünümü (sql/18).
    Ölçüler sitenin kendi sisteminden gelir: kart 16px yarıçap + --kat-1 (popover --kat-2), avatar yuvarlatılmış kare,
    düğmeler .buton, çipler .rutbe-cip / .etiket, alanlar .alan. Yalnızca kullanıcının seçtiği renkler (--pk-ana, --pk-vurgu) serbesttir. */
 
+/* Avatar: image and decoration
+   .avatar is always a rounded square (rubyyard.css); the image inherits the same radius. Decorations scale with the avatar's width (cqw). */
 /* ---------- Avatar: resim ve süs ----------
-   .avatar hep yuvarlatılmış karedir (quadran.css); resim aynı yarıçapı miras alır. Süsler avatarın genişliğine göre (cqw) ölçeklenir. */
+   .avatar hep yuvarlatılmış karedir (rubyyard.css); resim aynı yarıçapı miras alır. Süsler avatarın genişliğine göre (cqw) ölçeklenir. */
 .avatar { position: relative; container-type: inline-size; }
+/* absolute: so the grid cell doesn't grow to the image's natural size (256px) and overflow */
 .avatar > img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; } /* mutlak: grid hücresi resmin doğal boyutuna (256px) genişleyip taşmasın */
 a.avatar, button.avatar { cursor: pointer; }
 .avatar-kart { width: 88px; height: 88px; border-radius: 22px; font-family: var(--baslik-tipi); font-size: 36px; }
@@ -26,42 +32,52 @@ a.avatar, button.avatar { cursor: pointer; }
   to { transform: translate(calc(var(--dx) * 1cqw), calc(var(--dy) * 1cqw)) rotate(calc(var(--r1) * 1deg)); }
 }
 @keyframes av-nabiz { from { opacity: .55; } to { opacity: 1; } }
+/* At large sizes (card, profile) it always plays; in lists it is paused and plays ONCE on hover */
 /* Büyük boyutta (kart, profil) hep oynar; listelerde durur, üzerine gelince BİR kez oynar */
 .avatar-oynat .av-sus-oge, .avatar:hover .av-sus-oge { animation: av-sallan 1.8s var(--egri-cikis) infinite alternate; }
 .avatar-oynat .av-sus-oge.nabiz { animation: av-sallan 1.8s var(--egri-cikis) infinite alternate, av-nabiz 1.4s ease-in-out infinite alternate; }
 .avatar:not(.avatar-oynat):hover .av-sus-oge { animation-iteration-count: 1; animation-direction: normal; }
+/* Dragon ring (image decoration): it doesn't sway, it rotates around the avatar's center. At large sizes one turn every 12 s, continuous;
+   in lists it is still, and on hover it makes one 4 s turn and stops. Under reduced motion rubyyard.css disables all animations. */
 /* Ejderha halkası (görsel süs): sallanmaz, avatarın merkezi çevresinde döner. Büyük boyutta 12 sn'de bir tur, sürekli;
-   listelerde durağan, üzerine gelince 4 sn'de bir tur atıp durur. Azaltılmış harekette quadran.css bütün animasyonları kapatır. */
+   listelerde durağan, üzerine gelince 4 sn'de bir tur atıp durur. Azaltılmış harekette rubyyard.css bütün animasyonları kapatır. */
 .av-sus-oge img { display: block; width: 100%; height: 100%; }
+/* Size is set here (not inline --x/--w): an inline style would override the small size in the container query */
 /* Ölçü burada (satır içi --x/--w değil): satır içi stil kapsayıcı sorgusundaki küçük boyutu ezerdi */
 .av-sus-oge.don { transform: none; left: -52.5cqw; top: -52.5cqw; width: 205cqw; height: 205cqw; }
 @keyframes av-don { to { transform: rotate(360deg); } }
 .avatar-oynat .av-sus-oge.don { animation: av-don 12s linear infinite; }
 .avatar:not(.avatar-oynat):hover .av-sus-oge.don { animation: av-don 4s var(--egri-cikis) 1; }
+/* On small avatars (comment, list) the ring shrinks to 1.6x: its middle overlaps the avatar's edges but doesn't spill over neighboring text */
 /* Küçük avatarda (yorum, liste) halka 1,6 kata iner: ortası avatarın kenarlarına biner ama komşu yazının üstüne taşmaz */
 @container (max-width: 48px) { .av-sus-oge.don { left: -25cqw; top: -25cqw; width: 150cqw; height: 150cqw; } }
+/* ...and the small avatar gets margin equal to the 1/4 the ring overflows, so the name/text beside it doesn't end up under the ring */
 /* ...ve küçük avatar halkanın taştığı 1/4'lük pay kadar kenar boşluğu alır, yanındaki isim/yazı halkanın altında kalmaz */
 .avatar:has(.av-sus-oge.don):not(.avatar-buyuk, .avatar-kart, .avatar-ust) { margin-inline: 8px; }
 .avatar.avatar-48:has(.av-sus-oge.don):not(.avatar-ust) { margin: 12px; }
+/* In the profile header the ring overflows by 52% of the avatar: the name and left edge make room for it (nothing overlaps) */
 /* Profil başlığında halka avatarın %52'si kadar dışarı taşar: isim ve sol kenar ona yer açar (üst üste binmez) */
 .kimlik:has(.av-sus-oge.don) { padding-left: 76px; gap: 72px; margin-bottom: 52px; }
+/* On phones the name drops below the avatar: only the avatar takes the space, not the whole header (name and buttons stay left-aligned) */
 /* Telefonda isim avatarın altına iner: boşluğu bütün başlık değil yalnızca avatar alır (isim ve düğmeler sola hizalı kalır) */
 @media (max-width: 800px) {
   .kimlik:has(.av-sus-oge.don) { padding-left: 16px; gap: 12px; margin-bottom: 0; }
   .kimlik > .avatar:has(.av-sus-oge.don) { margin: 0 46px 34px 30px; }
 }
 
-/* ---------- Efekt parçacıkları ---------- */
+/* ---------- Effect particles · Efekt parçacıkları ---------- */
 .ef-katman { position: absolute; inset: 0; overflow: hidden; pointer-events: none; container-type: size; }
 .ef-grup[hidden], .av-sus-grup[hidden] { display: none; }
 .ef-arka { z-index: 1; }
 .ef-on { z-index: 3; }
+/* The foreground layer stays small and semi-transparent: it doesn't hinder reading the text */
 /* Ön katman küçük ve yarı saydam kalır: metnin okunmasını engellemez */
 .ef-on .ef-p { --op-carpan: .75; }
 .ef-p {
   position: absolute; left: calc(var(--l) * 1%); top: calc(var(--t) * 1%); display: block; pointer-events: none;
   opacity: calc(var(--op, 1) * var(--op-carpan, 1));
   filter: blur(var(--blur, 0px)) drop-shadow(0 0 var(--parilti-px, 0px) var(--parilti, transparent));
+  /* Static look (reduced motion): the second frame, i.e. a third of the way along the path */
   /* Hareketsiz görünüm (azaltılmış hareket): ikinci kare, yani yolun üçte biri */
   transform: translate(calc(var(--dx) * .33cqw), calc(var(--dy) * .33cqh)) rotate(calc((var(--r0) + (var(--r1) - var(--r0)) * .33) * 1deg));
 }
@@ -81,17 +97,19 @@ a.avatar, button.avatar { cursor: pointer; }
   to { transform: translate(calc(var(--dx) * 1cqw), calc(var(--dy) * 1cqh)) rotate(calc(var(--r1) * 1deg)); }
 }
 @keyframes ef-nabiz { from { opacity: calc(var(--op, 1) * var(--op-carpan, 1) * .55); } to { opacity: calc(var(--op, 1) * var(--op-carpan, 1)); } }
+/* Phase: negative delay, so particles start at different points of the loop (frame duration 0.9 s) */
 /* Faz: negatif gecikme, parçacıklar döngünün farklı anından başlar (kare süresi 0,9 sn) */
 .ef-gez { animation: ef-gez 3.6s linear infinite; animation-delay: calc(var(--faz, 0) * -.9s); }
 .ef-sabit { animation: ef-sabit 1.8s ease-in-out infinite alternate; animation-delay: calc(var(--faz, 0) * -.45s); }
 .ef-sabit.nabiz { animation: ef-sabit 1.8s ease-in-out infinite alternate, ef-nabiz 1.4s ease-in-out infinite alternate; }
+/* The browser already pauses when the tab is hidden or off-screen; additionally mini previews play only on hover */
 /* Sekme gizliyken ya da ekran dışındayken tarayıcı zaten durdurur; ek olarak mini önizlemeler yalnızca üzerine gelince oynar */
 .ef-mini .ef-p { animation-play-state: paused; }
 .ef-mini .ef-p svg, .ef-mini .ef-p img { scale: .5; transform-origin: 0 0; }
 .ef-p img { display: block; max-width: none; }
 .efekt-kutu:hover .ef-mini .ef-p, .efekt-kutu:has(input:checked) .ef-mini .ef-p { animation-play-state: running; }
 
-/* ---------- Profil kartı (.pk) ---------- */
+/* ---------- Profile card (.pk) · Profil kartı (.pk) ---------- */
 .pk {
   position: relative; width: 300px; max-width: 100%; overflow: hidden;
   background: var(--yuzey-1); border: 1px solid var(--kenar-ince); border-radius: 16px; box-shadow: var(--kat-1);
@@ -101,10 +119,12 @@ a.avatar, button.avatar { cursor: pointer; }
   position: relative; height: 104px; overflow: hidden; container-type: size;
   background: var(--pk-ana, var(--yuzey-2));
 }
+/* The gradient applies only if the user wants it (profil_renk_gecis) and only across the banner height: the card body stays on --yuzey-1 */
 /* Geçiş yalnızca kişi isterse (profil_renk_gecis) ve yalnızca banner yüksekliği boyunca: kartın gövdesi --yuzey-1'de kalır */
 .pk[data-gecis] .pk-banner { background: linear-gradient(180deg, var(--pk-ana, var(--yuzey-2)), var(--pk-vurgu, var(--yuzey-3))); }
 .pk-banner > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .pk-avatar { position: absolute; left: 18px; top: 59px; z-index: 2; }
+/* Avatar ring: MAIN color (the card's own background if none is chosen) */
 /* Avatar halkası: ANA renk (seçilmediyse kartın kendi zemini) */
 .pk .avatar-kart { box-shadow: 0 0 0 6px var(--pk-ana, var(--yuzey-1)); background-clip: padding-box; }
 .pk-metin { position: relative; z-index: 2; display: grid; gap: 12px; padding: 56px 18px 18px; }
@@ -112,11 +132,12 @@ a.avatar, button.avatar { cursor: pointer; }
 .pk-ad a:hover { text-decoration: underline; text-underline-offset: 3px; }
 .pk-bio { margin: 4px 0 0; font-size: 14px; line-height: 1.5; color: var(--yazi-2); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .pk-metin .baglanti { color: var(--pk-vurgu, var(--vurgu)); }
+/* The dragon ring overflows by 52% of the avatar (88px → 46px): avatar and text shift inward so the ring isn't clipped at the card edge and doesn't cover the name */
 /* Ejderha halkası avatarın %52'si kadar taşar (88px → 46px): avatar ve metin içeri kayar, halka kart kenarında kesilmez, isme binmez */
 .pk:has(.av-sus-oge.don) .pk-avatar { left: 46px; }
 .pk:has(.av-sus-oge.don) .pk-metin { padding: 98px 22px 18px 46px; }
 
-/* ---------- Profil sayfasının üst bölümü ---------- */
+/* ---------- Top section of the profile page · Profil sayfasının üst bölümü ---------- */
 .profil-ust { position: relative; }
 .profil-ust .banner { background-color: var(--pk-ana, var(--ton)); container-type: size; }
 .profil-ust[data-gecis] .banner { background-image: linear-gradient(180deg, var(--pk-ana, var(--ton)), var(--pk-vurgu, var(--ton))); }
@@ -126,16 +147,20 @@ a.avatar, button.avatar { cursor: pointer; }
 .profil-ust .kimlik { position: relative; z-index: 2; }
 .profil-ust .baglanti { color: var(--pk-vurgu, var(--vurgu)); }
 
-/* ---------- Üye kartı penceresi (popover) ---------- */
+/* ---------- Member card window (popover) · Üye kartı penceresi (popover) ---------- */
 .uye-karti { padding: 0; margin: 0; border: 0; background: transparent; overflow: visible; max-width: calc(100vw - 16px); }
 .uye-karti .pk { box-shadow: var(--kat-2); }
 .uye-karti-yukleniyor { padding: 24px; border-radius: 16px; background: var(--yuzey-3); border: 1px solid var(--kenar-ince); box-shadow: var(--kat-2); color: var(--yazi-2); font-size: 14px; }
 .pk-eylemler { display: flex; flex-wrap: wrap; gap: 8px; }
 .uye-karti-kapat, .uye-karti-tutamac { display: none; }
+/* On phones the member card is a BOTTOM SHEET: it sits at the bottom of the screen at full width, the backdrop darkens, and tapping outside closes it (popover "light dismiss").
+   Opening goes translateY(100%) → 0 (--egri-cikis), closing slides down (--egri-giris): with transition + overlay/display allow-discrete the popover
+   stays visible while closing; the start of the opening is in @starting-style. Under reduced motion the global rule disables the transition (instant).
+   Dragging lives in rubyyard.js: an inline transform while dragging; on release the inline style is cleared and the same transition plays. */
 /* Telefonda üye kartı ALTTAN AÇILAN SAYFA: ekranın altına tam genişlikte oturur, arkası kararır, dışına dokununca kapanır (popover "light dismiss").
    Açılış translateY(100%) → 0 (--egri-cikis), kapanış aşağı kayarak (--egri-giris): transition + overlay/display allow-discrete ile popover
    kapanırken de görünür kalır; açılışın başlangıcı @starting-style'da. Azaltılmış harekette global kural geçişi kapatır (anlık).
-   Sürükleme quadran.js'te: sürerken satır içi transform, bırakınca satır içi stil silinir ve aynı geçiş oynar. */
+   Sürükleme rubyyard.js'te: sürerken satır içi transform, bırakınca satır içi stil silinir ve aynı geçiş oynar. */
 @media (max-width: 800px) {
   .uye-karti {
     inset: auto 0 0 0; width: 100%; max-width: none; max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain;
@@ -154,9 +179,11 @@ a.avatar, button.avatar { cursor: pointer; }
     position: absolute; z-index: 4; top: 8px; right: 8px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 22px;
     background: color-mix(in srgb, var(--zemin) 65%, transparent); color: var(--yazi); border: 1px solid var(--kenar-ince);
   }
+  /* Handle: an invisible 44px-tall drag area with a small bar in the middle (the visible cue) */
   /* Tutamaç: 44px yüksekliğinde görünmez sürükleme alanı, ortada küçük çizgi (görünür işaret) */
   .uye-karti-tutamac { position: absolute; z-index: 4; display: block; top: 0; left: 50%; width: 128px; height: 44px; margin-left: -64px; touch-action: none; cursor: grab; }
   .uye-karti-tutamac::before { content: ""; position: absolute; top: 8px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--yazi-2); opacity: .6; }
+  /* The avatar decoration stays INSIDE the sheet: it overflows the avatar (dragon 46px), so avatar and text sit >=24px + the overflow in from the left edge */
   /* Avatar süsü sayfanın İÇİNDE kalır: süs avatarın dışına taşar (ejderha 46px), bu yüzden avatar ve metin sol kenardan >=24px + taşma kadar içeri durur */
   .uye-karti .pk-avatar { left: 24px; }
   .uye-karti .pk:has(.av-sus-oge) .pk-avatar { left: 48px; }
@@ -167,11 +194,12 @@ a.avatar, button.avatar { cursor: pointer; }
 }
 [data-uye-karti] { cursor: pointer; }
 
-/* ---------- Ayarlar › Profil görünümü ---------- */
+/* ---------- Settings › Profile appearance · Ayarlar › Profil görünümü ---------- */
 .pg-duzen { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
 .pg-onizleme { grid-column: 2; grid-row: 1; position: sticky; top: 88px; display: grid; gap: 8px; justify-items: start; }
 .pg-ayar { grid-column: 1; grid-row: 1; display: grid; gap: 24px; min-width: 0; }
 .pg-grup { display: grid; gap: 12px; }
+/* Images section (Figma 40:4): preview · name/info · actions. On phones the actions drop to the next row. */
 /* Görseller bölümü (Figma 40:4): önizleme · ad/bilgi · eylemler. Telefonda eylemler alt satıra iner. */
 .gs-satir { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px; background: var(--yuzey-2); border-radius: 12px; }
 .gs-avatar { width: 56px; height: 56px; border-radius: 14px; font-family: var(--baslik-tipi); font-size: 22px; flex: none; }
@@ -181,18 +209,22 @@ a.avatar, button.avatar { cursor: pointer; }
 .gs-bilgi strong { font-size: 14px; font-weight: 600; }
 .gs-eylem, .gs-eylem form { display: flex; align-items: center; gap: 8px; }
 .gs-degistir { position: relative; cursor: pointer; }
+/* The file input is invisible but stays focusable (display:none would hide it from keyboard and screen readers) */
 /* Dosya girişi görünmez ama odaklanabilir kalır (display:none klavyeden ve ekran okuyucudan gizlerdi) */
 .gorunmez { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); border: 0; white-space: nowrap; }
 .gs-degistir:has(.gorunmez:focus-visible) { outline: 2px solid var(--vurgu); outline-offset: 2px; }
 .js [data-yukle-gonder] { display: none; }
+/* Position picks a strip only on wide screens: the saved yasla value is converted to object-position (no inline style) */
 /* Konum yalnızca geniş ekranda şerit seçer: kaydedilen yasla değeri object-position'a çevrilir (satır içi stil yok) */
 [data-konum="ust"] > img { object-position: center top; }
 [data-konum="alt"] > img { object-position: center bottom; }
 .profil-ust .banner[data-konum="ust"] > img, .pk-banner[data-konum="ust"] > img { object-position: center top; }
 .profil-ust .banner[data-konum="alt"] > img, .pk-banner[data-konum="alt"] > img { object-position: center bottom; }
 
-/* ---------- Kırp ve konumla penceresi (Figma 40:29) ---------- */
+/* ---------- Crop and position window (Figma 40:29) · Kırp ve konumla penceresi (Figma 40:29) ---------- */
 .kirp-pencere { width: min(520px, calc(100vw - 24px)); overscroll-behavior: contain; }
+/* While the window is open the page behind must not scroll: dragging/scrolling stays in the window, and on close the user finds the page in the same place.
+   Done with :has() without JS; scrollbar-gutter keeps the page from shifting sideways when the scrollbar disappears. */
 /* Pencere açıkken arkadaki sayfa kaymasın: sürükleme/kaydırma pencerede kalır, kapanınca kişi aynı yerde bulur.
    JS'siz :has() ile yapılır; scrollbar-gutter kaydırma çubuğu kaybolunca sayfanın yana kaymasını önler. */
 html:has(.kirp-pencere[open]) { overflow: hidden; scrollbar-gutter: stable; }
@@ -203,18 +235,22 @@ html:has(.kirp-pencere[open]) { overflow: hidden; scrollbar-gutter: stable; }
 .kirp-alan:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 2px; }
 .kirp-pencere[data-tur="avatar"] .kirp-alan { aspect-ratio: 1; width: min(100%, 320px); margin: 0 auto; }
 .kirp-pencere[data-tur="banner"] .kirp-alan { aspect-ratio: 2.2; width: 100%; }
+/* The image always fills the crop area: JS supplies size and position (transform); here only the reset */
 /* Görsel her zaman kırpma alanını doldurur: boyut ve konumu JS verir (transform), burada yalnızca sıfırlama */
 .kirp-resim { position: absolute; left: 0; top: 0; max-width: none; transform-origin: 0 0; pointer-events: none; }
 .kirp-maske, .kirp-izgara, .kirp-serit { position: absolute; pointer-events: none; }
+/* Avatar: rounded-square cutout, the outside is darkened */
 /* Avatar: yuvarlatılmış kare kesim, dışı karartılır */
 .kirp-maske { inset: 0; }
 .kirp-pencere[data-tur="avatar"] .kirp-maske { border-radius: 22%; box-shadow: 0 0 0 999px rgb(0 0 0 / .55); }
 .kirp-pencere[data-tur="banner"] .kirp-maske { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .35); }
+/* Thin 3×3 grid */
 /* 3×3 ince ızgara */
 .kirp-izgara { inset: 0; z-index: 1; background:
   linear-gradient(to right, transparent calc(33.333% - .5px), rgb(255 255 255 / .35) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgb(255 255 255 / .35) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)),
   linear-gradient(to bottom, transparent calc(33.333% - .5px), rgb(255 255 255 / .35) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgb(255 255 255 / .35) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)); }
 .kirp-pencere[data-tur="avatar"] .kirp-serit { display: none; }
+/* Tablet (3:1) and desktop (3.7:1) strips: since the area is 2.2:1, their heights are in the ratios 2.2/3 and 2.2/3.7 */
 /* Tablet (3:1) ve masaüstü (3,7:1) şeritleri: alan 2,2:1 olduğu için yükseklikleri 2,2/3 ve 2,2/3,7 oranındadır */
 .kirp-serit { left: 0; right: 0; z-index: 2; border: 1px dashed rgb(255 255 255 / .85); box-shadow: 0 0 0 1px rgb(0 0 0 / .35); }
 .kirp-serit span { position: absolute; left: 8px; padding: 2px 6px; border-radius: 6px; background: rgb(0 0 0 / .6); color: #fff; font-size: 11px; font-weight: 600; }
@@ -267,6 +303,7 @@ html:has(.kirp-pencere[open]) { overflow: hidden; scrollbar-gutter: stable; }
 .renk-hex:focus { outline: 0; border-color: var(--vurgu); box-shadow: 0 0 0 1px var(--vurgu); }
 .renk-hex.hatali { border-color: var(--hata); }
 
+/* Custom color picker panel: a popover, same surface as the site's dropdown menu (16px, --yuzey-3, --kat-2) */
 /* Özel renk seçici paneli: popover, sitenin açılır menüsüyle aynı yüzey (16px, --yuzey-3, --kat-2) */
 .renk-panel { width: 280px; max-width: calc(100vw - 16px); margin: 0; padding: 16px; background: var(--yuzey-3); color: var(--yazi); border: 1px solid var(--kenar-ince); border-radius: 16px; box-shadow: var(--kat-2); }
 .renk-panel:popover-open { display: grid; gap: 12px; }
@@ -285,14 +322,17 @@ html:has(.kirp-pencere[open]) { overflow: hidden; scrollbar-gutter: stable; }
   .pg-onizleme { grid-row: 1; justify-items: center; }
   .pg-ayar { grid-row: 2; }
   .pk { width: 100%; max-width: 340px; }
+  /* On phones the color picker is a bottom sheet: it sits above the bottom bars (--alt-yer) */
   /* Telefonda renk seçici alttan açılan sayfa: alt çubukların (--alt-yer) üstünde durur */
   .renk-panel { inset: auto 8px calc(var(--alt-yer, 0px) + 8px) 8px; width: auto; max-width: none; border-radius: 16px; }
   .renk-dugme { width: 48px; }
+  /* Images row: the info stays beside, the buttons drop to the next row and use its full width (≥44px target) */
   /* Görseller satırı: bilgi yanda kalır, düğmeler alt satıra iner ve satırın tamamını kullanır (≥44px hedef) */
   .gs-eylem { flex-basis: 100%; }
   .gs-eylem .buton { height: 44px; }
   .gs-degistir { flex: 1; }
   .gs-eylem form:first-child { flex: 1; }
+  /* On phones the crop window is a bottom sheet: only the top corners are rounded, the content scrolls */
   /* Kırp penceresi telefonda alttan açılan sayfa: yalnızca üst köşeler yuvarlak, içerik kaydırılır */
   .kirp-pencere, .kirp-pencere[data-tur="avatar"] { inset: auto 0 0 0; width: 100%; max-width: none; margin: 0; border-radius: 24px 24px 0 0; border-bottom: 0; max-height: calc(100dvh - 24px); }
   .kirp-ic { padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 24px); }
@@ -303,13 +343,14 @@ html:has(.kirp-pencere[open]) { overflow: hidden; scrollbar-gutter: stable; }
   .renk-alan > span { min-width: 0; }
 }
 
-/* ---------- /premium ---------- */
+/* ---------- /premium · /premium ---------- */
 .premium-sayfa { max-width: 808px; margin: 0 auto; padding: 32px 24px 64px; display: grid; gap: 24px; justify-items: start; }
 .premium-sayfa h1 { font-family: var(--baslik-tipi); font-size: 28px; }
 @media (max-width: 800px) { .premium-sayfa { padding: 12px 12px 40px; } }
 
-/* ---------- Panel: premium kutusu ---------- */
+/* ---------- Panel: premium box · Panel: premium kutusu ---------- */
 .yn-premium-durum { font-size: 13px; color: var(--yazi-2); }
 
+/* The avatar in the top bar sits at the page edge: its decoration isn't shown there so it can't overflow to the right and cause horizontal scroll (decorations appear on the profile, the card and messages) */
 /* Üst çubuktaki avatar sayfa kenarındadır: süs sağa taşıp yatay kaydırma çıkarmasın diye orada gösterilmez (süs profilde, kartta ve mesajlarda görünür) */
 .avatar-ust .av-sus-grup { display: none; }

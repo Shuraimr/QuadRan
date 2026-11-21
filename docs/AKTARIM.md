@@ -1,4 +1,4 @@
-# QuadRan arayüz paketi: aktarım notları
+# rubyyard arayüz paketi: aktarım notları
 
 Bu paket, Figma'daki "Kristal Tasarım" sayfasının düz CSS + EJS karşılığıdır.
 Hedef proje: Node 22 (TypeScript dosyalarını doğrudan çalıştırır), Express 5, mysql2 (ORM yok, saf SQL), EJS, MySQL 8.4.
@@ -12,22 +12,22 @@ Sayfaların hepsi gerçek veritabanına bağlı ve uçtan uca denendi (curl ile:
 Çalıştırma:
 
 ```
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/06_etkilesim.sql   # yalnızca çalışan veritabanı 06'yı görmediyse
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/07_hesap.sql       # yalnızca çalışan veritabanı 07'yi görmediyse
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/08_yonetim.sql      # yönetim paneli tabloları (bir kez; ALTER TABLE tekrar çalışmaz)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/10_panel.sql         # puan kuralları ayarı + 'duyuru' bildirim türü (tekrar çalıştırmak zararsız)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/11_gizlilik.sql       # konum, web sitesi, gizlilik tercihleri, user_blocks (bir kez; ALTER TABLE tekrar çalışmaz)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/12_odalar.sql          # özel odalar: 6 tablo, reports.oda_mesaji, bildirim türü 'oda', oda ayarları (bir kez; ALTER TABLE tekrar çalışmaz)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/13_rutbe.sql           # rütbe sistemi: ranks sütunları + 4 yeni rütbe, points_log (+ geçmiş puanların yedek satırı), users/topics sütunları, 'rutbe' bildirim türü, yeni puan ayarları (bir kez; ALTER TABLE tekrar çalışmaz)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/14_rutbe_duzeltme.sql  # points_log.sebep: baslangic/cozum_geri/davet, geçmiş satırlar baslangic olur (bir kez)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/15_puan_geri_alma.sql    # points_log.sebep: rozet_geri, geri_yukleme (bir kez; ALTER TABLE tekrar çalışmaz)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/16_oy_puan_etkisi.sql    # post_votes.puan_etkisi (bir kez)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/17_puan_tavani.sql    # puan_gunluk_tavan ayarı (bir kez)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/18_profil_premium.sql    # profil/premium sütunları (users: premium_bitis, profil_efekti, avatar_susu, profil_renk_ana/vurgu/gecis, avatar_hareketli, banner_hareketli; bir kez)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/19_banner_konum.sql    # users.banner_konum ENUM(ust,orta,alt) DEFAULT orta (bir kez)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/20_takip.sql    # user_follows tablosu + notifications.tur'a 'takip' (bir kez)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/21_profil_vitrin.sql    # user_badges.vitrin_sira (1–3) + users.sabit_konu_id (FK topics, ON DELETE SET NULL) (bir kez; ALTER TABLE tekrar çalışmaz)
-docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/24_bakim.sql    # bakım modu: site_settings bakim_modu + bakim_metni (INSERT IGNORE, tekrar çalıştırmak zararsız)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/06_etkilesim.sql   # yalnızca çalışan veritabanı 06'yı görmediyse
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/07_hesap.sql       # yalnızca çalışan veritabanı 07'yi görmediyse
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/08_yonetim.sql      # yönetim paneli tabloları (bir kez; ALTER TABLE tekrar çalışmaz)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/10_panel.sql         # puan kuralları ayarı + 'duyuru' bildirim türü (tekrar çalıştırmak zararsız)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/11_gizlilik.sql       # konum, web sitesi, gizlilik tercihleri, user_blocks (bir kez; ALTER TABLE tekrar çalışmaz)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/12_odalar.sql          # özel odalar: 6 tablo, reports.oda_mesaji, bildirim türü 'oda', oda ayarları (bir kez; ALTER TABLE tekrar çalışmaz)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/13_rutbe.sql           # rütbe sistemi: ranks sütunları + 4 yeni rütbe, points_log (+ geçmiş puanların yedek satırı), users/topics sütunları, 'rutbe' bildirim türü, yeni puan ayarları (bir kez; ALTER TABLE tekrar çalışmaz)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/14_rutbe_duzeltme.sql  # points_log.sebep: baslangic/cozum_geri/davet, geçmiş satırlar baslangic olur (bir kez)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/15_puan_geri_alma.sql    # points_log.sebep: rozet_geri, geri_yukleme (bir kez; ALTER TABLE tekrar çalışmaz)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/16_oy_puan_etkisi.sql    # post_votes.puan_etkisi (bir kez)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/17_puan_tavani.sql    # puan_gunluk_tavan ayarı (bir kez)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/18_profil_premium.sql    # profil/premium sütunları (users: premium_bitis, profil_efekti, avatar_susu, profil_renk_ana/vurgu/gecis, avatar_hareketli, banner_hareketli; bir kez)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/19_banner_konum.sql    # users.banner_konum ENUM(ust,orta,alt) DEFAULT orta (bir kez)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/20_takip.sql    # user_follows tablosu + notifications.tur'a 'takip' (bir kez)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/21_profil_vitrin.sql    # user_badges.vitrin_sira (1–3) + users.sabit_konu_id (FK topics, ON DELETE SET NULL) (bir kez; ALTER TABLE tekrar çalışmaz)
+docker exec -i rubyyard-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" rubyyard' < sql/24_bakim.sql    # bakım modu: site_settings bakim_modu + bakim_metni (INSERT IGNORE, tekrar çalıştırmak zararsız)
 node --env-file=.env src/server.ts
 ```
 
@@ -146,7 +146,7 @@ Eylemler: sil (silinen mesajın bekleyen şikâyetleri kapanır), uyar (bildirim
 ## Özel odalar (sql/12_odalar.sql)
 
 Davetle girilen grup sohbetleri (konu yok; ad, açıklama, üyeler, mesajlar). Herkese açık ya da şifreli oda YOK. Kod: `src/odalar.ts` (kurallar + sorgular), `src/rotalar/odalar.ts` (route'lar),
-`src/rotalar/yonetim-oda.ts` (panel), şablonlar `views/oda.ejs`, `oda-katil.ejs`, `partials/sohbet-liste.ejs`, `oda-pencereleri.ejs`, `oda-ac-penceresi.ejs`, `genel-sohbet.ejs`; stil `sayfalar.css` sonu; betik `quadran.js` sonu.
+`src/rotalar/yonetim-oda.ts` (panel), şablonlar `views/oda.ejs`, `oda-katil.ejs`, `partials/sohbet-liste.ejs`, `oda-pencereleri.ejs`, `oda-ac-penceresi.ejs`, `genel-sohbet.ejs`; stil `sayfalar.css` sonu; betik `rubyyard.js` sonu.
 
 - Tablolar: `rooms` (`kapatildi_at` = yetkili kapattı, `deleted_at` = sahip sildi), `room_members` (`rol` sahip/yonetici/uye, `sessiz`, `son_okunan_id`; PK room_id+user_id), `room_invites` (durum bekliyor/kabul/ret/iptal; tek bekleyen davet kodda sağlanır),
   `room_links` (`kod` DÜZ METİN + UNIQUE: bağlantı şifre değil davetiye, yöneticiler listede yeniden görüp kopyalayabilsin; süre, kullanım sınırı, `iptal_at`), `room_bans` (çıkarılan 24 saat bağlantıyla dönemez; sütun `bitis`, çünkü `until` MySQL'de ayrılmış kelime),
@@ -235,7 +235,7 @@ Figma "07 · Rütbe sistemi". Kod: `src/rutbe.ts` (rütbe önbelleği 30 sn, ayr
 
 ## Profil görünümü, yükleme ve premium (sql/18_profil_premium.sql)
 
-Figma "10 · Premium: isim stili ve profil arka planı" ve "11 · Premium: profil efektleri ve renk". Kod: `src/yukleme.ts`, `src/premium.ts`, `src/profil-gorunum.ts`, `src/rotalar/premium.ts`, `public/css/efektler.css`, `public/js/quadran.js` sonu,
+Figma "10 · Premium: isim stili ve profil arka planı" ve "11 · Premium: profil efektleri ve renk". Kod: `src/yukleme.ts`, `src/premium.ts`, `src/profil-gorunum.ts`, `src/rotalar/premium.ts`, `public/css/efektler.css`, `public/js/rubyyard.js` sonu,
 şablonlar `partials/avatar.ejs`, `avatar-sus.ejs`, `profil-efekt.ejs`, `profil-karti.ejs`, `profil-gorunumu-bolumu.ejs`, `views/premium.ejs`.
 
 - **Sütunlar** (`users`): `premium_bitis` (NULL/geçmiş = ücretsiz; "süresiz" = `9999-12-31 23:59:59`), `profil_efekti` (cadilar, melek, seytan, kar, sakura, atesbocegi, ejderha), `avatar_susu` (cadi_sapkasi, hale_kanat, boynuz_kuyruk, bere, kiraz, fener, ejderha), `profil_renk_ana`, `profil_renk_vurgu` (`#rrggbb`), `profil_renk_gecis` (0 düz = varsayılan, 1 banner'da ana→vurgu geçişi), `avatar_hareketli`, `banner_hareketli`. `avatar_url`/`banner_url` sql/01'den beri vardı.
@@ -247,7 +247,7 @@ Figma "10 · Premium: isim stili ve profil arka planı" ve "11 · Premium: profi
   - **Kırpma parametreleri** (multipart alanları): `kirp_x`, `kirp_y`, `kirp_g`, `kirp_y2` = KAYNAK görselin doğal piksel koordinatlarında sol-üst köşe ve boyut (tamsayı, en çok 5 hane); banner için ayrıca `konum` = `ust|orta|alt`. Sunucu doğrulaması (`kirpmaGecerli`, `src/yukleme.ts`): x,y ≥ 0; g,y2 ≥ 64; x+g ≤ genişlik, y+y2 ≤ yükseklik (hareketli görselde kare yüksekliği `pageHeight`; EXIF yönü 5–8'de en/boy yer değiştirir); avatar |g−y2| ≤ 1; banner g/y2 = 2,2 ±%2. Geçersiz ya da eksik kırpma HATA DEĞİL: eski davranışa (ortadan `cover`) düşülür. Geçersiz `konum` reddedilir (400 / toast). `extract` sonra `resize`; hareketli GIF'te sharp `extract`'ı her kareye ayrı uygular (denendi).
   - **`banner_konum`** (sql/19): tablet/masaüstü bannerı 2,2:1 görselden üst/alt keser; hangi şeridin kalacağı burada. `profilGorunumSutunlari()` döndürür; şablonlarda `data-konum="ust|orta|alt"` (`.profil-ust .banner`, `.pk-banner`, Ayarlar önizlemesi) ve CSS `object-position`. Banner yeniden yüklenince `konum` alanıyla (yoksa `orta`), "Kaldır"da `orta`'ya döner.
 - **Multipart ve CSRF**: `express.urlencoded` multipart gövdeyi çözmez. `oturum.ts` `csrfKoru` yalnızca `COKLU_PARCALI_ADRESLER` (`/ayarlar/avatar`, `/ayarlar/banner`) için kontrolü multer'dan sonraya erteler (`yuklemeKatmani` içindeki `csrfDogrula`); başka adrese multipart POST gövdesiz kalır ve 403 alır. Koruma kapatılmadı, yalnızca doğrulama zamanı değişti.
-- **Arayüz**: Ayarlar › "Profil görünümü" (`#profil-gorunumu`): gruplar Görseller · Renk (kendi renklerimi kullan, Düz/Geçiş, ana/vurgu: `<input type=color>` + HEX; JS varsa özel seçici popover'ı: doygunluk×parlaklık, ton, HEX, EyeDropper, rastgele, son kullandıkların [localStorage]; telefonda alttan sayfa) · Efekt · Avatar süsü. Sağda (telefonda üstte) canlı önizleme = kişinin kendi kartı (`quadran.js` seçimlere göre öznitelik/değişken günceller). Efekt/süs seçici kutucuklarında küçük canlı önizleme (üzerine gelince/seçilince oynar).
+- **Arayüz**: Ayarlar › "Profil görünümü" (`#profil-gorunumu`): gruplar Görseller · Renk (kendi renklerimi kullan, Düz/Geçiş, ana/vurgu: `<input type=color>` + HEX; JS varsa özel seçici popover'ı: doygunluk×parlaklık, ton, HEX, EyeDropper, rastgele, son kullandıkların [localStorage]; telefonda alttan sayfa) · Efekt · Avatar süsü. Sağda (telefonda üstte) canlı önizleme = kişinin kendi kartı (`rubyyard.js` seçimlere göre öznitelik/değişken günceller). Efekt/süs seçici kutucuklarında küçük canlı önizleme (üzerine gelince/seçilince oynar).
 - **Kart bileşeni** (`partials/profil-karti.ejs`): sitenin kart dili (`--yuzey-1`, 16px, `--kat-1`; popover'da `--kat-2`). Ana renk banner'ı (resim yoksa) ve avatar halkasını, vurgu rengi üst çizgiyi ve bağlantıları boyar; geçiş yalnızca isteyende ve yalnızca banner'da. Efekt iki katman: arka (banner içinde) ve ön (bütün kartın üstünde, yarı saydam, `pointer-events:none`). Efektler CSS `@keyframes` (yalnızca transform/opacity/filter), 3,6 sn, faz = negatif `animation-delay`, konumlar container query birimleriyle (`cqw`/`cqh`) kartın boyutuna oranlanır; `[data-az-animasyon]` ve `prefers-reduced-motion` altında animasyon kapanır, parçacıklar durağan görünür. Veri: `src/profil-gorunum.ts` (parçacık listeleri, SVG'ler, süs konumları).
 - **Avatar süsü**: büyük boyutta (kart, profil, hesap menüsü) oynar; listelerde küçük ve hareketsiz, üzerine gelince bir kez oynar. Üst çubuktaki avatarda gösterilmez (sağ kenarda yatay taşma yapıyordu).
 - **Ejderha (süs + efekt, Figma 12)**: ayrıntılı illüstrasyon olduğu için SVG değil, şeffaf görsel: `public/img/susler/ejderha.webp` (560px; Figma'nın görsel üretme aracıyla üretildi, siyah zemini şeffaflaştırıldı). `SVG.ejderha_halka` / `ejderha_golge` içinde `<img>` olarak durur. Süs `don: true` → `.av-sus-oge.don`: avatarın 2,05 katı halka, büyük boyutta 12 sn'de bir tur döner, listelerde üzerine gelince 4 sn'de bir tur; ≤48px avatarda 1,5 kata iner ve avatar yanına pay alır (yanındaki isim halkanın altında kalmaz). Profil başlığı, üye kartı ve konu sayfası halkaya yer açar (`efektler.css` "Ejderha halkası"). Efekt: banner'da soluk büyük ejderha + kıvrımlı bulutlar + altın kıvılcımlar.
@@ -257,10 +257,10 @@ Figma "10 · Premium: isim stili ve profil arka planı" ve "11 · Premium: profi
 
 ## Arayüz: seçici, hareket ve telefon düzeni (v0.4.0)
 
-- Seçici: `public/js/quadran.js` her `<select>`'i özel açılır listeye çevirir (JS yoksa yerel liste çalışır; `data-yerel` ile kapatılır).
+- Seçici: `public/js/rubyyard.js` her `<select>`'i özel açılır listeye çevirir (JS yoksa yerel liste çalışır; `data-yerel` ile kapatılır).
   Gerçek select DOM'da kalır ve forma o gönderilir. Klavye: ↑ ↓ Home End, harfle atlama, Enter, Esc. Zorunlu alan boşsa seçici kırmızı olur.
   Yönetim panelinde yalnızca seçicilerden oluşan süzgeç formları seçince kendiliğinden gönderilir ("Süz" gizlenir).
-- Hareket: `public/css/hareket.css` ve `quadran.css`'teki `--sure-*`, `--egri-*`, `--hareket` değişkenleri. "Animasyonları azalt"
+- Hareket: `public/css/hareket.css` ve `rubyyard.css`'teki `--sure-*`, `--egri-*`, `--hareket` değişkenleri. "Animasyonları azalt"
   (`<html data-az-animasyon>`) ve işletim sisteminin `prefers-reduced-motion` tercihi hepsini kapatır.
 - Yönetim paneli telefonda (≤800px): kenar çubuğu bir popover'dır; üst çubuktaki Menü düğmesi onu soldan kayan çekmece olarak açar.
   Süzgeçler "Süzgeçler" düğmesinin arkasına katlanır; toplu işlem çubuğu satır seçilince ekranın altına sabitlenir;
@@ -311,7 +311,7 @@ Telefonda alt menü ve üst çubuğun CSS ile gizlenen parçaları "Tekrarı ön
   başlık da düzenlenir, silinince konu silinir. Silmede yazarken kazanılan puan (+5 / +2) geri alınır. Kilitli konuda düzenleme yok.
 
 - Güvenlik başlıkları (`src/server.ts`, 1.0 öncesi sızma testinden sonra, 2026-11-21): CSP (`script-src 'self'`: satır içi betik ve
-  `onclick`/`onsubmit` YASAK — onay için formda `data-onay="..."`, davranış `public/js/quadran.js`'te), `frame-ancestors 'none'` +
+  `onclick`/`onsubmit` YASAK — onay için formda `data-onay="..."`, davranış `public/js/rubyyard.js`'te), `frame-ancestors 'none'` +
   `X-Frame-Options: DENY` (clickjacking), `nosniff`, `Referrer-Policy`, `Permissions-Policy`; `x-powered-by` kapalı. Yeni dış kaynak
   (yazı tipi, görsel, betik) eklenirse CSP listesine de yazılmalı.
 - Yayına alırken: ters vekil (nginx/Caddy) arkasındaysa `.env`'e `TRUST_PROXY=1` (gerçek IP ile hız sınırı, HTTPS'i tanıma);
@@ -327,7 +327,7 @@ Telefonda alt menü ve üst çubuğun CSS ile gizlenen parçaları "Tekrarı ön
   İkisi aynı anda görünmediği için klavye sırası ekrandaki sırayla aynıdır (CSS `order` kullanılmaz).
 - **Ayarlar bölümleri tek yerde:** masaüstünde ayrı ikinci menü sütunu YOK; Ayarlar açıkken kenar menüdeki "Ayarlar"ın altında 5 bölüm
   satırı çıkar (kenar menü sabit olduğu için kaydırırken de görünür). Şablon yerelleri:
-  - `ayarSayfasi: true` (yalnızca `ayarlar.ejs` → `partials/son`): satırlar `#profil…` çapası + `data-bolum-bag` (quadran.js okunan bölümü vurgular).
+  - `ayarSayfasi: true` (yalnızca `ayarlar.ejs` → `partials/son`): satırlar `#profil…` çapası + `data-bolum-bag` (rubyyard.js okunan bölümü vurgular).
   - `ayarBolum: "hesap" | "profil-gorunumu"` (hesap.ts /hesap/sifre, /hesap/eposta; premium.ts /premium): satırlar `/ayarlar#…`, o satır seçili.
   - İkisi de yoksa alt satırlar açılmaz, Ayarlar dolu hap olur (menüde konum işareti hiç kaybolmaz).
 - **Tablet:** `.ayar-gezinti` (başlık + `nav.kategoriler`) üst çubuğun altına yapışan şerittir (`--ayar-serit: 68px`, sekmeler 44px).
@@ -340,7 +340,7 @@ Telefonda alt menü ve üst çubuğun CSS ile gizlenen parçaları "Tekrarı ön
 
 | Dosya | Görev |
 |---|---|
-| `public/css/quadran.css` | Tek stil dosyası. En üstte tasarım değerleri (CSS değişkenleri), altında parçalar ve sayfalar |
+| `public/css/rubyyard.css` | Tek stil dosyası. En üstte tasarım değerleri (CSS değişkenleri), altında parçalar ve sayfalar |
 | `views/partials/bas.ejs`, `son.ejs` | Sayfanın başı (`<head>`) ve sonu |
 | `views/partials/ust-cubuk.ejs` | Üst çubuk. `kullanici` varsa üye, yoksa misafir görünümü |
 | `views/partials/gonderi-karti.ejs` | Akış ve profildeki konu kartı |
@@ -360,7 +360,7 @@ Her şablonun en üstündeki yorum, o şablonun beklediği verileri alan alan li
 
 `<html data-tema="koyu|acik|sistem" data-vurgu="safir|zumrut|kehribar|ametist|yakut" data-menu="sol|sag" [data-kompakt] [data-az-animasyon]>`.
 Değerler `res.locals.tema`, `vurgu`, `menuYonu`, `kompakt`, `azAnimasyon` üzerinden gelir (yoksa koyu + safir).
-`sistem`: sunucu tarayıcının tercihini bilemez, bu yüzden `data-tema="sistem"` olduğu gibi yazılır; `quadran.css`'in en sonunda
+`sistem`: sunucu tarayıcının tercihini bilemez, bu yüzden `data-tema="sistem"` olduğu gibi yazılır; `rubyyard.css`'in en sonunda
 `@media (prefers-color-scheme: light)` içinde açık temanın değişkenleri (vurgu birleşimleri dahil) bu seçiciye verilir. Koyu tercihte `:root` geçerli kalır.
 `data-kompakt`: `.gonderi .ozet` gizlenir, kart dolgusu daralır. `data-az-animasyon`: bütün geçiş ve animasyonlar kapanır.
 
@@ -387,7 +387,7 @@ Eksik ya da yanlışsa yanıt 403 olur, toast yazılır ve küçük bir sayfa ku
 
 - Ortak katmanlar `views/partials/`: kenar-menu (tablet, 801–1180px), alt-menu (mobil, ≤800px), arama-penceresi (Ctrl+K),
   bildirim-paneli, avatar-menusu, moderasyon-menusu, sikayet-penceresi, bildirim-cubuklari. Stil `public/css/katmanlar.css`,
-  davranış `public/js/quadran.js` (JS olmadan da bağlantı/form olarak çalışır). Sayfa stilleri `public/css/sayfalar.css`.
+  davranış `public/js/rubyyard.js` (JS olmadan da bağlantı/form olarak çalışır). Sayfa stilleri `public/css/sayfalar.css`.
 - Önizleme (örnek veri): `/onizleme/katmanlar`, `/onizleme/mesajlar`, `/onizleme/bildirimler`, `/onizleme/ara?q=selinux`,
   `/onizleme/siralama`, `/onizleme/sohbet`, `/onizleme/moderasyon`. Parametreler: `?misafir=1`, `?bos=1`, `?tema=acik&vurgu=zumrut`, `?menu=sag`.
 - Moderatör düğmesi `kullanici.rol` "moderator" veya "admin" ise görünür.
@@ -413,7 +413,7 @@ site_settings: `yakut_seri_gunluk`=10, `yakut_seri_yedinci`=50 (7., 14. … gün
 **Kural: bakiye YALNIZCA `src/yakut.ts › yakutEkle(userId, miktar, sebep, ilgiliId?, aciklama?, baglanti?)` ile değişir** (FOR UPDATE transaction + yakut_log). Harcama bakiyeyi sıfırın altına düşürecekse hiçbir şey yazmaz, `{ yetersiz: true }` döner (kırpma yok). `baglanti` verilirse commit/rollback çağırandadır (unvanAl yakut düşümü + sahiplik satırını tek transaction'da yazar).
 
 **Kazanma (oturum.ts › gunlukPuan → yakut.ts › gunlukYakutVer):** günde ilk istekte seri yakutu (10, `seri_gun % 7 === 0` ise 50); ay değiştiyse (`son_harclik` koşullu UPDATE, ay DB'den) rütbenin `aylik_yakut`'u (admin/moderatör dahil) + premium (admin dahil) ise ayrı satır `premium`.
-Ödüller `req.session.yakutOdulleri` kuyruğuna yazılır; sıradaki çizilen sayfada (GET, `Sec-Fetch-Dest` yok ya da document) ilki `partials/yakut-odul.ejs` penceresi olur ve çizim sırasında kuyruktan düşer (son.ejs'te: panelde de çıkar). quadran.js pencereyi modal yapar, `data-say` sayar.
+Ödüller `req.session.yakutOdulleri` kuyruğuna yazılır; sıradaki çizilen sayfada (GET, `Sec-Fetch-Dest` yok ya da document) ilki `partials/yakut-odul.ejs` penceresi olur ve çizim sırasında kuyruktan düşer (son.ejs'te: panelde de çıkar). rubyyard.js pencereyi modal yapar, `data-say` sayar.
 
 **Rotalar:** `GET /yakut` (`?k=tumu|unvanlar|susler|efektler|one-cikarma`; cüzdan, `#kazan` bölümü), `GET /yakut/hareketler` (`?f=tumu|kazanilan|harcanan`, `?sayfa=`, 30'ar), `POST /yakut/unvan/:id/al` (onay `data-onay`), `POST /yakut/unvan/:id/kullan` (sahiplik sunucuda doğrulanır), `POST /yakut/unvan/kaldir`. Bu POST'lara hız sınırı `yakutHarcama` (12/dk/kullanıcı). Süs/efekt/öne çıkarma ürünleri "Yakında" (satın alma yok).
 **Panel:** üye kartı "Yakut ver / al" `POST /yonetim/uyeler/:id/yakut` (admin; miktar ±, sebep ZORUNLU → yakut_log `yonetim` + işlem kaydı `kullanici.yakut`); Rütbeler tablosunda "Aylık yakut" sütunu; Puan kuralları'nda yakut kazanma alanları. **Unvanlar sekmesi** `/yonetim/puan/unvanlar` (yalnızca admin): ekle (ad 2–40 benzersiz, fiyat 0–100000, sıra), ad/fiyat/sıra düzenle, aktif/pasif; SİLME YOK (sahipler var). İşlem kaydı `unvan.ekle` / `unvan.duzenle`. Yakut kuralları değişirse ayrı kayıt `ayar.yakut` (puan kaydı `ayar.puan`'a karışmaz).
@@ -422,11 +422,11 @@ site_settings: `yakut_seri_gunluk`=10, `yakut_seri_yedinci`=50 (7., 14. … gün
 **Bilinen eksikler:** süper yorum/öne çıkarma/süs/efekt satın alma, yardım ödülü, bahşiş (sebepler ayrılmış, kod yok); unvan üye kartında (/kart) ve sohbette görünmüyor.
 
 ## Telefon arayüzü (3.7, onaylı telefon tasarımı 1. bölüm)
-- **Üst çubuk:** telefonda mesaj + yakut çipi + zil TEK kapsülde (`.ust-kapsul`: `--yuzey-1`, ince kenar, radius 22, her hedef 44px; yakut çipinin kendi kenarı kalkar). Masaüstü/tablette kapsül `display: contents` (düzen aynı). Sayfa 64px'i geçince quadran.js `<header class="ust-cubuk">`'a `data-yuzen` ekler (16px altına inince kaldırır; scroll pasif + requestAnimationFrame): çubuk 12px içeriden 52px yüzen kapsüle döner (`--yuzey-2`, `--kat-2`), "QuadRan" yazısı söner (`.logo-yazi` max-width/opacity), Q ortaya kayar (`translateX(calc(50vw - 81px))`), mesaj sola, yakut + zil sağa geçer. Çubuk sticky kalır ve toplam yer kaplaması 56px'te sabittir (52 + 4 alt boşluk): içerik zıplamaz. Açılış `--egri-cikis`, dönüş `--egri-giris`, süre `--sure-orta`; azaltılmış harekette anlık. 360px ve altında logo yazısı gizli. Arama düğmesi (telefonda görünmez) logoyu ezmesin diye 0 genişlikte.
+- **Üst çubuk:** telefonda mesaj + yakut çipi + zil TEK kapsülde (`.ust-kapsul`: `--yuzey-1`, ince kenar, radius 22, her hedef 44px; yakut çipinin kendi kenarı kalkar). Masaüstü/tablette kapsül `display: contents` (düzen aynı). Sayfa 64px'i geçince rubyyard.js `<header class="ust-cubuk">`'a `data-yuzen` ekler (16px altına inince kaldırır; scroll pasif + requestAnimationFrame): çubuk 12px içeriden 52px yüzen kapsüle döner (`--yuzey-2`, `--kat-2`), "rubyyard" yazısı söner (`.logo-yazi` max-width/opacity), Q ortaya kayar (`translateX(calc(50vw - 81px))`), mesaj sola, yakut + zil sağa geçer. Çubuk sticky kalır ve toplam yer kaplaması 56px'te sabittir (52 + 4 alt boşluk): içerik zıplamaz. Açılış `--egri-cikis`, dönüş `--egri-giris`, süre `--sure-orta`; azaltılmış harekette anlık. 360px ve altında logo yazısı gizli. Arama düğmesi (telefonda görünmez) logoyu ezmesin diye 0 genişlikte.
 - **Akış filtresi (tüm ölçekler):** tek satır = segment "Öne çıkan · Yeni · Takip" + "Kategori ▾" düğmesi. Öne çıkan = `?sirala=populer`, Yeni = `?sirala=yeni` (varsayılan), Takip = `?akis=takip` (takip edilenlerin konuları, yeni sırasıyla; misafirde `/giris?don=...`). "En iyi" akıştan kalktı; `?sirala=eniyi` popülere düşer (src/rotalar/forum.ts). Kategori düğmesi JS'siz `/kategoriler` bağlantısıdır; JS varsa `#kategori-secici` (popover) açılır: telefonda alttan sayfa (başlık "Kategori", 52px satırlar: ad + konu sayısı, seçili satır `--ton` + onay), tablette düğmenin altında menü. Masaüstünde (>1180) düğme gizli: sol menüde kategoriler var. Eski telefon kategori çipleri (`.akis-kategoriler`) kaldırıldı.
 - **Yorum satırı (`partials/yorum.ejs`, tüm ölçekler):** üstte avatar 36px + [ad, rütbe, unvan] / altında zaman ("8 gün önce · düzenlendi"), sağ üstte ⋮ (44px) menüsü (`#yorum-menusu-<id>`, popover): çözüm işaretle/kaldır, düzenle, sil (kendi) ya da şikâyet et (başkası), yetkiliyse ayırıcıdan sonra moderasyon öğeleri (`moderasyon-menusu.ejs` `satirIci: true` ile kutusuz basılır; eski ayrı moderasyon ⋮'ü kalktı). Altta yatay oy grubu (`.oy-yatay`) + Cevapla. Oy sütunu soldan kalktı.
-- **44px:** telefonda `.oy*` düğmeleri, `.kategori-ogesi`, `.siralama a/label`, `.eylem`, `.buton`, `.baglanti` (metin dışı), kart/yorum yazar adı, kart başlığı bağlantısı, logo ≥44px (quadran.css sonundaki blok). Avatar bağlantıları (`tabindex="-1"`, ad bağlantısının kopyası) ölçüm dışıdır; yorumdakine ::after ile 44px dokunma alanı verildi. `/profil` sayfasında sekme şeridi 320px'te taşıyordu: `.profil, .profil .sutun` tek sütun (`minmax(0, 1fr)`).
-- **Üye kartı (`/profil/:ad/kart` + quadran.js):** telefonda alttan sayfa; sağ üstte 44px Kapat, tutamaç (`.uye-karti-tutamac`, 44px yüksek) pointer olaylarıyla gerçekten sürüklenir (≥80px aşağı → kapanır, azsa yerine döner). Açılış/kapanış CSS geçişi (`transform` + `overlay`/`display` `allow-discrete`, `@starting-style`). Avatar süsü sayfa içinde kalır: avatar sol kenardan 24px, süslüyse 48px, ejderha halkasında 72px. Kartta "Mesaj gönder" yanında çerçeveli "Profili aç" (`profiliAc`).
+- **44px:** telefonda `.oy*` düğmeleri, `.kategori-ogesi`, `.siralama a/label`, `.eylem`, `.buton`, `.baglanti` (metin dışı), kart/yorum yazar adı, kart başlığı bağlantısı, logo ≥44px (rubyyard.css sonundaki blok). Avatar bağlantıları (`tabindex="-1"`, ad bağlantısının kopyası) ölçüm dışıdır; yorumdakine ::after ile 44px dokunma alanı verildi. `/profil` sayfasında sekme şeridi 320px'te taşıyordu: `.profil, .profil .sutun` tek sütun (`minmax(0, 1fr)`).
+- **Üye kartı (`/profil/:ad/kart` + rubyyard.js):** telefonda alttan sayfa; sağ üstte 44px Kapat, tutamaç (`.uye-karti-tutamac`, 44px yüksek) pointer olaylarıyla gerçekten sürüklenir (≥80px aşağı → kapanır, azsa yerine döner). Açılış/kapanış CSS geçişi (`transform` + `overlay`/`display` `allow-discrete`, `@starting-style`). Avatar süsü sayfa içinde kalır: avatar sol kenardan 24px, süslüyse 48px, ejderha halkasında 72px. Kartta "Mesaj gönder" yanında çerçeveli "Profili aç" (`profiliAc`).
 - **Yakut ödül penceresi:** birden çok ödül birleşince başlık "BUGÜNÜN ÖDÜLLERİ · N", açıklama yalnızca bulunan parçaları sayar ("Günlük serin, aylık harçlığın ve premium yakutun cüzdanına eklendi."); `parcalar[].tur` eklendi (src/yakut.ts).
 - **Alt menü etkin öğe:** başka üyenin profilinde `aktifMenu = "yok"` (alt menü ve kenar menüde hiçbir öğe etkin değil); kendi profilinde "Profil".
 
@@ -435,7 +435,7 @@ site_settings: `yakut_seri_gunluk`=10, `yakut_seri_yedinci`=50 (7., 14. … gün
 
 Kullanıcı isteği: üst çubuk sade, yakut/mağaza için her ölçekte bir bölüm, DM'ler Sohbet'te, telefonda bildirimler Profil'de.
 
-- **Telefon üst çubuğu:** yalnızca logo. `data-yuzen` (quadran.js, 64px kaydırma) çubuğu ortada küçük bir logo levhasına çevirir
+- **Telefon üst çubuğu:** yalnızca logo. `data-yuzen` (rubyyard.js, 64px kaydırma) çubuğu ortada küçük bir logo levhasına çevirir
   (köşe 12px, 44px yükseklik). Kapsül (`.ust-kapsul`), üst çubuktaki Mesajlar (`.ust-mesajlar`) ve bakiye çipi (`.yakut-cip`) kaldırıldı.
 - **Yakut bölümü** `views/partials/yakut-bolumu.ejs` (`tur: "kenar" | "hesap"`): bakiye, seri (`users.seri_gun`, oturum sorgusuna eklendi),
   sonraki harçlık tarihi (telefonda), Mağaza bağlantısı. Masaüstü: kenar menüde Ayarlar'ın üstünde kart. Tablet: rayda `.kenar-yakut-ray`
@@ -451,23 +451,23 @@ Kullanıcı isteği: üst çubuk sade, yakut/mağaza için her ölçekte bir bö
 - **Tablo `ekler`:** `post_id, user_id, tur ('resim'|'video'), adres, genislik, yukseklik, boyut, sira, nsfw, nsfw_kim ('yazar'|'yetkili'), created_at`. `posts.kart_kapali` (bağlantı kartları çizilmesin), `users.nsfw_tercih` (`gizle|bulanik|goster`, varsayılan bulanık). Soft delete'te ekler gösterilmez (şablon "silindi" der); dosyalar diskte kalır.
 - **Sınırlar:** yorum başına en çok 6 fotoğraf YA DA 1 video (ikisi birden olmaz). Fotoğraf 10 MB/adet, video 50 MB. Gövde üst sınırı `Content-Length` ile multer'dan önce denetlenir. Ekli gönderiye hız sınırı: `ekliCevap` (10 dakikada 6, yetkili muaf). Metin boş olabilir ancak ek varsa. Mesaj düzenlemede ekler değişmez (düzenleme sayfasında not).
 - **Yetki:** fotoğraf `izinli(kisi,"gorsel")`, video `izinli(kisi,"video")` (admin/moderatör muaf); yetkisizse cevap formunda araç düğmesi yerine kilit kartı. `/rutbeler`'de görsel/video artık "yakında" değil (`AYRICALIKLAR.hazir: true`).
-- **Rotalar:** `POST /konu/:id/cevap` (multipart ya da urlencoded; `Accept: application/json` ise JSON `{yonlendir}` / `{hata}` döner, quadran.js XHR'ı böyle kullanır) · `POST /moderasyon/nsfw` (post_id, topic_id; yetkili "+18 işaretle / kaldır", audit `icerik.nsfw` / `icerik.nsfw_kaldir`) · `GET /cikis?u=` (dış bağlantı onayı).
+- **Rotalar:** `POST /konu/:id/cevap` (multipart ya da urlencoded; `Accept: application/json` ise JSON `{yonlendir}` / `{hata}` döner, rubyyard.js XHR'ı böyle kullanır) · `POST /moderasyon/nsfw` (post_id, topic_id; yetkili "+18 işaretle / kaldır", audit `icerik.nsfw` / `icerik.nsfw_kaldir`) · `GET /cikis?u=` (dış bağlantı onayı).
 - **Güvenlik:** fotoğraf sharp ile yeniden kodlanır (EXIF yönü uygulanır, EXIF/GPS/ICC SİLİNİR, uzun kenar ≤2048, WebP q88; hareketli GIF yalnızca premium'da hareketli, avatarla aynı kural). Video dönüştürülmez: dosya İMZASINDAN doğrulanır (mp4 `ftyp`, webm EBML `1A45DFA3`), uzantı/MIME'a güvenilmez, rastgele adla `yuklemeler/` altına yazılır. CSRF multer'dan SONRA doğrulanır (`oturum.ts › cokluParcaliMi`: `/konu/<id>/cevap`; `_csrf` formda ilk alan). Hatada yazılan metin kaybolmaz: JS'siz yolda `req.session.cevapTaslagi`, JS'te form yerinde kalır.
 - **CSP değişikliği:** yalnızca `frame-src https://www.youtube-nocookie.com` eklendi (YouTube kartı oynatılınca açılan iframe). Başka bir şey açılmadı.
 - **Bağlantı kartları (`src/rutbe.ts › baglantiKartlari`):** yazar `baglanti` ayrıcalığına sahipse (ya da yetkiliyse) ve `kart_kapali` değilse metnin altında en çok 2 kart: YouTube (watch?v=, youtu.be, shorts) ve GitHub (sahip/depo). Sayfa yüklenirken dışarıya istek gitmez: YouTube kutusu oynat'a basılınca iframe koyar; JS'siz /cikis üzerinden gider. Cevap formunda metindeki ilk adres önizleme çipi olur, × `kart_kapali=1` yazar.
-- **Dış bağlantı onayı:** kullanıcı içeriğindeki bütün dış bağlantılar (`icerikHtml` — yorum, konu, sohbet, DM, oda; profil web sitesi) `href="/cikis?u=…"` + `data-dis-baglanti` + `rel="nofollow ugc noopener noreferrer"` ile çizilir. JS varsa pencere (telefonda alttan sayfa); "Bu oturumda <alan> için tekrar sorma" `sessionStorage` anahtarı `quadran.cikisIzin`. `/cikis` yalnızca http/https kabul eder (aksi 400); kendi alan adımızsa doğrudan yönlendirir.
+- **Dış bağlantı onayı:** kullanıcı içeriğindeki bütün dış bağlantılar (`icerikHtml` — yorum, konu, sohbet, DM, oda; profil web sitesi) `href="/cikis?u=…"` + `data-dis-baglanti` + `rel="nofollow ugc noopener noreferrer"` ile çizilir. JS varsa pencere (telefonda alttan sayfa); "Bu oturumda <alan> için tekrar sorma" `sessionStorage` anahtarı `rubyyard.cikisIzin`. `/cikis` yalnızca http/https kabul eder (aksi 400); kendi alan adımızsa doğrudan yönlendirir.
 - **+18:** yazar formdaki "Eklerim +18 içerik" kutusuyla işaretler; yetkili ⋮ menüsünden işaretler/kaldırır (kaldırınca yazarın işareti de gider). Görünüm `users.nsfw_tercih`'e göre (misafir = gizle): gizle → kutu (dosya adresi sayfada hiç yok), bulanık → `filter: blur(28px)` + JS'siz çalışan "Göster" (gizli onay kutusu + label), göster → köşede "+18" çipi. Ayarlar › Görünüm'de "+18 içerik" radyo kartları. Şikâyet sebepleri: "İşaretlenmemiş +18 içerik" (yalnızca konu mesajı), "Uygunsuz profil fotoğrafı/banner" (yalnızca kullanıcı). Avatar/banner +18 olamaz: Ayarlar › Görseller'de kural notu.
-- **Dosyalar:** `src/ekler.ts` (multer, işleme, doğrulama), `src/rotalar/cikis.ts`, `views/cikis.ejs`, `views/partials/ekler.ejs` + `kartlar.ejs`, `public/css/ekler.css`, quadran.js "Yorum ekleri ve dış bağlantı onayı" bölümü.
+- **Dosyalar:** `src/ekler.ts` (multer, işleme, doğrulama), `src/rotalar/cikis.ts`, `views/cikis.ejs`, `views/partials/ekler.ejs` + `kartlar.ejs`, `public/css/ekler.css`, rubyyard.js "Yorum ekleri ve dış bağlantı onayı" bölümü.
 
 ## Hata, durum ve boş ekranlar (sql/24_bakim.sql, Figma 09 · Hata ve durum sayfaları)
 
 - **Ortak durum sayfası:** `views/durum.ejs` + `views/partials/durum-icerik.ejs` (56px ikon kutusu, 24px başlık, açıklama, eylemler). Normal site düzeniyle (üst çubuk + menüler) çizilir; yalnızca 503 ve "ortak veriler hazırlanamadı" 500'ü menüsüzdür (`sade`). Çizen: `durumSayfasi(req, res, kod, { metin?, saniye? })` (`src/yardimci.ts`); `Accept: application/json` isteyene aynı kodla `{ hata }` JSON döner. `views/404.ejs` kalktı (`/onizleme/404` de bunu kullanır).
   - **404:** server.ts son işleyici; arama kutusu (GET `/ara?q=`) + "Akışa dön".
   - **403:** `yetkiliGerekli` GET'te, `/yonetim` kapısında (üye), `POST`/GET'te konu sabitleme sahibi değilse. Panel içi `views/yonetim/yasak.ejs` (yalnızca-admin sayfaya moderatör) panel düzeniyle kalır.
-  - **429:** `/ara` (q doluysa) için hız sınırı `aramaHizi` (30 arama/dk; girişliyse kullanıcıya, misafirse IP'ye). Aşılırsa 429 + `Retry-After` + geri sayım (`data-geri-sayim`, quadran.js; sıfırda "Şimdi tekrar dene" bağlantısı görünür, JS'siz düz süre). `HizSiniri.kalanSaniye()` eklendi. Formlu sayfalar (giriş, kayıt, şifremi unuttum, konu yeni, yükleme, oda/yakut/takip toast'ları) kendi hata gösterimini korur: düz metin dönen başka 429 yoktu.
+  - **429:** `/ara` (q doluysa) için hız sınırı `aramaHizi` (30 arama/dk; girişliyse kullanıcıya, misafirse IP'ye). Aşılırsa 429 + `Retry-After` + geri sayım (`data-geri-sayim`, rubyyard.js; sıfırda "Şimdi tekrar dene" bağlantısı görünür, JS'siz düz süre). `HizSiniri.kalanSaniye()` eklendi. Formlu sayfalar (giriş, kayıt, şifremi unuttum, konu yeni, yükleme, oda/yakut/takip toast'ları) kendi hata gösterimini korur: düz metin dönen başka 429 yoktu.
   - **500:** server.ts hata işleyicisi `durum` çizer; ayrıntı yalnızca konsola; sayfa çizilirken de hata olursa düz metne düşer (döngü yok); yanıt yarıda kaldıysa `next(hata)`.
   - **503 bakım modu:** `site_settings.bakim_modu` (0/1) ve `bakim_metni` (sql/24; `src/ayarlar.ts` önbelleğinde `bakimModu`, `bakimMetni`). server.ts'te `ortakVeriler`'den sonraki ara katman: açıkken admin/moderatör normal kullanır (`partials/duyuru.ejs` üstünde "Bakım modu açık" şeridi, admine "Kapat" bağlantısı), diğerleri 503 + `Retry-After: 600`. Açık kalanlar: `/giris`, `/cikis`, `/cevrimdisi`, statik dosyalar ve `/sw.js`. Panel: Yönetim › Kayıt ve erişim (admin) → "Bakım modu" onay kutusu + not alanı; değişiklik denetim kaydına `ayar.bakim` olarak düşer. Ayar önbelleği 60 sn, panelden kaydedince hemen temizlenir (SQL ile elle değişirse en geç 1 dk).
-- **Çevrimdışı:** quadran.js `offline`/`online` olaylarında üst çubuğun altında yapışkan `role="status"` şerit (sarı "Bağlantı yok · gördüklerin güncel olmayabilir"; dönünce yeşil "Yeniden bağlandın", 2 sn sonra kalkar). `public/sw.js` (paketsiz) YALNIZCA `/cevrimdisi` ve `/js/cevrimdisi.js`'i önbelleğe alır; gezinme isteği ağ hatası verirse çevrimdışı sayfasını gösterir, başka hiçbir şey önbelleğe alınmaz. `public/cevrimdisi.html` kendi başına yeter (satır içi stil, açık/koyu tarayıcı tercihi); `/cevrimdisi` rotası `server.ts`'te, betiği 15 sn'de bir dener, `online` olunca yeniler. Kayıt yalnızca `isSecureContext`'te (https ya da localhost). CSP değişmedi (`worker-src` varsayılanı `script-src 'self'`).
+- **Çevrimdışı:** rubyyard.js `offline`/`online` olaylarında üst çubuğun altında yapışkan `role="status"` şerit (sarı "Bağlantı yok · gördüklerin güncel olmayabilir"; dönünce yeşil "Yeniden bağlandın", 2 sn sonra kalkar). `public/sw.js` (paketsiz) YALNIZCA `/cevrimdisi` ve `/js/cevrimdisi.js`'i önbelleğe alır; gezinme isteği ağ hatası verirse çevrimdışı sayfasını gösterir, başka hiçbir şey önbelleğe alınmaz. `public/cevrimdisi.html` kendi başına yeter (satır içi stil, açık/koyu tarayıcı tercihi); `/cevrimdisi` rotası `server.ts`'te, betiği 15 sn'de bir dener, `online` olunca yeniler. Kayıt yalnızca `isSecureContext`'te (https ya da localhost). CSP değişmedi (`worker-src` varsayılanı `script-src 'self'`).
 - **Telefonda "← Geri":** `views/partials/geri-baslik.ejs` (`{ href, etiket }`, ≤800px'te görünür, 44px). Kullanan sayfalar: /rutbeler, /yakut (← Profil), /yakut/hareketler (← Yakut), takip listeleri (← Profil), /hesap/sifre ve /hesap/eposta (← Ayarlar), /premium (← Ayarlar), /bildirimler (← Akış), /kategoriler, /siralama, /ara (← Keşfet), /mesaj/:id/duzenle (← Konu). Eski `.rutbeler-geri` CSS'i kalktı.
 - **Boş durumlar:** `views/partials/bos-durum.ejs` (`{ ikon, baslik, metin?, eylem?, dar? }`, 48px ikon kutusu). Kullanıldığı yerler: akış (takip yok / takip edilenler konu açmamış / kategoride konu yok; `takipEdilen` sayısı `forum.ts`'ten gelir), /bildirimler, sohbet listesi, DM listesi, /ara (sonuç yok, sekmede yok), profil (konu, yorum, etkinlik, puan), /yakut/hareketler, takip listeleri. Yönetim şablonlarına ve konu içi "henüz yorum yok", sıralama, kategori listesi gibi satır içi kısa metinlere dokunulmadı.
 - **Küçük düzeltme:** zaman bilgisinin önündeki "· " ayıracı `moderasyon.ejs` ve `profil.ejs`'ten de kalktı (satır kırılınca tek başına kalıyordu).
@@ -475,10 +475,21 @@ Kullanıcı isteği: üst çubuk sade, yakut/mağaza için her ölçekte bir bö
 
 ## Video oynatıcı ve küçük düzeltmeler (2026-11-21, Figma 15 · Pano 6 "Video oynatıcısı")
 
-- Yorumdaki `<video controls>` JS ile özel oynatıcıya çevrilir (`videoOynatici` quadran.js, stiller `ekler.css` "Özel video oynatıcı"); JS yoksa yerel kontroller kalır.
+- Yorumdaki `<video controls>` JS ile özel oynatıcıya çevrilir (`videoOynatici` rubyyard.js, stiller `ekler.css` "Özel video oynatıcı"); JS yoksa yerel kontroller kalır.
   Başlangıçta ortada 64px vurgu renkli oynat + süre çipi; altta 44px çubuk (oynat, zaman, ilerleme [buffered + üzerine gelince zaman ipucu, role=slider], ses, hız menüsü 0,5–2×, PiP, tam ekran);
   2,5 sn hareketsizlikte gizlenir. Dokunmatikte: dokununca aç/kapa, ortada ±10 sn + 60px oynat, yarılara çift dokunma ±10 sn (dalga), ses kaydırıcısı yok, gizliyken 3px ilerleme çizgisi.
-  Klavye: Boşluk/K, ←/→ ±5, J/L ±10, ↑/↓ ses, M, F, 0–9. Hız/ses `localStorage["quadran-video"]`. Aynı anda tek video oynar. +18 bulanıkken oynatıcı `inert`.
-- Çift gönderim koruması: aynı POST formu 4 sn içinde ikinci kez gönderilmez (quadran.js, data-onay dinleyicisinin hemen altında).
+  Klavye: Boşluk/K, ←/→ ±5, J/L ±10, ↑/↓ ses, M, F, 0–9. Hız/ses `localStorage["rubyyard-video"]`. Aynı anda tek video oynar. +18 bulanıkken oynatıcı `inert`.
+- Çift gönderim koruması: aynı POST formu 4 sn içinde ikinci kez gönderilmez (rubyyard.js, data-onay dinleyicisinin hemen altında).
 - Moderasyon ⋮ menüsü artık tek tıkla kalıcı uzaklaştırmaz; üye kartının Yaptırımlar sekmesine götürür (eski `POST /moderasyon/uzaklastir` kaldırıldı).
 - Geliştirme kabuğu: `flake.nix` + `.envrc` (Fedora'da nix-daemon SELinux yüzünden açılmıyordu: `semanage fcontext -a -t var_run_t '/nix/var/nix/daemon-socket(/.*)?'` + `restorecon`).
+
+## Ad değişikliği: rubyyard (2026-11-21)
+
+- Eski ad QuadRan → **rubyyard** (hep küçük harf). Dosyalar: `public/css/rubyyard.css`, `public/js/rubyyard.js`, `araclar/zellij/rubyyard.kdl`,
+  `.claude/skills/rubyyard-tasarim/`. Oturum çerezi `rubyyard.sid` (eski çerez geçersiz: herkes bir kez yeniden giriş yapar),
+  localStorage anahtarları `rubyyard.*` / `rubyyard-video`, service worker önbelleği `rubyyard-cevrimdisi-*`.
+- Docker: proje `rubyyard`, konteynerler `rubyyard-db` / `rubyyard-adminer`, veritabanı `rubyyard` (`src/db.ts`), hacim `rubyyard_rubyyard_data`.
+  Geliştirme makinesinde veri `mysqldump` ile eski veritabanından taşındı; eski hacim (`quadran_quadran_data`) yedek olarak duruyor,
+  işi bitince `docker volume rm quadran_quadran_data` ile silinebilir.
+- Logo: "Q" harfli kare yerine rakun maskot (`public/img/marka/rakun-96.webp`, `.logo-isaret img`); favicon ve apple-touch-icon `bas.ejs`'te.
+- Marka varlıkları AGPL dışında (`docs/marka/LICENSE.md`); kod yorumları İngilizce + Türkçe.

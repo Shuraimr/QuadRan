@@ -1,19 +1,26 @@
+<%# Top bar. If kullanici exists the member view, otherwise the guest view.
+   For members the bell opens the notification panel and the avatar opens the account menu (popover; no JS needed).
+   Optional data: okunmamisBildirim (if 0 the bell dot is hidden), bildirimler %>
 <%#
   Üst çubuk. kullanici varsa üye, yoksa misafir görünümü.
   Üyeler için zil bildirim panelini, avatar hesap menüsünü açar (popover; JS gerekmez).
   İsteğe bağlı veriler: okunmamisBildirim (0 ise zil noktası gizlenir), bildirimler
 %>
 <header class="ust-cubuk">
-  <a class="logo" href="/"><span class="logo-isaret">Q</span><span class="logo-yazi">QuadRan</span></a>
+  <a class="logo" href="/"><span class="logo-isaret"><img src="/img/marka/rakun-96.webp" alt="" width="32" height="32"></span><span class="logo-yazi">rubyyard</span></a>
   <div class="arama-alani">
-    <a class="arama" href="/ara" data-arama-ac aria-label="QuadRan'da ara" aria-keyshortcuts="Control+K">
+    <a class="arama" href="/ara" data-arama-ac aria-label="rubyyard'da ara" aria-keyshortcuts="Control+K">
       <%- include("ikon", { ad: "ara" }) %>
-      <span>QuadRan'da ara</span>
+      <span>rubyyard'da ara</span>
       <kbd class="kisayol">Ctrl K</kbd>
     </a>
   </div>
   <div class="ust-eylemler">
     <% if (locals.kullanici) { %>
+      <%# Each action has a single place at one screen width (CSS): on phones the bottom menu, on tablets the sidebar carries "New topic".
+         On phones ONLY the logo stays in the top bar (user decision 2026-11-21): notifications are on the Profile page in the bottom menu,
+         DMs in Chat › DM, rubies in the Ruby section of the Profile page. The bell is visible only on tablet and desktop.
+         The ruby chip is gone: on desktop in the sidebar, on tablet in the rail, on phones a separate Ruby section on the Profile page (partials/yakut-bolumu.ejs). %>
       <%# Her eylemin bir ekran genişliğinde tek yeri olur (CSS): telefonda alt menü, tablette kenar menü "Konu aç"ı taşır.
           Telefonda üst çubukta YALNIZCA logo durur (kullanıcı kararı 2026-11-21): bildirimler alt menüdeki Profil sayfasında,
           DM'ler Sohbet › DM'de, yakut Profil sayfasındaki Yakut bölümünde. Zil yalnızca tablet ve masaüstünde görünür.

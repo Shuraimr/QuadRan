@@ -5,6 +5,6 @@ export const pool = mysql.createPool({
   port: 3306,
   user: process.env.MYSQL_USER,
   password: process.env.MYSQL_PASSWORD,
-  database: "quadran",
+  database: "rubyyard",
   charset: "utf8mb4",
 });

@@ -1,4 +1,11 @@
 <%#
+  Ranks: rutbeler [{ id, name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy (null = unlimited), kullanici_sayisi }],
+  renkler, renkAdlari, simgeler, simgeAdlari, ayricaliklar [{ anahtar, ad }]
+  Forms: POST /yonetim/puan/rutbeler (new rank: name, min_points, renk, simge)
+         POST /yonetim/puan/rutbeler/kaydet (the whole table; fields are <name>_<rank no>: name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy)
+         POST /yonetim/puan/rutbeler/:id/sil
+%>
+<%#
   Rütbeler: rutbeler [{ id, name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy (null = sınırsız), kullanici_sayisi }],
   renkler, renkAdlari, simgeler, simgeAdlari, ayricaliklar [{ anahtar, ad }]
   Formlar: POST /yonetim/puan/rutbeler (yeni rütbe: name, min_points, renk, simge)

@@ -3,11 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= locals.baslik ? baslik + " · QuadRan" : "QuadRan" %></title>
+  <title><%= locals.baslik ? baslik + " · rubyyard" : "rubyyard" %></title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/img/marka/favicon-32.png">
+  <link rel="apple-touch-icon" href="/img/marka/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700&family=Roboto+Mono&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/quadran.css">
+  <link rel="stylesheet" href="/css/rubyyard.css">
   <link rel="stylesheet" href="/css/katmanlar.css">
   <link rel="stylesheet" href="/css/sayfalar.css">
   <link rel="stylesheet" href="/css/yonetim.css">
@@ -15,8 +17,9 @@
   <link rel="stylesheet" href="/css/hareket.css">
   <link rel="stylesheet" href="/css/yakut.css">
   <link rel="stylesheet" href="/css/ekler.css">
-  <script src="/js/quadran.js" defer></script>
+  <script src="/js/rubyyard.js" defer></script>
 </head>
 <body class="<%= locals.sade ? 'sade' : '' %>">
+<%# Announcement strip written by the admins: at the very top of pages with a menu (non-minimal pages) %>
 <%# Yönetimin yazdığı duyuru şeridi: menülü (sade olmayan) sayfaların en üstünde %>
 <% if (!locals.sade) { %><%- include("duyuru") %><% } %>

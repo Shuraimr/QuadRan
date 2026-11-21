@@ -1,8 +1,11 @@
-/* QuadRan · katmanlar: kenar menü, alt menü, arama penceresi, açılır menüler, şikâyet penceresi, bildirim çubukları.
-   Yalnızca quadran.css'deki değişkenleri kullanır. Sonundaki .katman-statik, önizleme sayfasındaki açık kopyalar içindir. */
+/* rubyyard · layers: side menu, bottom menu, search dialog, popovers, report dialog, notification bars.
+   Uses only the variables from rubyyard.css. The trailing .katman-statik is for the static light copies on the preview page. */
+/* rubyyard · katmanlar: kenar menü, alt menü, arama penceresi, açılır menüler, şikâyet penceresi, bildirim çubukları.
+   Yalnızca rubyyard.css'deki değişkenleri kullanır. Sonundaki .katman-statik, önizleme sayfasındaki açık kopyalar içindir. */
 
 .arama-gizli-baslik { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; }
 
+/* ---------- Menu item (shared by side menu and bottom menu) ---------- */
 /* ---------- Menü öğesi (kenar menü ve alt menü ortak) ---------- */
 .menu-ogesi {
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
@@ -20,6 +23,7 @@
 .menu-ogesi.aktif .menu-etiket { font-weight: 700; }
 .menu-nokta { position: absolute; top: 3px; right: 15px; width: 9px; height: 9px; border-radius: 50%; background: var(--hata); border: 2px solid var(--yuzey-1); box-sizing: content-box; }
 
+/* ---------- Side menu: tablet icon rail (801-1180px) and desktop labelled bar (1181px+, at the end of the file) ---------- */
 /* ---------- Kenar menü: tablet simge rayı (801-1180px) ve masaüstü etiketli çubuk (1181px+, dosya sonunda) ---------- */
 .kenar-menu { display: none; }
 .kenar-menu-fab {
@@ -41,18 +45,22 @@
   [data-menu="sag"] .kenar-menu { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--kenar-ince); }
   body:not(.sade) { padding-left: 88px; }
   [data-menu="sag"] body:not(.sade) { padding-left: 0; padding-right: 88px; }
+  /* Keep the top bar full width; the side menu sits below it */
   /* Üst çubuk tam genişlikte kalsın, kenar menü onun altında dursun */
   body:not(.sade) .ust-cubuk { margin-left: -88px; }
   [data-menu="sag"] body:not(.sade) .ust-cubuk { margin-left: 0; margin-right: -88px; }
+  /* The side menu takes the place of the Categories column */
   /* Kategoriler sütununun yerini kenar menü alıyor */
   body:not(.sade) .govde > nav { display: none; }
   body:not(.sade) .govde { grid-template-columns: minmax(0, 720px); }
+  /* While a category is selected, Categories shows as active in the rail */
   /* Kategori seçiliyken rayda Kategoriler aktif görünür */
   .menu-ogesi.kisa-aktif { color: var(--yazi); }
   .menu-ogesi.kisa-aktif .menu-hap { background: var(--ton); color: var(--ton-ustu); }
   .menu-ogesi.kisa-aktif .menu-etiket { font-weight: 700; }
 }
 
+/* ---------- Mobile bottom menu (800px at most) ---------- */
 /* ---------- Mobil alt menü (en çok 800px) ---------- */
 .alt-menu { display: none; }
 @media (max-width: 800px) {
@@ -66,9 +74,11 @@
   body:not(.sade) { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 }
 
+/* ---------- Dialog basics ---------- */
 /* ---------- Dialog ortakları ---------- */
 .arama-penceresi::backdrop, .sikayet-penceresi::backdrop, .yeni-mesaj-penceresi::backdrop { background: rgb(0 0 0 / .55); }
 
+/* ---------- Search dialog ---------- */
 /* ---------- Arama penceresi ---------- */
 .arama-penceresi {
   width: min(600px, calc(100vw - 24px)); max-height: 76vh; margin: 12vh auto auto; padding: 0;
@@ -94,6 +104,7 @@
 .arama-ipucu { padding: 28px 16px 32px; text-align: center; color: var(--yazi-2); font-size: 14px; }
 .arama-alt { flex: none; padding: 12px 20px; border-top: 1px solid var(--kenar-ince); font-size: 12px; color: var(--yazi-2); }
 
+/* ---------- Popover menus ---------- */
 /* ---------- Açılır menüler (popover) ---------- */
 .acilir-menu {
   min-width: 240px; max-height: calc(100vh - 80px); margin: 0; padding: 8px; overflow: auto;
@@ -124,6 +135,7 @@
 .avatar-menusu-baslik { display: flex; align-items: center; gap: 12px; padding: 12px 16px 14px; }
 .avatar-menusu-baslik strong { font-size: 16px; }
 
+/* ---------- Notifications panel ---------- */
 /* ---------- Bildirimler paneli ---------- */
 .bildirim-paneli { width: 380px; max-width: calc(100vw - 24px); padding: 0; }
 .bildirim-panel-baslik { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 8px 4px 20px; }
@@ -142,9 +154,11 @@
 .bildirim-panel-alt { display: grid; place-items: center; height: 48px; border-top: 1px solid var(--kenar-ince); font-size: 14px; font-weight: 600; color: var(--vurgu); }
 .bildirim-panel-alt:hover { background: color-mix(in srgb, var(--yazi) 6%, transparent); }
 
+/* ---------- Report dialog ---------- */
 /* ---------- Şikâyet penceresi ---------- */
 .sikayet-penceresi {
   width: min(480px, calc(100vw - 24px)); margin: auto; padding: 0;
+  /* On a short screen the dialog must not overflow the screen: it scrolls inside itself */
   /* Kısa ekranda pencere ekrandan taşmasın: kendi içinde kayar */
   max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain;
   background: var(--yuzey-3); color: var(--yazi);
@@ -155,6 +169,7 @@
 .sikayet-form h2 { font-family: var(--baslik-tipi); font-size: 20px; }
 .sikayet-baslik-blok { display: grid; gap: 4px; }
 .sikayet-sebepler { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+/* Reasons are selectable cards: the radio lives inside the card; the selected card gets a tone background + accent border */
 /* Sebepler seçilebilir kartlar: radio kartın içinde; seçili kart ton zemini + vurgu çerçevesi alır */
 .sikayet-secenek {
   display: flex; align-items: flex-start; gap: 12px; min-height: 56px; padding: 12px 14px; cursor: pointer;
@@ -168,8 +183,10 @@
 .sikayet-secenek:has(input:checked) { background: var(--ton); border-color: var(--vurgu); }
 .sikayet-secenek:has(input:checked) .sikayet-secenek-metin, .sikayet-secenek:has(input:checked) .sikayet-secenek-metin strong { color: var(--ton-ustu); }
 .sikayet-secenek:has(input:focus-visible) { outline: 2px solid var(--vurgu); outline-offset: 2px; }
+/* "Off-topic" only makes sense for topics and chat messages: hidden for user and private-message reports (the server rejects it too) */
 /* "Konu dışı" yalnızca konu ve sohbet mesajlarında anlamlı: kullanıcı ve özel mesaj şikâyetinde gizli (sunucu da reddeder) */
 [data-hedef="kullanici"] .sikayet-secenek[data-sadece-mesaj], [data-hedef="ozel"] .sikayet-secenek[data-sadece-mesaj] { display: none; }
+/* "Inappropriate profile photo/banner" is only shown for user reports */
 /* "Uygunsuz profil fotoğrafı/banner" yalnızca kullanıcı şikâyetinde görünür */
 .sikayet-penceresi:not([data-hedef="kullanici"]) .sikayet-secenek[data-sadece-kullanici], .sikayet-penceresi:not([data-hedef="konu"]) .sikayet-secenek[data-sadece-konu] { display: none; }
 .sikayet-not { --alan-zemin: var(--yuzey-3); margin-top: 2px; }
@@ -180,6 +197,7 @@
 .sikayet-eylemler { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .sikayet-eylemler .buton { height: 48px; }
 
+/* ---------- Notification bars (toast) ---------- */
 /* ---------- Bildirim çubukları (toast) ---------- */
 .cubuk-alani { position: fixed; left: 0; right: 0; bottom: calc(var(--alt-yer, 8px) + 16px); z-index: 30; display: flex; justify-content: center; padding: 0 12px; pointer-events: none; }
 .cubuk-bildirim {
@@ -196,10 +214,12 @@
 .cubuk-bildirim.gizleniyor { opacity: 0; transform: translateY(8px); }
 .cubuk-bildirim.gizli { display: none; }
 @media (max-width: 800px) {
+  /* Fallback without JS: the bottom menu always exists on phones. JS writes --alt-yer inline on <html> and overrides this. */
   /* JS yoksa yedek: telefonda alt menü her zaman vardır. JS --alt-yer'i <html>'e satır içi yazar ve bunun önüne geçer. */
   :root { --alt-yer: calc(76px + env(safe-area-inset-bottom, 0px)); }
 }
 
+/* ---------- Preview page: light copies ---------- */
 /* ---------- Önizleme sayfası: açık kopyalar ---------- */
 .katman-izgara { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 32px 24px; align-items: start; max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; }
 .katman-izgara > h1 { grid-column: 1 / -1; font-family: var(--baslik-tipi); font-size: 28px; }
@@ -218,6 +238,7 @@
 .cubuk-alani.katman-statik .cubuk-bildirim { width: 100%; }
 @media (prefers-reduced-motion: reduce) { .menu-hap, .cubuk-bildirim { transition: none; } }
 
+/* "Change category" in the moderation menu: the list and the "Move" button sit side by side */
 /* Moderasyon menüsünde "Kategoriyi değiştir": liste ve "Taşı" düğmesi yan yana */
 .kategori-degistir-formu { display: flex; align-items: center; gap: 8px; padding-right: 8px; }
 .kategori-degistir-formu .acilir-oge { flex: 1; min-width: 0; }
@@ -227,10 +248,13 @@
 }
 .kategori-degistir-dugme { padding: 6px 12px; min-height: 0; }
 
+/* Selector (custom dropdown). rubyyard.js turns every <select> into this; without JS the native <select> keeps working.
+   The real <select> stays in the DOM (it is submitted with the form), it is only made invisible: .secici-yerel */
 /* =====================================================================
-   Seçici (özel açılır liste). quadran.js her <select>'i buna çevirir; JS yoksa yerel <select> çalışmaya devam eder.
+   Seçici (özel açılır liste). rubyyard.js her <select>'i buna çevirir; JS yoksa yerel <select> çalışmaya devam eder.
    Gerçek <select> DOM'da kalır (forma gönderilir), yalnızca görünmez yapılır: .secici-yerel
    ===================================================================== */
+/* !important: so that width/height rules from the admin panel and .alan (e.g. width: 100%) do not override this */
 /* !important: yönetim paneli ve .alan kurallarındaki genişlik/yükseklik (örn. width: 100%) bunun üstüne yazmasın */
 select.secici-yerel, .alan select.secici-yerel {
   position: absolute !important; width: 1px !important; height: 1px !important; min-width: 0 !important; max-width: 1px !important;
@@ -253,13 +277,16 @@ select.secici-yerel, .alan select.secici-yerel {
 .secici-ok { flex: none; color: var(--yazi-2); transition: transform var(--sure-orta) var(--egri-cikis); }
 .secici[aria-expanded="true"] .secici-ok { transform: rotate(calc(180deg * var(--hareket))); }
 .secici[aria-invalid="true"] { border-color: var(--hata); box-shadow: 0 0 0 1px var(--hata); }
+/* Admin panel inputs (the .yn-girdi class is also copied onto the trigger) become 40px */
 /* Yönetim paneli girdileri (.yn-girdi sınıfı tetikleyiciye de kopyalanır) 40px olur */
 .secici.yn-girdi { height: 40px; padding: 0 10px 0 12px; cursor: pointer; }
 .secici.yn-girdi:focus { box-shadow: none; border-color: var(--kenar); }
 .secici.yn-girdi[aria-expanded="true"], .secici.yn-girdi:focus-visible { border-color: var(--vurgu); }
 .secici.yn-girdi[aria-invalid="true"] { border-color: var(--hata); box-shadow: 0 0 0 1px var(--hata); }
+/* Form field with its label on top (.alan): 56px, 16px text */
 /* Etiketi üstte duran form alanı (.alan): 56px, yazı 16px */
 .alan .secici { width: 100%; height: 56px; padding: 0 16px; background: transparent; font-size: 16px; }
+/* Category select in the moderation menu */
 /* Moderasyon menüsündeki kategori seçimi */
 .kategori-degistir-formu .secici { flex: 1; width: auto; height: 40px; font-size: 14px; }
 
@@ -268,11 +295,14 @@ select.secici-yerel, .alan select.secici-yerel {
   max-height: 320px; overflow-y: auto; overscroll-behavior: contain;
   background: var(--yuzey-2); color: var(--yazi);
   border: 1px solid var(--kenar-ince); border-radius: 14px; box-shadow: var(--kat-2);
+  /* Closed state: invisible and slightly raised. When opened the .acik class arrives and the CSS transition plays. */
   /* Kapalı hâl: görünmez ve biraz yukarıda. Açılınca .acik sınıfı gelir ve CSS geçişi oynar. */
   opacity: 0; transform: translateY(calc(-4px * var(--hareket))) scale(calc(1 - .02 * var(--hareket)));
   transform-origin: top center;
   transition: opacity var(--sure-hizli) var(--egri-giris), transform var(--sure-hizli) var(--egri-giris);
 }
+/* If the browser supports popover, the panel opens in the top layer; the browser handles hiding while closed.
+   If not (no popover attribute) it is shown with the .acik-yer class. */
 /* Tarayıcı popover'ı destekliyorsa panel üst katmana (top layer) açılır; kapalıyken gizlemeyi tarayıcı yapar.
    Desteklemiyorsa (popover özniteliği yoksa) .acik-yer sınıfıyla gösterilir. */
 .secici-liste:not([popover]):not(.acik-yer) { display: none; }
@@ -296,9 +326,13 @@ select.secici-yerel, .alan select.secici-yerel {
 .secici-grup-ad { padding: 10px 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--yazi-2); }
 .secici-grup-ad:first-child { padding-top: 4px; }
 
+/* Filter button: with JS on, the form submits itself when a selection changes. Forms with a text/date field keep their button (JS adds .yn-suz-kalsin). */
 /* Süz düğmesi: JS açıkken seçim değişince form kendiliğinden gönderilir. Metin/tarih alanı olan formlar düğmesini korur (JS .yn-suz-kalsin ekler). */
 .js .yn-filtre:not(.yn-suz-kalsin) .yn-suz-dugme { display: none; }
 
+/* Preventing repetition: an action never appears in two places on the same screen.
+   Desktop: top bar (New topic, search, bell) + sidebar (main sections, Yakut, Settings) + account menu (Profile, Admin, Sign out). Tablet: the side menu carries "New topic" (pencil), Yakut and "Settings".
+   Phone: the bottom menu is the main navigation; the top bar has only the logo; the Profile page carries the Yakut section + Notifications. DMs are Chat › DM at every size. */
 /* =====================================================================
    Tekrarı önleme: bir eylem aynı ekranda iki yerde durmaz.
    Masaüstü: üst çubuk (Konu aç, ara, zil) + kenar çubuğu (ana bölümler, Yakut, Ayarlar) + hesap menüsü (Profil, Yönetim, Çıkış). Tablet: kenar menü "Konu aç" (kalem), Yakut ve "Ayarlar"ı taşır.
@@ -307,32 +341,45 @@ select.secici-yerel, .alan select.secici-yerel {
 @media (min-width: 801px) and (max-width: 1180px) {
   .ust-konu-ac { display: none; }
 }
+/* Settings stays in the side menu on tablet and desktop: not repeated in the account menu */
 /* Ayarlar tablette ve masaüstünde kenar menüde durur: hesap menüsünde tekrar edilmez */
 @media (min-width: 801px) { .avatar-menu-ayarlar { display: none; } }
 @media (max-width: 800px) {
-  .arama-alani { visibility: hidden; min-width: 0; }   /* yer tutmaya devam eder (logo solda kalır) ama içindeki 48px'lik ara düğmesi logoyu ezmesin */
+  /* keeps its place (the logo stays on the left) but the 48px search button inside must not crush the logo */
+  /* yer tutmaya devam eder (logo solda kalır) ama içindeki 48px'lik ara düğmesi logoyu ezmesin */
+  .arama-alani { visibility: hidden; min-width: 0; }
   .arama-alani .arama { width: 0; min-width: 0; overflow: hidden; }
   .logo { flex: none; }
   .ust-konu-ac, .avatar-ust { display: none; }
+  /* Notifications panel: just below the top bar, almost full width */
   /* Bildirim paneli: üst çubuğun altında, neredeyse tam genişlikte */
+  /* On phones the notifications panel opens from the Notifications row on the Profile page: like that page, right above the bottom menu */
   /* Bildirim paneli telefonda Profil sayfasındaki Bildirimler satırından açılır: o sayfa gibi alt menünün hemen üstünde */
   .bildirim-paneli.acilir-menu-ustte { inset: auto 8px calc(88px + env(safe-area-inset-bottom, 0px)) 8px; width: auto; max-width: none; max-height: calc(100dvh - 120px); }
-  .acilir-kisayol { display: none; } /* telefonda klavye kısayolu ipucu anlamsız */
+  .acilir-kisayol { display: none; } /* keyboard shortcut hint is meaningless on phones · telefonda klavye kısayolu ipucu anlamsız */
+  /* The account menu opens from Profile in the bottom menu: at the bottom of the screen, right above the menu */
   /* Hesap menüsü alt menüdeki Profil'den açılır: ekranın altında, menünün hemen üstünde */
+  /* The phone Profile page: full width above the bottom menu (so the Yakut section and Notifications fit; at 320px the streak/allowance row was clipped) */
   /* Telefonun Profil sayfası: alt menünün üstünde tam genişlik (Yakut bölümü ve Bildirimler sığsın; 320px'te seri/harçlık satırı kesiliyordu) */
   .avatar-menusu.acilir-menu-ustte { inset: auto 8px calc(88px + env(safe-area-inset-bottom, 0px)) 8px; width: auto; max-width: none; max-height: calc(100dvh - 120px); overflow-y: auto; transform-origin: bottom center; }
   .alt-menu button.menu-ogesi { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
 }
 
+/* ---------- Phone top bar: logo only + floating logo plate (revision 2026-11-21) ----------
+   The user found the capsule bar "ugly": too round (22/26px) and crowded. Now on phones the bar has ONLY the logo
+   (notifications → Profile page, DM → Chat, yakut → the Yakut section on the Profile page). Once the page passes 64px rubyyard.js adds
+   data-yuzen to <header>: the bar turns into a small logo plate in the middle (12px corners, same family as the site's card language; the old one was a 26px pill).
+   The plate stays sticky and the space it occupies (56px = 44 + top 8 + bottom 4) does not change: content does not jump. */
 /* ---------- Telefon üst çubuğu: yalnızca logo + yüzen logo levhası (revizyon 2026-11-21) ----------
    Kullanıcı kapsüllü çubuğu "facia" buldu: çok yuvarlak (22/26px) ve kalabalıktı. Artık telefonda çubukta YALNIZCA logo var
-   (bildirim → Profil sayfası, DM → Sohbet, yakut → Profil sayfasındaki Yakut bölümü). Sayfa 64px'i geçince quadran.js <header>'a
+   (bildirim → Profil sayfası, DM → Sohbet, yakut → Profil sayfasındaki Yakut bölümü). Sayfa 64px'i geçince rubyyard.js <header>'a
    data-yuzen ekler: çubuk ortada küçük bir logo levhasına döner (köşe 12px, sitenin kart diliyle aynı aile; eskisi 26px'lik haptı).
    Levha sticky kalır ve kapladığı yer (56px = 44 + üst 8 + alt 4) değişmez: içerik zıplamaz. */
 .logo-yazi { display: inline-block; box-sizing: border-box; max-width: 140px; padding-left: 10px; overflow: hidden; white-space: nowrap; }
 @media (max-width: 800px) {
   .ust-cubuk { top: 0; border-radius: 0; }
   .logo { gap: 0; }
+  /* For members the actions area stays empty (bell/avatar/New topic live elsewhere on phones): it must not take space */
   /* Üyede eylem alanı boş kalır (zil/avatar/Konu aç telefonda başka yerde): kaplamasın */
   .ust-eylemler:not(:has(> .buton-cerceveli)) { display: none; }
   .ust-cubuk[data-yuzen] {
@@ -341,22 +388,26 @@ select.secici-yerel, .alan select.secici-yerel {
     animation: ust-yuz var(--sure-orta) var(--egri-cikis);
   }
   .ust-cubuk[data-yuzen] .arama-alani, .ust-cubuk[data-yuzen] .ust-eylemler { display: none; }
-  .ust-cubuk[data-yuzen] .logo-isaret { width: 28px; height: 28px; border-radius: 8px; font-size: 15px; }
+  .ust-cubuk[data-yuzen] .logo-isaret { width: 28px; height: 28px; }
   .ust-cubuk[data-yuzen] .logo-yazi { padding-left: 8px; font-size: 15px; }
 }
 @media (max-width: 360px) { .ust-cubuk:not([data-yuzen]) .logo-yazi { display: none; } }
 @keyframes ust-yuz { from { opacity: 0; transform: translateY(-6px); } }
 @keyframes ust-gir { from { opacity: 0; } }
 
+/* Besides the notification bar, keyboard-focused elements must not end up under the bottom bars either */
 /* Bildirim çubuğunun yanı sıra klavyeyle odaklanan öğeler de alt çubukların altında kalmasın */
 html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
 .cubuk-alani { transition: bottom var(--sure-orta) var(--egri-cikis); }
+/* On tablet the notification bar also sits in the middle of the content area like the dock (the side menu takes 88px) */
 /* Tablette bildirim çubuğu da dock gibi içerik alanının ortasında durur (kenar menü 88px yer kaplar) */
 @media (min-width: 801px) and (max-width: 1180px) {
   body:not(.sade) .cubuk-alani { padding-left: 100px; }
   [data-menu="sag"] body:not(.sade) .cubuk-alani { padding-left: 12px; padding-right: 100px; }
 }
 
+/* Desktop persistent sidebar (1181px+): the same kenar-menu partial, wide labelled view.
+   No FAB because New topic stays in the top bar; Settings is pinned at the bottom. */
 /* =====================================================================
    Masaüstü kalıcı kenar çubuğu (1181px+): aynı kenar-menu parçası, etiketli geniş görünüm.
    Konu aç üst çubukta kaldığı için FAB yok; Ayarlar altta sabit.
@@ -370,10 +421,13 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
   [data-menu="sag"] .kenar-menu { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--kenar-ince); }
   .kenar-menu-fab { display: none; }
   .kenar-menu-liste { gap: 2px; padding-top: 0; }
+  /* Settings is at the very bottom under a thin line; when open it lists its sections as sub-rows */
   /* Ayarlar en altta, ince bir çizginin altında; açıkken bölümleri alt satır olarak listeler */
   .kenar-menu-liste { margin-bottom: 16px; }
   .kenar-menu-alt { padding-bottom: 0; padding-top: 8px; border-top: 1px solid var(--kenar-ince); }
-  .kenar-menu .menu-ogesi[data-oge="kategoriler"] { display: none; } /* yerini aşağıdaki bölüm başlığı alır */
+  /* the section heading below takes its place */
+  /* yerini aşağıdaki bölüm başlığı alır */
+  .kenar-menu .menu-ogesi[data-oge="kategoriler"] { display: none; }
   .kenar-menu .menu-ogesi {
     flex-direction: row; justify-content: flex-start; gap: 12px;
     width: 100%; min-width: 0; min-height: 40px; height: 40px; padding: 0 14px; border-radius: 20px;
@@ -387,6 +441,8 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
   .kenar-menu .menu-ogesi.aktif, .kenar-menu .menu-ogesi.aktif:hover { background: var(--ton); color: var(--ton-ustu); }
   .kenar-menu .menu-ogesi.aktif .menu-hap { background: none; color: inherit; }
   .kenar-menu .menu-ogesi.aktif .menu-etiket { font-weight: 600; }
+  /* In the wide bar "Categories" is the list's section heading (clicking goes to /kategoriler; "All" says so).
+     While /kategoriler is open "All" turns into a tone pill: the location marker is visible on every page in the menu. */
   /* Geniş çubukta "Kategoriler" listenin bölüm başlığıdır (tıklanınca /kategoriler; "Tümü" bunu söyler).
      /kategoriler açıkken "Tümü" ton hapına dönüşür: menüde konum işareti her sayfada görünür. */
   .kenar-kategori-grubu { display: grid; gap: 2px; }
@@ -402,6 +458,7 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
   }
   .kenar-bolum-basligi:hover .kenar-tumu { background: var(--yuzey-3); }
   .kenar-bolum-basligi.aktif .kenar-tumu { background: var(--ton); color: var(--ton-ustu); font-weight: 600; }
+  /* On the Settings page the parent item is an open heading, not a filled pill; the filled pill is on the row of the section currently being read */
   /* Ayarlar sayfasındayken üst öğe dolu hap değil, açık bir başlık; dolu hap o an okunan bölümün satırındadır */
   .kenar-menu .menu-ogesi.aktif.acik { background: none; color: var(--yazi); }
   .kenar-menu .menu-ogesi.aktif.acik:hover { background: var(--yuzey-3); }
@@ -412,7 +469,9 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
     font-size: 14px; color: var(--yazi-2); white-space: nowrap;
     transition: background-color var(--sure-hizli) var(--egri-cikis), color var(--sure-hizli) var(--egri-cikis);
   }
-  .kenar-ayar-bolumleri .kenar-kategori { padding-left: 46px; } /* üst öğenin etiketiyle aynı hizada */
+  /* aligned with the parent item's label */
+  /* üst öğenin etiketiyle aynı hizada */
+  .kenar-ayar-bolumleri .kenar-kategori { padding-left: 46px; }
   .kenar-diyez { flex: none; width: 20px; text-align: center; font-weight: 500; }
   .kenar-kategori-ad { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .kenar-kategori:hover { background: var(--yuzey-3); color: var(--yazi); }
@@ -420,15 +479,18 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
 
   body:not(.sade) { padding-left: 248px; }
   [data-menu="sag"] body:not(.sade) { padding-left: 0; padding-right: 248px; }
+  /* Keep the top bar full width; the sidebar sits below it */
   /* Üst çubuk tam genişlikte kalsın, kenar çubuğu onun altında dursun */
   body:not(.sade) .ust-cubuk { margin-left: -248px; }
   [data-menu="sag"] body:not(.sade) .ust-cubuk { margin-left: 0; margin-right: -248px; }
+  /* Toast in the middle of the content area */
   /* Toast içerik alanının ortasında */
   body:not(.sade) .cubuk-alani { padding-left: 260px; }
   [data-menu="sag"] body:not(.sade) .cubuk-alani { padding-left: 12px; padding-right: 260px; }
 }
 @media (min-width: 1181px) { .govde.govde-akis { grid-template-columns: minmax(0, 720px) 312px; } }
 
+/* Rank celebration: the icon takes the rank colour; when the motion multiplier is 0 (reduced motion) the animation is never visible */
 /* Rütbe kutlaması: simge rütbe renginde; hareket çarpanı 0 olunca (azaltılmış hareket) animasyon hiç görünmez */
 .cubuk-bildirim-rutbe svg { color: var(--rc); animation: rutbe-pop var(--sure-yavas) var(--egri-yay) backwards; }
 @keyframes rutbe-pop { from { transform: scale(calc(1 - .6 * var(--hareket))) rotate(calc(-25deg * var(--hareket))); } }

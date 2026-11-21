@@ -1,3 +1,9 @@
+// Site settings (site_settings table): is signup open, announcement, banned words.
+// 
+// Because these settings are checked on every page request (the announcement banner), we do not hit the database every time:
+// we keep them in memory (cache). When a setting is saved the cache is cleared immediately (ayarOnbellekTemizle);
+// it also expires by itself after 60 seconds, so even if the database is edited by hand or a second server copy
+// runs, everyone sees the same value within a minute at the latest.
 // Site ayarları (site_settings tablosu): kayıt açık mı, duyuru, yasaklı kelimeler.
 //
 // Her sayfa isteğinde bu ayarlara bakıldığı için (duyuru şeridi) her seferinde veritabanına gitmeyiz:
@@ -10,8 +16,12 @@ import { bildir, geriAdres } from "./yardimci.ts";
 
 export type SiteAyarlari = {
   kayitAcik: boolean;
-  bakimModu: boolean;  // sql/24: açıkken yalnızca yetkililer siteyi kullanır, diğerleri 503 bakım sayfasını görür
-  bakimMetni: string;  // bakım sayfasında "Site güncelleniyor." yanına yazılır (örn. "Tahmini bitiş: 14:30")
+  // sql/24: when on, only staff can use the site, everyone else sees the 503 maintenance page
+  // sql/24: açıkken yalnızca yetkililer siteyi kullanır, diğerleri 503 bakım sayfasını görür
+  bakimModu: boolean;
+  // written next to "Site is being updated." on the maintenance page (e.g. "Estimated finish: 14:30")
+  // bakım sayfasında "Site güncelleniyor." yanına yazılır (örn. "Tahmini bitiş: 14:30")
+  bakimMetni: string;
   duyuru: string;
   duyuruTur: "info" | "uyari";
   duyuruSurum: string;
@@ -21,19 +31,30 @@ export type SiteAyarlari = {
   oda: OdaAyarlari;
 };
 
+// Yakut earning rules (sql/22; site_settings: yakut_seri_gunluk, yakut_seri_yedinci, yakut_premium_aylik).
+// The per-rank monthly allowance setting lives in ranks.aylik_yakut (panel: Points and rewards > Ranks). Panel: Points and rewards > Point rules.
+//   seriGunluk: daily login yakut · seriYedinci: given instead of seriGunluk on the 7th, 14th, 21st... consecutive day · premiumAylik: to a premium member once a month
 // Yakut kazanma kuralları (sql/22; site_settings: yakut_seri_gunluk, yakut_seri_yedinci, yakut_premium_aylik).
 // Rütbe başına aylık harçlık ayarı ranks.aylik_yakut'ta durur (panel: Puan ve ödüller > Rütbeler). Panel: Puan ve ödüller > Puan kuralları.
 //   seriGunluk: günlük giriş yakutu · seriYedinci: 7., 14., 21... ardışık günde seriGunluk yerine verilir · premiumAylik: premium üyeye ayda bir
 export type YakutKurallari = { seriGunluk: number; seriYedinci: number; premiumAylik: number };
 export const YAKUT_VARSAYILAN: YakutKurallari = { seriGunluk: 10, seriYedinci: 50, premiumAylik: 300 };
-export const YAKUT_ENFAZLA = 100000; // yanlışlıkla çok büyük bir sayı yazılmasın
+export const YAKUT_ENFAZLA = 100000; // so that a huge number is not typed by mistake · yanlışlıkla çok büyük bir sayı yazılmasın
 
+// Private room setting (sql/12): the maximum number of rooms one person can own. Admin: Chat > Rooms.
+// (The rank that may create rooms is no longer a setting but the rank's "oda_ac" privilege: sql/13, Points and rewards > Ranks.)
 // Özel oda ayarı (sql/12): bir kişinin sahibi olabileceği en çok oda sayısı. Yönetim: Sohbet > Odalar.
 // (Oda açabilecek rütbe artık ayar değil, rütbenin "oda_ac" ayrıcalığıdır: sql/13, Puan ve ödüller > Rütbeler.)
 export type OdaAyarlari = { kisiSiniri: number };
 export const ODA_VARSAYILAN: OdaAyarlari = { kisiSiniri: 3 };
 export const ODA_SINIR_ENFAZLA = 50;
 
+// Point rules (site_settings: puan_konu, puan_cevap, puan_oy, puan_gunluk, puan_seri, puan_cozum, puan_rozet, puan_davet).
+// Changed from the admin panel (Points and rewards > Point rules).
+//   davet: NOT USED, the "invite" point source was postponed to the referral stage (CLAUDE.md roadmap 3.4); the setting key and
+//     the points_log 'davet' reason are ready already, not shown in the panel. When referral/invite acceptance is written, puanEkle(..., "davet", ...) will be wired here.
+//   gunlukTavan (puan_gunluk_tavan): the total points one person can earn per day from opening topics + writing replies; 0 = unlimited
+//   gunluk: first visit of the day · seri: 7 days of visits in a row · cozum: to the author whose reply is picked as the solution · rozet: each new badge
 // Puan kuralları (site_settings: puan_konu, puan_cevap, puan_oy, puan_gunluk, puan_seri, puan_cozum, puan_rozet, puan_davet).
 // Yönetici panelinden (Puan ve ödüller > Puan kuralları) değiştirilir.
 //   davet: KULLANILMIYOR, "davet" puan kaynağı referans aşamasına (CLAUDE.md yol haritası 3.4) ertelendi; ayar anahtarı ve
@@ -42,15 +63,19 @@ export const ODA_SINIR_ENFAZLA = 50;
 //   gunluk: günde ilk ziyaret · seri: 7 gün üst üste ziyaret · cozum: cevabı çözüm seçilen yazara · rozet: her yeni rozet
 export type PuanKurallari = { konu: number; cevap: number; oy: number; gunluk: number; seri: number; cozum: number; rozet: number; davet: number; gunlukTavan: number };
 export const PUAN_VARSAYILAN: PuanKurallari = { konu: 5, cevap: 2, oy: 1, gunluk: 1, seri: 5, cozum: 15, rozet: 10, davet: 5, gunlukTavan: 40 };
-export const TAVAN_ENFAZLA = 10000; // günlük konu/cevap puanı tavanı (sql/17): 0 = sınırsız
-export const PUAN_ENFAZLA = 1000; // yanlışlıkla 99999 yazılmasın diye üst sınır
+// daily topic/reply point cap (sql/17): 0 = unlimited
+// günlük konu/cevap puanı tavanı (sql/17): 0 = sınırsız
+export const TAVAN_ENFAZLA = 10000;
+export const PUAN_ENFAZLA = 1000; // upper limit so that 99999 is not typed by mistake · yanlışlıkla 99999 yazılmasın diye üst sınır
 
+// Turns the text from a setting into a safe integer; if it is broken it falls back to the default (so the site never breaks).
 // Ayardan gelen metni güvenli bir tam sayıya çevirir; bozuksa varsayılana döner (site hiç bozulmasın).
 function puanDegeri(ham: string | undefined, varsayilan: number) {
   const n = Number(ham);
   return ham !== undefined && ham.trim() !== "" && Number.isInteger(n) && n >= 0 && n <= PUAN_ENFAZLA ? n : varsayilan;
 }
 
+// Safe integer for the room setting (default if broken)
 // Oda ayarı için güvenli tam sayı (bozuksa varsayılan)
 function tamSayi(ham: string | undefined, varsayilan: number, enaz: number, enfazla: number) {
   const n = Number(ham);
@@ -81,7 +106,9 @@ export async function ayarlar(): Promise<SiteAyarlari> {
       seri: puanDegeri(h.puan_seri, PUAN_VARSAYILAN.seri),
       cozum: puanDegeri(h.puan_cozum, PUAN_VARSAYILAN.cozum),
       rozet: puanDegeri(h.puan_rozet, PUAN_VARSAYILAN.rozet),
-      davet: puanDegeri(h.puan_davet, PUAN_VARSAYILAN.davet), // henüz kullanılmıyor (referans aşamasında bağlanacak)
+      // not used yet (will be wired in the referral stage)
+      // henüz kullanılmıyor (referans aşamasında bağlanacak)
+      davet: puanDegeri(h.puan_davet, PUAN_VARSAYILAN.davet),
       gunlukTavan: tamSayi(h.puan_gunluk_tavan, PUAN_VARSAYILAN.gunlukTavan, 0, TAVAN_ENFAZLA),
     },
     yakut: {
@@ -97,6 +124,7 @@ export async function ayarlar(): Promise<SiteAyarlari> {
   return veri;
 }
 
+// Point rules shortcut: routes only ask for this
 // Puan kuralları kısayolu: route'lar yalnızca bunu ister
 export async function puanKurallari(): Promise<PuanKurallari> {
   return (await ayarlar()).puan;
@@ -106,6 +134,7 @@ export function ayarOnbellekTemizle() {
   onbellek = null;
 }
 
+// Writes a single setting (the key comes from the code). The caller clears the cache (several settings are written together).
 // Tek bir ayarı yazar (anahtar koddan gelir). Önbelleği temizlemeyi çağıran yapar (birden çok ayar birlikte yazılır).
 export async function ayarYaz(anahtar: string, deger: string, userId: number) {
   await pool.query(
@@ -115,6 +144,14 @@ export async function ayarYaz(anahtar: string, deger: string, userId: number) {
 }
 
 // ---------------------------------------------------------------------------
+// Banned words
+// Turkish upper/lower case: JavaScript's default toLowerCase() turns "I" into "i", but in Turkish
+// "I" -> "ı" and "İ" -> "i" must happen. toLocaleLowerCase("tr") does this correctly; we lowercase both the list and the text
+// the same way.
+// But people also type without a Turkish keyboard: "KOTUKELIME" becomes "kotukelıme" under Turkish lowercasing and
+// does not match "kotukelime" in the list; the filter could be bypassed with capitals. So after lowercasing
+// we also turn "ı" into "i": I, ı, İ, i all count as the same. (Cost: "ılık" and "ilik" also count as the same;
+// for a filter, catching too much is better than missing something.)
 // Yasaklı kelimeler
 // Türkçe büyük/küçük harf: JavaScript'in varsayılan toLowerCase()'i "I" harfini "i" yapar, oysa Türkçede
 // "I" -> "ı" ve "İ" -> "i" olmalı. toLocaleLowerCase("tr") bunu doğru yapar; hem listeyi hem metni
@@ -126,12 +163,16 @@ export async function ayarYaz(anahtar: string, deger: string, userId: number) {
 // ---------------------------------------------------------------------------
 export const kucult = (s: string) => s.toLocaleLowerCase("tr").replace(/ı/g, "i");
 
+// Raw text (one per line or comma-separated) -> clean, deduplicated, lowercase list
 // Ham metin (satır ya da virgülle ayrılmış) -> temiz, tekrarsız, küçük harfli liste
 export function kelimeListesi(ham: string): string[] {
   const kelimeler = ham.split(/[\n\r,]+/).map((k) => kucult(k.trim().replace(/\s+/g, " "))).filter(Boolean);
   return [...new Set(kelimeler)];
 }
 
+// If one of the given texts contains a banned phrase it returns that phrase, otherwise null.
+// It searches INSIDE the text (so word stems are caught too: Turkish suffixes attach to words). If there is a false match,
+// the admin removes that phrase from the list.
 // Verilen metinlerden biri yasaklı bir ifade içeriyorsa o ifadeyi döner, yoksa null.
 // Metnin İÇİNDE arar (kelime kökü de yakalansın diye: Türkçe ekler kelimeye yapışır). Yanlış eşleşme olursa
 // yönetici o ifadeyi listeden çıkarır.
@@ -143,6 +184,8 @@ export async function yasakliIfade(...metinler: string[]): Promise<string | null
 }
 
 // ---------------------------------------------------------------------------
+// Dismissing the announcement banner: POST /duyuru/kapat (open to everyone, no login needed)
+// Which announcement version was dismissed is kept in the session; when the announcement changes the version changes and the banner shows again.
 // Duyuru şeridini kapatma: POST /duyuru/kapat (herkese açık, giriş gerekmez)
 // Hangi duyuru sürümünün kapatıldığı oturumda tutulur; duyuru değişince sürüm değişir, şerit yeniden çıkar.
 // ---------------------------------------------------------------------------

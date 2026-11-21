@@ -1,4 +1,7 @@
+// Ruby: /yakut (wallet + store), /yakut/hareketler (full ledger), title purchase/selection.
 // Yakut: /yakut (cüzdan + mağaza), /yakut/hareketler (tam defter), unvan satın alma/seçme.
+// Balance changes go ONLY through src/yakut.ts › yakutEkle/unvanAl. Cosmetic frame, effect and topic-boost products are "Coming soon" for now:
+// a feature that is not ready is never promised (CLAUDE.md), so the purchase route exists only for titles.
 // Bakiye değişimi YALNIZCA src/yakut.ts › yakutEkle/unvanAl'dan geçer. Süs, efekt ve öne çıkarma ürünleri şimdilik "Yakında":
 // hazır olmayan özellik vaat edilmez (CLAUDE.md), bu yüzden satın alma rotası yalnızca unvan için var.
 import express from "express";
@@ -30,6 +33,7 @@ yakutRotasi.get("/yakut", giris, async (req, res) => {
             EXISTS(SELECT 1 FROM kullanici_unvanlari WHERE kullanici_unvanlari.user_id = ? AND kullanici_unvanlari.unvan_id = unvanlar.id) AS sahip
        FROM unvanlar WHERE unvanlar.aktif = 1 ORDER BY unvanlar.sira, unvanlar.id`, [k.id]);
   const [[kisi]]: any = await pool.query("SELECT seri_gun, unvan_id FROM users WHERE id = ?", [k.id]);
+  // "This month": earned and spent since the first day of the month (the day boundary comes from the database clock)
   // "Bu ay": ayın ilk gününden bu yana kazanılan ve harcanan (gün sınırı veritabanının saatinden)
   const [[ay]]: any = await pool.query(
     `SELECT COALESCE(SUM(IF(miktar > 0, miktar, 0)), 0) AS kazanilan, COALESCE(SUM(IF(miktar < 0, -miktar, 0)), 0) AS harcanan
@@ -37,15 +41,18 @@ yakutRotasi.get("/yakut", giris, async (req, res) => {
   const [son]: any = await pool.query(
     "SELECT miktar, sebep, aciklama, created_at FROM yakut_log WHERE user_id = ? ORDER BY id DESC LIMIT 3", [k.id]);
 
+  // Streak: today's visit has already been counted (oturum.ts). The cycle is 7 days: number of filled icons = day in the cycle; if tomorrow is a multiple of 7, the big reward.
   // Seri: bugünkü ziyaret çoktan sayıldı (oturum.ts). Döngü 7 gün: dolu simge sayısı = döngüdeki gün; yarın 7'nin katıysa büyük ödül.
   const seriGun = Number(kisi.seri_gun);
   const dongu = seriGun > 0 ? ((seriGun - 1) % 7) + 1 : 0;
   const yarin = (seriGun + 1) % 7 === 0 ? kural.seriYedinci : kural.seriGunluk;
 
+  // Monthly allowance: the 1st of next month (tr-TR), rank + premium
   // Aylık harçlık: sonraki ayın 1'i (tr-TR), rütbe + premium
   const puan = Number(k.points);
   const rutbe = rutbeBul(puan);
   const premium = premiumMu(k);
+  // The 1st of next month: the same clock source as the day boundary (the database), not dependent on the Node clock
   // Sonraki ayın 1'i: gün sınırıyla aynı saat kaynağı (veritabanı), Node saatine bağlı değil
   const [[sa]]: any = await pool.query("SELECT DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01') AS t");
   const sonrakiAy = new Date(sa.t + "T12:00:00").toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
@@ -64,6 +71,7 @@ yakutRotasi.get("/yakut", giris, async (req, res) => {
   });
 });
 
+// Full ledger: filter (All/Earned/Spent) + pagination (30)
 // Tam defter: filtre (Tümü/Kazanılan/Harcanan) + sayfalama (30)
 const SAYFA = 30;
 yakutRotasi.get("/yakut/hareketler", giris, async (req, res) => {
@@ -79,6 +87,7 @@ yakutRotasi.get("/yakut/hareketler", giris, async (req, res) => {
   res.render("yakut-hareketler", { baslik: "Yakut hareketleri", aktifMenu: "yakut", f, hareketler, sayfa, sayfaSayisi, toplam, sebepler: SEBEP_ETIKETLERI, yakutYaz });
 });
 
+// Rate limit: runs only on verified (CSRF-passed) POSTs; if the limit is exceeded the action is not performed
 // Hız sınırı: yalnızca doğrulanmış (CSRF'ten geçmiş) POST'larda çalışır; sınır aşılırsa işlem yapılmaz
 function sinirAsildi(req: express.Request, res: express.Response) {
   const anahtar = String(res.locals.kullanici.id);
@@ -100,6 +109,7 @@ yakutRotasi.post("/yakut/unvan/:id/al", giris, async (req, res, next) => {
   res.redirect(geriAdres(req, "/yakut"));
 });
 
+// Select an owned title. Ownership is verified on the server (the kullanici_unvanlari row, not a hidden form field).
 // Sahip olunan unvanı seç. Sahiplik sunucuda doğrulanır (formdaki gizli alan değil, kullanici_unvanlari satırı).
 yakutRotasi.post("/yakut/unvan/:id/kullan", giris, async (req, res, next) => {
   const id = sayi(req.params.id);

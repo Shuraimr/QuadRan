@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Bağlantı yok · QuadRan</title>
+  <title>Bağlantı yok · rubyyard</title>
+  <!-- This page is cached by the service worker and shown while offline; since it cannot reach the server's CSS,
+       the style is inline here (the CSP allows inline style). Colours are the same as the site tokens; the theme follows the browser's light/dark preference. -->
   <!-- Bu sayfa service worker tarafından önbellekte tutulur ve çevrimdışıyken gösterilir; sunucu CSS'ine ulaşamayacağı için
        stil burada satır içi (CSP satır içi stile izin verir). Renkler site token'larının aynısı; tema, tarayıcının açık/koyu tercihine bağlı. -->
   <style>
@@ -15,6 +17,7 @@
     section { display: grid; justify-items: center; gap: 12px; max-width: 420px; text-align: center; }
     .ikon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: var(--ton); color: var(--ton-ustu); }
     .cip { margin: 0; padding: 4px 10px; border-radius: 8px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); font-size: 12px; font-weight: 600; color: var(--yazi-2); }
+    /* Waiting indicator: a yellow ("pending" status colour) dot that pulses as the page keeps retrying itself; static with reduced motion */
     /* Bekleme göstergesi: sarı (bekliyor durum rengi) nokta, sayfa kendini denedikçe nabız gibi atar; azaltılmış harekette durağan */
     .bekle { display: inline-flex; align-items: center; gap: 8px; margin: 4px 0 0; padding: 8px 12px; border-radius: 12px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); font-size: 13px; color: var(--yazi-2); }
     .nokta { position: relative; width: 8px; height: 8px; border-radius: 50%; background: var(--bekliyor); }
@@ -40,7 +43,7 @@
       </span>
       <p class="cip">Çevrimdışı</p>
       <h1>İnternet bağlantın yok</h1>
-      <p>QuadRan'a şu an ulaşılamıyor. Bağlantı gelince sayfa kendiliğinden yenilenecek.</p>
+      <p>rubyyard'a şu an ulaşılamıyor. Bağlantı gelince sayfa kendiliğinden yenilenecek.</p>
       <p class="bekle"><span class="nokta" aria-hidden="true"></span><span id="son-deneme" role="status">Bağlantı bekleniyor · son deneme az önce</span></p>
     </section>
   </main>

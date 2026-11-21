@@ -1,3 +1,7 @@
+// Layers preview: search, notifications, menus, report and notification bars with SAMPLE data.
+// Once mounted under /onizleme the address is: /onizleme/katmanlar
+// To try: ?tema=acik&vurgu=zumrut&menu=sag
+//
 // Katmanlar önizlemesi: arama, bildirimler, menüler, şikâyet ve bildirim çubukları ÖRNEK veriyle.
 // /onizleme altına bağlanınca adres: /onizleme/katmanlar
 // Deneme: ?tema=acik&vurgu=zumrut&menu=sag

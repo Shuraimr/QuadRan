@@ -1,4 +1,11 @@
 <%#
+  Chat > Rooms: /yonetim/sohbet/odalar?q=&durum=&sayfa=
+  satirlar [{ id, ad, sahip_id, sahip, uye, mesaj, created_at, kapatildi_at }], sf, qs { q, durum }, yol, filtreli
+  oda { kisiSiniri }, sinirEnfazla, duzenleyebilir (only an admin changes the rules)
+  PRIVACY: room messages are not shown here; only counts. The content can only be seen through a report's context.
+  Forms: POST /yonetim/sohbet/odalar/ayar (sinir) · POST /yonetim/sohbet/odalar/:id/kapat (reason required) | /ac
+%>
+<%#
   Sohbet > Odalar: /yonetim/sohbet/odalar?q=&durum=&sayfa=
   satirlar [{ id, ad, sahip_id, sahip, uye, mesaj, created_at, kapatildi_at }], sf, qs { q, durum }, yol, filtreli
   oda { kisiSiniri }, sinirEnfazla, duzenleyebilir (yalnızca admin kuralları değiştirir)

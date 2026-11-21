@@ -1,3 +1,7 @@
+// Design preview: shows templates with SAMPLE data, does not touch the database.
+// As the real pages get written, this file and the "/onizleme" line in server.ts can be deleted.
+// Addresses: /onizleme/konu  /giris  /kayit  /konu-yeni  /profil  /ayarlar  /404
+// For the signed-in view add ?uye=1 at the end, to try a theme add ?tema=acik&vurgu=zumrut.
 // Tasarım önizlemesi: şablonları ÖRNEK veriyle gösterir, veritabanına dokunmaz.
 // Gerçek sayfalar yazıldıkça bu dosya ve server.ts'deki "/onizleme" satırı silinebilir.
 // Adresler: /onizleme/konu  /giris  /kayit  /konu-yeni  /profil  /ayarlar  /404
@@ -10,7 +14,7 @@ export const onizleme = express.Router();
 const saatOnce = (s: number) => new Date(Date.now() - s * 3600 * 1000);
 const kartlar = [
   { id: 1, title: "Fedora’da SELinux açıkken Docker volume izin hatası nasıl çözülür?", kategori: "Yazılım", yazar: "shurai", rutbe: "Usta", created_at: saatOnce(2), ozet: "Volume’u bağladım ama container dosyaları okuyamıyor. :z etiketini ekleyince düzeldi, tam olarak ne yapıyor?", yorum_sayisi: 3, skor: 342 },
-  { id: 2, title: "QuadRan’a hoş geldiniz: kurallar ve ilk adımlar", kategori: "Genel", yazar: "shurai", rutbe: "Usta", created_at: saatOnce(72), ozet: "Forumu birlikte büyütüyoruz. Konu açmadan önce kategorilere ve oy sistemine göz atın.", yorum_sayisi: 41, skor: 128 },
+  { id: 2, title: "rubyyard’a hoş geldiniz: kurallar ve ilk adımlar", kategori: "Genel", yazar: "shurai", rutbe: "Usta", created_at: saatOnce(72), ozet: "Forumu birlikte büyütüyoruz. Konu açmadan önce kategorilere ve oy sistemine göz atın.", yorum_sayisi: 41, skor: 128 },
 ];
 
 onizleme.use((req, res, next) => {

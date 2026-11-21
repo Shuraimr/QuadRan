@@ -1,3 +1,11 @@
+// Password hashing: Node's built-in crypto.scrypt (no extra package).
+//
+// Why not a plain hash (like sha256)? scrypt is deliberately SLOW and memory-hungry.
+// Even if the database is stolen, trying billions of passwords becomes very expensive for an attacker.
+//
+// Stored format:  scrypt$<salt>$<hash>   (salt and hash are base64)
+// Salt: 16 random bytes per user. Two people with the same password end up with different hashes.
+//
 // Şifre hash'leme: Node'un kendi crypto.scrypt'i (ek paket yok).
 //
 // Neden düz hash (sha256 gibi) değil? scrypt bilerek YAVAŞ ve bellek isteyen bir fonksiyon.
@@ -19,9 +27,12 @@ export async function sifreHashle(sifre: string): Promise<string> {
 
 export async function sifreDogru(sifre: string, saklanan: string): Promise<boolean> {
   const [tur, tuzB64, hashB64] = saklanan.split("$");
-  if (tur !== "scrypt" || !tuzB64 || !hashB64) return false; // eski "gecici" gibi değerler hiç eşleşmez
+  // old values like "gecici" never match
+  // eski "gecici" gibi değerler hiç eşleşmez
+  if (tur !== "scrypt" || !tuzB64 || !hashB64) return false;
   const beklenen = Buffer.from(hashB64, "base64");
   const hesaplanan = await scryptAsync(sifre, Buffer.from(tuzB64, "base64"), beklenen.length);
+  // timingSafeEqual: comparison time does not reveal at which byte the difference is.
   // timingSafeEqual: karşılaştırma süresi, kaçıncı baytta farklılık olduğunu ele vermez
   return hesaplanan.length === beklenen.length && timingSafeEqual(hesaplanan, beklenen);
 }

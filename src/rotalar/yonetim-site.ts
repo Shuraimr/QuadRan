@@ -1,3 +1,9 @@
+// Admin panel: site settings. It used to be a single "Site settings" page; it is now split by job:
+//   Auto filter     /yonetim/filtre           moderators view, admin edits
+//   Point rules     /yonetim/puan             admin only (the Ranks and Badges tabs are in yonetim-icerik.ts)
+//   Announcements   /yonetim/duyurular        admin only: announcement banner + bulk notification
+//   Signup & access /yonetim/kayit-erisim     admin only
+// Settings live in the site_settings table and are cached in memory (src/ayarlar.ts).
 // Yönetim paneli: site ayarları. Eskiden tek bir "Site ayarları" sayfasıydı; artık işe göre ayrıldı:
 //   Otomatik filtre   /yonetim/filtre           moderatör görür, admin düzenler
 //   Puan kuralları    /yonetim/puan             yalnızca admin (Rütbeler ve Rozetler sekmeleri yonetim-icerik.ts'te)
@@ -14,10 +20,12 @@ import { sadeceAdmin, onayIste } from "./yonetim-ortak.ts";
 export const yonetimSite = express.Router();
 
 // ---------------------------------------------------------------------------
+// Auto filter: banned phrases
 // Otomatik filtre: yasaklı ifadeler
 // ---------------------------------------------------------------------------
 yonetimSite.get("/yonetim/filtre", async (req, res) => {
   const a = await ayarlar();
+  // A moderator sees the list but cannot change it: the template renders the field read-only, and the server rejects the POST too
   // Moderatör listeyi görür ama değiştiremez: şablon alanı salt okunur çizer, POST'u da sunucu reddeder
   res.render("yonetim/filtre", { baslik: "Otomatik filtre", aktif: "filtre", a, yasakliMetin: a.yasakli.join("\n"), duzenleyebilir: res.locals.kullanici.rol === "admin" });
 });
@@ -38,6 +46,7 @@ yonetimSite.post("/yonetim/filtre", sadeceAdmin, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Points and rewards > Point rules (admin). The Ranks and Badges tabs are in yonetim-icerik.ts.
 // Puan ve ödüller > Puan kuralları (admin). Rütbeler ve Rozetler sekmeleri yonetim-icerik.ts'te.
 // ---------------------------------------------------------------------------
 yonetimSite.use("/yonetim/puan", sadeceAdmin);
@@ -63,6 +72,7 @@ yonetimSite.post("/yonetim/puan", async (req, res) => {
     }
     yeni[alan] = n;
   }
+  // Daily topic/reply point cap (0 = unlimited): separate from the rest of the rules, with its own upper limit
   // Günlük konu/cevap puanı tavanı (0 = sınırsız): kuralların geri kalanından ayrı, kendi üst sınırı var
   const tavanHam = metin(req.body.gunluk_tavan);
   const tavan = Number(tavanHam);
@@ -71,6 +81,7 @@ yonetimSite.post("/yonetim/puan", async (req, res) => {
     return res.redirect("/yonetim/puan");
   }
   yeni.gunlukTavan = tavan;
+  // Yakut earning rules (sql/22): they come from the same form, with their own upper limit
   // Yakut kazanma kuralları (sql/22): aynı formdan gelir, kendi üst sınırı var
   const YAKUT_ALANLARI = [["yakut_seri_gunluk", "Günlük giriş yakutu"], ["yakut_seri_yedinci", "7. gün yakutu"], ["yakut_premium_aylik", "Premium aylık yakutu"]] as const;
   const yakutYeni: Record<string, number> = {};
@@ -93,6 +104,7 @@ yonetimSite.post("/yonetim/puan", async (req, res) => {
   for (const [alan] of ALANLAR.slice(3)) await ayarYaz("puan_" + alan, String(yeni[alan]), k.id);
   ayarOnbellekTemizle();
   await denetim(req, res, "ayar.puan", "ayar", null, { eski, yeni });
+  // So that yakut settings do not mix into the points log: if they changed, a separate record
   // Yakut ayarları puan kaydına karışmasın: değiştiyse ayrı kayıt
   const yakutEski: Record<string, number> = { yakut_seri_gunluk: eskiYakut.seriGunluk, yakut_seri_yedinci: eskiYakut.seriYedinci, yakut_premium_aylik: eskiYakut.premiumAylik };
   if (YAKUT_ALANLARI.some(([alan]) => yakutEski[alan] !== yakutYeni[alan])) await denetim(req, res, "ayar.yakut", "ayar", null, { eski: yakutEski, yeni: yakutYeni });
@@ -101,6 +113,7 @@ yonetimSite.post("/yonetim/puan", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Announcements (admin): announcement banner + bulk notification
 // Duyurular (admin): duyuru şeridi + toplu bildirim
 // ---------------------------------------------------------------------------
 yonetimSite.use("/yonetim/duyurular", sadeceAdmin);
@@ -116,6 +129,7 @@ yonetimSite.post("/yonetim/duyurular", async (req, res) => {
   const duyuru = metin(req.body.duyuru);
   const duyuruTur = req.body.duyuru_tur === "uyari" ? "uyari" : "info";
   if (duyuru.length > 500) { bildir(req, "hata", "Duyuru en fazla 500 karakter olabilir."); return res.redirect("/yonetim/duyurular"); }
+  // If the announcement text or type changed, a new version: people who dismissed it see the new announcement again
   // Duyuru metni ya da türü değiştiyse yeni sürüm: kapatmış olanlar yeni duyuruyu yine görsün
   if (duyuru !== eski.duyuru || duyuruTur !== eski.duyuruTur) await ayarYaz("duyuru_surum", String(Date.now()), k.id);
   await ayarYaz("duyuru", duyuru, k.id);
@@ -126,6 +140,7 @@ yonetimSite.post("/yonetim/duyurular", async (req, res) => {
   res.redirect("/yonetim/duyurular");
 });
 
+// Bulk notification: to active (not closed, not suspended) members or to a single role. The recipient count is shown on a confirmation page before sending.
 // Toplu bildirim: aktif (kapatılmamış, uzaklaştırılmamış) üyelere ya da tek bir role. Gönderilmeden önce onay sayfasında alıcı sayısı gösterilir.
 const ROL_ETIKET: Record<string, string> = { hepsi: "bütün aktif üyeler", uye: "üye rolündekiler", moderator: "moderatörler", admin: "yöneticiler" };
 
@@ -141,6 +156,7 @@ yonetimSite.post("/yonetim/duyurular/bildirim", async (req, res) => {
   else if (linkHam && !link) hata = "Bağlantı sitenin içinden bir adres olmalı (örn. /konu/5).";
   if (hata) { bildir(req, "hata", hata); return res.redirect("/yonetim/duyurular"); }
 
+  // Recipients: accounts that are not deleted and not currently suspended (+ optionally a role)
   // Alıcılar: silinmemiş ve şu an uzaklaştırılmamış hesaplar (+ isteğe bağlı rol)
   const rolKosulu = hedef === "hepsi" ? "" : "AND roles.name = ?";
   const rolParam = hedef === "hepsi" ? [] : [hedef];
@@ -151,6 +167,7 @@ yonetimSite.post("/yonetim/duyurular/bildirim", async (req, res) => {
 
   if (onayIste(req, res, { baslik: "Toplu bildirim", metin: `“${metni}” bildirimi ${adet} kişiye (${ROL_ETIKET[hedef]}) gönderilecek. Gönderilen bildirim geri alınamaz. Onaylıyor musun?`, buton: `Evet, ${adet} kişiye gönder`, iptal: "/yonetim/duyurular", aktif: "duyurular" })) return;
 
+  // INSERT ... SELECT: to everyone in one query; the text and link are bound with ?
   // INSERT ... SELECT: tek sorguda herkese; metin ve bağlantı ? ile bağlanır
   await pool.query(
     `INSERT INTO notifications (user_id, actor_id, tur, metin, link)
@@ -164,6 +181,7 @@ yonetimSite.post("/yonetim/duyurular/bildirim", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Signup and access (admin): is signup open + maintenance mode (sql/24)
 // Kayıt ve erişim (admin): kayıtlar açık mı + bakım modu (sql/24)
 // ---------------------------------------------------------------------------
 yonetimSite.use("/yonetim/kayit-erisim", sadeceAdmin);
@@ -175,7 +193,8 @@ yonetimSite.get("/yonetim/kayit-erisim", async (req, res) => {
 
 yonetimSite.post("/yonetim/kayit-erisim", async (req, res) => {
   const eski = await ayarlar();
-  const kayitAcik = !!req.body.kayit_acik; // işaretsiz checkbox hiç gönderilmez
+  const kayitAcik = !!req.body.kayit_acik; // an unchecked checkbox is never submitted · işaretsiz checkbox hiç gönderilmez
+  // Maintenance mode: it comes from the same form. The text is kept short (it appears as a single line on the maintenance page).
   // Bakım modu: aynı formdan gelir. Metin kısa tutulur (bakım sayfasında tek satır olarak görünür).
   const bakimModu = !!req.body.bakim_modu;
   const bakimMetni = metin(req.body.bakim_metni);
@@ -184,6 +203,7 @@ yonetimSite.post("/yonetim/kayit-erisim", async (req, res) => {
   await ayarYaz("bakim_modu", bakimModu ? "1" : "0", res.locals.kullanici.id);
   await ayarYaz("bakim_metni", bakimMetni, res.locals.kullanici.id);
   ayarOnbellekTemizle();
+  // Every changed setting gets its own audit record (maintenance mode is critical: it should show who turned it on/off and when)
   // Her değişen ayar kendi denetim kaydını alır (bakım modu kritik: kim ne zaman açtı/kapattı görünsün)
   if (eski.kayitAcik !== kayitAcik) await denetim(req, res, "ayar.kayit", "ayar", null, { kayit_acik: [eski.kayitAcik, kayitAcik] });
   if (eski.bakimModu !== bakimModu || eski.bakimMetni !== bakimMetni) await denetim(req, res, "ayar.bakim", "ayar", null, { bakim_modu: [eski.bakimModu, bakimModu], metin: bakimMetni });

@@ -1,4 +1,10 @@
 <%#
+  Expected data (all optional):
+  not      string   reason for the redirect, e.g. "Oy vermek için giriş yapman gerekiyor." ("You need to log in to vote.")
+  hata     string   e.g. "Kullanıcı adı ya da şifre yanlış." ("Wrong username or password.")
+  degerler { kullanici_adi }   to keep the form filled after an error
+  don      string   address to return to after login
+
   Beklenen veriler (hepsi isteğe bağlı):
   not      string   yönlendirme sebebi, örn. "Oy vermek için giriş yapman gerekiyor."
   hata     string   örn. "Kullanıcı adı ya da şifre yanlış."
@@ -9,7 +15,7 @@
 <% const d = locals.degerler || {}; %>
 <div class="orta-sayfa">
   <%- include("partials/kontur") %>
-  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <a class="logo" href="/"><span class="logo-isaret"><img src="/img/marka/rakun-96.webp" alt="" width="32" height="32"></span>rubyyard</a>
   <form class="kart form-karti" method="post" action="/giris"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
     <h1>Giriş yap</h1>
     <% if (locals.not) { %><div class="bilgi-notu"><%- include("partials/ikon", { ad: "bilgi", boyut: 18 }) %><span><%= not %></span></div><% } %>
