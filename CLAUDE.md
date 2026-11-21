@@ -6,7 +6,7 @@ Ayrıntılı route / tablo / yetki listesi: `docs/AKTARIM.md` (önce oraya bak, 
 ## Teknoloji ve çalıştırma
 
 - Node.js 22, TypeScript'i **doğrudan** çalıştırır (type stripping): `enum`, `namespace`, parametre özellikleri YOK; importlar `.ts` uzantılı.
-- Geliştirme kabuğu: `flake.nix` (Node 22, mysql istemcisi, ffmpeg, gh, jq; DB Docker'da kalır). Araç gerekince `nix develop -c <komut>` (ör. ffmpeg ile örnek video üretmek); sistemde olmayan aracı başka yoldan kurma, flake'e ekle.
+- Geliştirme kabuğu: `flake.nix` (Node 22, mysql istemcisi, mycli, zellij, ffmpeg, gh, jq; DB Docker'da kalır; `./araclar/konsol.sh` = zellij'de sunucu + mycli + MySQL günlüğü + kabuk, düzen `araclar/zellij/quadran.kdl`). Araç gerekince `nix develop -c <komut>` (ör. ffmpeg ile örnek video üretmek); sistemde olmayan aracı başka yoldan kurma, flake'e ekle.
 - Express 5 · EJS · mysql2 (ORM yok, **saf SQL**) · MySQL 8.4 (Docker, konteyner `quadran-db`) · Adminer :8080
 - Düz CSS (`public/css`) ve tek bağımlılıksız betik (`public/js/quadran.js`). Derleme adımı yok.
 - `npm run dev` → :3000 (`--watch`; kullanıcının kendi sunucusu genelde açıktır, **kapatma**). `npm start` = yayın modu (`/onizleme` kapalı).

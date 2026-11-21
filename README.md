@@ -51,6 +51,8 @@ nix develop                   # fish için: nix develop -c fish
 nix develop -c npm run dev    # kabuğa girmeden tek komut
 ```
 
+Hepsi bir arada: `./araclar/konsol.sh` veritabanını başlatır ve [zellij](https://zellij.dev) içinde sunucuyu (`npm run dev`), [mycli](https://www.mycli.net) veritabanı istemcisini, MySQL günlüğünü ve bir kabuğu yan yana açar; "Denetim" sekmesinde tip kontrolü ve Docker durumu var (düzen: `araclar/zellij/quadran.kdl`). Oturum zaten açıksa ona bağlanır.
+
 [direnv](https://direnv.net) kuruluysa `direnv allow` bir kez çalıştırılır; sonra klasöre girince kabuk kendiliğinden açılır (`.envrc`).
 
 `SESSION_SECRET` için uzun, rastgele bir değer üret:

@@ -1,0 +1,57 @@
+// QuadRan zellij düzeni: araclar/konsol.sh açar (nix kabuğunun içinde, proje klasöründe).
+//
+// ┌──────────────────────────┬───────────────────────┐
+// │ Sunucu :3000 (npm dev)   │ Veritabanı (mycli)    │
+// │                          ├───────────────────────┤
+// │                          │ MySQL günlüğü         │
+// ├──────────────────────────┴───────────────────────┤
+// │ Kabuk (git, npm run ornek, tsc...)               │
+// └──────────────────────────────────────────────────┘
+// İkinci sekme "Denetim": tip kontrolü (Enter ile yeniden çalışır) ve Adminer/Docker durumu.
+// Komut panelleri kapanınca silinmez: Enter ile yeniden çalıştırılır, Ctrl+C ile durur.
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="zellij:tab-bar"
+        }
+        children
+        pane size=2 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+
+    tab name="QuadRan" focus=true {
+        pane split_direction="vertical" size="72%" {
+            pane name="Sunucu :3000" size="58%" command="bash" {
+                // 3000 zaten doluysa (başka bir terminalde npm run dev açık) ikinci kopya EADDRINUSE ile çöker:
+                // önce sor, kullanıcı eskisini kapatınca Enter'la devam etsin.
+                args "-c" "while curl -s -o /dev/null http://127.0.0.1:3000; do echo ':3000 başka bir yerde açık. Onu kapatıp Enter a bas (Ctrl+C: vazgeç).'; read _; done; exec npm run dev"
+            }
+            pane split_direction="horizontal" {
+                pane name="Veritabanı (mycli)" size="60%" command="bash" {
+                    // Şifre komut satırına yazılmaz (ps'te görünürdü): .env'den okunup MYSQL_PWD ile verilir.
+                    args "-c" "set -a; . ./.env; set +a; export MYSQL_PWD=\"$MYSQL_ROOT_PASSWORD\"; exec mycli -h 127.0.0.1 -P 3306 -u root quadran"
+                }
+                pane name="MySQL günlüğü" command="docker" {
+                    args "compose" "logs" "-f" "--tail" "40" "db"
+                }
+            }
+        }
+        pane name="Kabuk" focus=true command="bash" {
+            // Kullanıcının kendi kabuğu (fish vb.): konsol.sh nix'e girmeden önce QUADRAN_KABUK'a yazar.
+            args "-c" "exec \"${QUADRAN_KABUK:-bash}\""
+        }
+    }
+
+    tab name="Denetim" {
+        pane split_direction="vertical" {
+            pane name="Tip kontrolü" command="bash" start_suspended=true {
+                // src/*.ts yıldızını kabuk genişletsin diye bash -c (zellij argümanları olduğu gibi geçirir)
+                args "-c" "npx tsc --noEmit --allowImportingTsExtensions --module nodenext --target esnext --skipLibCheck --strict false src/*.ts src/rotalar/*.ts && echo 'Tip kontrolü temiz.'"
+            }
+            pane name="Docker" command="bash" {
+                args "-c" "docker compose ps; echo; echo 'Adminer: http://localhost:8080'; echo 'Site:    http://localhost:3000'"
+            }
+        }
+    }
+}

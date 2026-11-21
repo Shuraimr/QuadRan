@@ -8,6 +8,7 @@
   # Kullanım:
   #   nix develop            → araçları içeren kabuk (fish kullanıyorsan: nix develop -c fish)
   #   nix develop -c npm run dev
+  #   ./araclar/konsol.sh    → zellij içinde sunucu + mycli + MySQL günlüğü + kabuk
   # direnv kuruluysa klasöre girince kendiliğinden açılır (.envrc → "use flake").
   #
   # Veritabanı Docker'da kalır (konteyner quadran-db): MySQL'i Nix'e taşımak, mevcut veriyi ve
@@ -29,6 +30,8 @@
             nodejs_22        # proje Node 22'nin TypeScript tip silme özelliğine dayanıyor (derleme adımı yok)
             mysql84          # yalnızca istemci için: `mysql -h 127.0.0.1` ile Docker'daki DB'ye bağlanmak
             ffmpeg-headless  # video eki denemeleri: örnek video üretmek, kodek/süre bilgisine bakmak (ffprobe)
+            mycli            # MySQL için renkli, otomatik tamamlamalı istemci (zellij düzeninde DB paneli)
+            zellij           # terminal çoklayıcı: sunucu, DB ve günlükler tek pencerede (araclar/konsol.sh)
             gh               # GitHub sürümleri (gh release create)
             jq               # JSON yanıtlarını okumak (curl ile rota denemeleri)
             curl
