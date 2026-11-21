@@ -25,6 +25,15 @@ export async function mesajDurumu(benId: number, kisiId: number): Promise<MesajD
 export async function engelle(benId: number, kisiId: number) {
   if (benId === kisiId) return;
   await pool.query("INSERT IGNORE INTO user_blocks (blocker_id, blocked_id) VALUES (?, ?)", [benId, kisiId]);
+  await takipleriSil(benId, kisiId);
+}
+
+// Engel iki yönde de takibi bitirir: engellediğin kişi seni takip etmeye devam etmesin, sen de onu.
+export async function takipleriSil(a: number, b: number) {
+  await pool.query(
+    "DELETE FROM user_follows WHERE (follower_id = ? AND followed_id = ?) OR (follower_id = ? AND followed_id = ?)",
+    [a, b, b, a]
+  );
 }
 
 // "Çevrimiçi": son 5 dakikada bir sayfa açmış VE durumunu göstermeyi kapatmamış.

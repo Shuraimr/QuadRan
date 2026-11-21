@@ -227,7 +227,7 @@ export async function rutbeKontrol(userId: number, eskiPuan: number, yeniPuan: n
 // ---------------------------------------------------------------------------
 // Bildirim oluştur. Kişi kendi kendine bildirim almaz.
 // ---------------------------------------------------------------------------
-type BildirimTuru = "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon" | "duyuru" | "oda" | "rutbe";
+type BildirimTuru = "cevap" | "oy" | "rozet" | "mesaj" | "moderasyon" | "duyuru" | "oda" | "rutbe" | "takip";
 
 export async function bildirimGonder(b: { alan: number; yapan: number | null; tur: BildirimTuru; metin: string; link: string }) {
   if (b.yapan !== null && b.alan === b.yapan) return;

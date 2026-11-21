@@ -12,18 +12,23 @@
   konum, web_sitesi  (profil içinde, isteğe bağlı) meta satırında gösterilir
   mesajAtabilir (bool), engelledim (bool)  ziyaretçi için: "Mesaj gönder" görünsün mü, menüde Engelle mi Engeli kaldır mı
   kendisi  bool   giriş yapan kişi kendi profiline mi bakıyor
-  sekme    "konular" | "yorumlar" | "puan"   hangi sekme açık (?sekme=yorumlar | puan; puan yalnızca kendi profilinde)
+  sabitKonu  gönderi kartı verisi | null   profile sabitlenmiş konu (isteğe bağlı)
+  vitrinRozetleri [ { name, description, earned_at } ]   vitrinde seçili en çok 3 rozet, sıraya göre (isteğe bağlı)
+  etkinlikler [ { tur: konu|cevap|rozet|takip, zaman, konu_id, baslik, ek } ]   yalnızca sekme "etkinlik" (herkese açık eylemler, en çok 30)
+  sekme    "konular" | "yorumlar" | "etkinlik" | "puan"   hangi sekme açık (?sekme=yorumlar | puan; puan yalnızca kendi profilinde)
   yorumlar [ { id, content, created_at, konu_id, konu_baslik } ]   yalnızca sekme "yorumlar" iken (ilk mesajlar değil, cevaplar)
 %>
 <%- include("partials/bas", { baslik: profil.username }) %>
 <%- include("partials/ust-cubuk") %>
 <%
   // Sekme verilmediyse (örn. /onizleme/profil) Konular açık sayılır; tanımsız değişken sayfayı çökertmesin
-  const sekme = ["yorumlar", "puan"].includes(locals.sekme) ? locals.sekme : "konular";
+  const sekme = ["yorumlar", "etkinlik", "puan"].includes(locals.sekme) ? locals.sekme : "konular";
   // Rütbe ilerlemesi: şimdiki rütbenin eşiğinden sonrakinin eşiğine doğru dolgu oranı (en üst rütbede tam dolu)
   const oran = sonraki ? Math.min(1, Math.max(0, (profil.points - simdiki.min_points) / (sonraki.min_points - simdiki.min_points))) : 1;
   const enCok = Math.max(1, ...haftalik.map(g => g.sayi));
   const toplam = haftalik.reduce((t, g) => t + g.sayi, 0);
+  const vitrinRozet = locals.vitrinRozetleri || [];
+  const vitrinDolu = !!locals.sabitKonu || vitrinRozet.length > 0;
 %>
 <div class="profil">
   <%# Üst bölüm: banner + kimlik. Profil rengi/efekti/süsü kişi premium'dayken gelir (sorgu premium değilse NULL döndürür).
@@ -39,6 +44,8 @@
         <div class="satir"><h1><%= profil.username %></h1><% if (profil.rutbe) { %><%- include("partials/rutbe", { rutbeAd: profil.rutbe, rutbeId: profil.rutbe_id }) %><% } %></div>
         <div class="satir ikincil kucuk kimlik-meta">
           <span class="meta-oge"><%- include("partials/ikon", { ad: "takvim", boyut: 16 }) %> <%= profil.rol %> · <%= new Date(profil.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %> tarihinden beri üye</span>
+          <%# Takip sayıları: iki ayrı bağlantı, ilgili listeye gider (src/rotalar/takip.ts). Önizleme verisinde sayı yoksa 0 sayılır. %>
+          <span class="meta-oge"><a class="baglanti" href="/profil/<%= encodeURIComponent(profil.username) %>/takipciler"><strong><%= profil.takipci_sayisi || 0 %></strong> takipçi</a> · <a class="baglanti" href="/profil/<%= encodeURIComponent(profil.username) %>/takip-edilenler"><strong><%= profil.takip_sayisi || 0 %></strong> takip</a></span>
           <% if (profil.konum) { %><span class="meta-oge"><%- include("partials/ikon", { ad: "konum", boyut: 16 }) %> <%= profil.konum %></span><% } %>
           <%# Kullanıcının yazdığı adres: yalnızca http(s) kabul edilir (hesap.ts); arama motorlarına güven aktarma (nofollow ugc) ve yeni sekmede güvenli aç (noopener) %>
           <% if (profil.web_sitesi) { %><a class="meta-oge baglanti" href="<%= profil.web_sitesi %>" rel="nofollow noopener ugc" target="_blank"><%- include("partials/ikon", { ad: "baglanti", boyut: 16 }) %> <%= profil.web_sitesi.replace(/^https?:\/\//i, "").replace(/\/$/, "") %></a><% } %>
@@ -53,7 +60,15 @@
           <a class="buton buton-cerceveli" href="/profil/<%= profil.username %>" data-paylas data-baslik="<%= profil.username %> · QuadRan">Paylaş</a>
         <% } else { %>
           <% if (locals.kullanici) { %>
-            <% if (locals.mesajAtabilir) { %><a class="buton buton-birincil" href="/mesajlar/<%= profil.username %>">Mesaj gönder</a><% } %>
+            <%# Başkasının profilinde birincil eylem "Takip et"; Mesaj gönder ikincil. Aradaki engel varsa takip düğmesi hiç çizilmez. %>
+            <% if (!locals.aradaEngelVar) { %>
+              <% if (locals.benTakipEdiyorMu) { %>
+                <form method="post" action="/takip/<%= encodeURIComponent(profil.username) %>/birak"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><button class="buton buton-cerceveli" type="submit">Takibi bırak</button></form>
+              <% } else { %>
+                <form method="post" action="/takip/<%= encodeURIComponent(profil.username) %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><button class="buton buton-birincil" type="submit">Takip et</button></form>
+              <% } %>
+            <% } %>
+            <% if (locals.mesajAtabilir) { %><a class="buton <%= locals.aradaEngelVar ? 'buton-birincil' : 'buton-tonal' %>" href="/mesajlar/<%= profil.username %>">Mesaj gönder</a><% } %>
             <%# Engelle ve Şikâyet et tek ⋮ menüsünde (ayrı bir "Şikâyet et" düğmesi yok: aynı eylem iki yerde durmasın) %>
             <button class="buton buton-cerceveli profil-menu-dugme" type="button" popovertarget="profil-menusu" data-menu-ac aria-label="Diğer işlemler"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
             <div class="acilir-menu acilir-menu-konumlu" id="profil-menusu" popover aria-label="Kullanıcı işlemleri">
@@ -69,7 +84,8 @@
               <a class="acilir-oge acilir-oge-tehlikeli" href="/sikayet?kullanici=<%= encodeURIComponent(profil.username) %>" data-sikayet-ac data-kullanici="<%= profil.username %>" data-yazar="<%= profil.username %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 20 }) %><span class="acilir-ad">Şikâyet et</span></a>
             </div>
           <% } else { %>
-            <a class="buton buton-birincil" href="/mesajlar/<%= profil.username %>">Mesaj gönder</a>
+            <a class="buton buton-birincil" href="/giris?don=<%= encodeURIComponent('/profil/' + profil.username) %>">Takip et</a>
+            <a class="buton buton-tonal" href="/mesajlar/<%= profil.username %>">Mesaj gönder</a>
           <% } %>
         <% } %>
       </div>
@@ -79,10 +95,36 @@
 
   <% if (profil.bio) { %><p class="bio"><%= profil.bio %></p><% } %>
 
+  <%# Vitrin: sekmelerin üstünde. Boşsa başkasının profilinde hiç çizilmez; kişinin kendi profilinde Ayarlar'a götüren ince bir satır görünür. %>
+  <% if (vitrinDolu) { %>
+    <section class="sutun vitrin" aria-label="Vitrin">
+      <% if (locals.sabitKonu) { %>
+        <div class="vitrin-sabit">
+          <div class="ust-etiket satir"><%- include("partials/ikon", { ad: "sabitle", boyut: 16 }) %> SABİTLENDİ</div>
+          <%- include("partials/gonderi-karti", { konu: sabitKonu }) %>
+        </div>
+      <% } %>
+      <% if (vitrinRozet.length) { %>
+        <div class="vitrin-rozetler">
+          <% for (const r of vitrinRozet) { %>
+            <div class="kart vitrin-rozet">
+              <span class="rozet-cip"><%= r.name %></span>
+              <span class="kucuk"><%= r.description %></span>
+              <span class="ikincil kucuk"><%= new Date(r.earned_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }) %> tarihinde kazanıldı</span>
+            </div>
+          <% } %>
+        </div>
+      <% } %>
+    </section>
+  <% } else if (kendisi) { %>
+    <p class="ikincil kucuk vitrin-bos">Vitrinin boş. En sevdiğin rozetleri ve bir konunu öne çıkar. <a class="baglanti" href="/ayarlar#vitrin">Vitrini düzenle</a></p>
+  <% } %>
+
   <section class="sutun">
     <div class="siralama">
       <a class="<%= sekme === 'konular' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>"<%- sekme === 'konular' ? ' aria-current="page"' : '' %>>Konular</a>
       <a class="<%= sekme === 'yorumlar' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>?sekme=yorumlar"<%- sekme === 'yorumlar' ? ' aria-current="page"' : '' %>>Yorumlar</a>
+      <a class="<%= sekme === 'etkinlik' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>?sekme=etkinlik"<%- sekme === 'etkinlik' ? ' aria-current="page"' : '' %>>Etkinlik</a>
       <%# Puan geçmişi yalnızca kendi profilinde (kendisi); sekme "puan" zaten yalnızca kendisi için açılabilir %>
       <% if (kendisi) { %><a class="<%= sekme === 'puan' ? 'aktif' : '' %>" href="/profil/<%= profil.username %>?sekme=puan"<%- sekme === 'puan' ? ' aria-current="page"' : '' %>>Puan geçmişi</a><% } %>
     </div>
@@ -116,6 +158,28 @@
           <% if (locals.dahaEskiVar) { %><a class="baglanti" href="/profil/<%= profil.username %>?sekme=puan&once=<%= puanGecmisi[puanGecmisi.length - 1].id %>" rel="next">Daha eski →</a><% } %>
         </div>
         <% if (locals.dahaEskiVar) { %><p class="ikincil kucuk"><%= locals.once ? "Bu sayfada 100 hareket gösteriliyor." : "Son 100 hareket gösteriliyor." %></p><% } %>
+      <% } %>
+    <% } else if (sekme === "etkinlik") { %>
+      <%
+        // Her tür için ikon + cümle; kullanıcı metni (başlık, rozet adı, kullanıcı adı) kaçışlı basılır
+        const etkinlikIkon = { konu: "kalem", cevap: "yorum", rozet: "kupa", takip: "kisi" };
+        const etkinlikler_ = locals.etkinlikler || [];
+      %>
+      <% if (etkinlikler_.length === 0) { %><div class="kart bos">Henüz etkinlik yok.</div><% } else { %>
+        <div class="kart puan-gecmisi">
+          <% for (const e of etkinlikler_) { %>
+            <div class="puan-satir etkinlik-satir">
+              <span class="ikincil etkinlik-ikon"><%- include("partials/ikon", { ad: etkinlikIkon[e.tur], boyut: 20 }) %></span>
+              <div class="puan-metin">
+                <% if (e.tur === "konu") { %><span>Konu açtı: <a class="baglanti" href="/konu/<%= e.konu_id %>"><%= e.baslik %></a></span>
+                <% } else if (e.tur === "cevap") { %><span><a class="baglanti" href="/konu/<%= e.konu_id %>#mesaj-<%= e.ek_id %>"><%= e.baslik %></a> konusuna cevap yazdı</span><span class="ikincil kucuk etkinlik-ek"><%= e.ek %></span>
+                <% } else if (e.tur === "rozet") { %><span>“<%= e.baslik %>” rozetini kazandı</span>
+                <% } else { %><span><a class="baglanti" href="/profil/<%= encodeURIComponent(e.baslik) %>"><%= e.baslik %></a> kişisini takip etmeye başladı</span><% } %>
+              </div>
+              <span class="ikincil kucuk etkinlik-zaman"><%= zaman(e.zaman) %></span>
+            </div>
+          <% } %>
+        </div>
       <% } %>
     <% } else if (sekme === "yorumlar") { %>
       <% if (yorumlar.length === 0) { %><div class="kart bos">Henüz yorum yazmamış.</div><% } %>

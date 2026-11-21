@@ -17,6 +17,8 @@
   { eylem: "uzaklastir", ad: "Kullanıcıyı uzaklaştır", ikon: "yasak", tehlike: true }
 ]; %>
 <div class="acilir-menu moderasyon-menusu<%= statik_ ? ' katman-statik' : ' acilir-menu-konumlu' %>"<%- statik_ ? "" : ' id="moderasyon-menusu-' + (locals.post_id ?? "") + '" popover aria-label="Moderasyon işlemleri"' %>>
+  <%# Konunun sahibi aynı zamanda yetkiliyse "Profilime sabitle" öğesi buraya eklenir (konu.ejs ayrı ⋮ çizmez) %>
+  <% if (locals.sahibi) { %><%- include("profil-sabit-oge") %><hr class="acilir-ayirici"><% } %>
   <% for (const e of eylemler_) { %>
     <% if (!e) { %>
       <hr class="acilir-ayirici">

@@ -38,9 +38,17 @@
           <% } else { %>
           <a class="eylem" href="/sikayet?post_id=<%= ilk.id %>" data-sikayet-ac data-post-id="<%= ilk.id %>" data-yazar="<%= ilk.yazar %>"><%- include("partials/ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
           <% } %>
-          <% if (["moderator", "admin"].includes(locals.kullanici?.rol)) { %>
+          <%# Konu sahibinin ⋮ menüsü: profile sabitle / kaldır. Sahip aynı zamanda yetkiliyse tek ⋮ yeter: öğeler moderasyon menüsünün başına eklenir. %>
+          <% const sahibi_ = locals.kullanici && kullanici.id === konu.user_id; const yetkili_ = ["moderator", "admin"].includes(locals.kullanici?.rol); %>
+          <% if (sahibi_ && !yetkili_) { %>
+            <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="konu-menusu" data-menu-ac aria-label="Konu işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
+            <div class="acilir-menu acilir-menu-konumlu" id="konu-menusu" popover aria-label="Konu işlemleri">
+              <%- include("partials/profil-sabit-oge") %>
+            </div>
+          <% } %>
+          <% if (yetkili_) { %>
             <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="moderasyon-menusu-<%= ilk.id %>" data-menu-ac aria-label="Moderasyon işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
-            <%- include("partials/moderasyon-menusu", { post_id: ilk.id, topic_id: konu.id }) %>
+            <%- include("partials/moderasyon-menusu", { post_id: ilk.id, topic_id: konu.id, sahibi: sahibi_ }) %>
           <% } %>
         </div>
       <% } %>

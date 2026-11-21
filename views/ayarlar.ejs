@@ -53,6 +53,30 @@
       <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
     </form>
 
+    <%# Vitrin: profilin üstünde öne çıkan rozetler (en çok 3) ve bir konu. Kenar menüde/dock'ta ayrı öğe yok: Profil bölümünün hemen altında durur. %>
+    <form class="kart bolum" id="vitrin" method="post" action="/ayarlar/vitrin"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+      <div><h2>Vitrin</h2><p class="ikincil kucuk">Profilinin en üstünde öne çıkanlar</p></div>
+      <div class="ust-etiket">ROZETLER · EN ÇOK 3</div>
+      <% if ((ayar.rozetler || []).length === 0) { %>
+        <p class="ikincil kucuk">Henüz rozetin yok. Kazandıkça burada seçebilirsin.</p>
+      <% } else { %>
+        <% for (const r of ayar.rozetler) { %>
+          <label class="ayar-satiri anahtar">
+            <div><strong><%= r.name %></strong><span class="ikincil kucuk"><%= r.description %></span></div>
+            <input type="checkbox" name="rozet" value="<%= r.id %>" <%= r.vitrin_sira ? "checked" : "" %>><span class="ray"></span>
+          </label>
+        <% } %>
+      <% } %>
+      <label class="alan"><span>Sabitlenen konu</span>
+        <select name="sabit_konu_id">
+          <option value="">Yok</option>
+          <% for (const t of (ayar.konular || [])) { %><option value="<%= t.id %>" <%= Number(ayar.sabit_konu_id) === t.id ? "selected" : "" %>><%= t.title %></option><% } %>
+        </select>
+      </label>
+      <div class="yardim"><span>Konuyu konu sayfasındaki ⋮ menüsünden de sabitleyebilirsin · en yeni 50 konun listelenir</span></div>
+      <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
+    </form>
+
     <%- include("partials/profil-gorunumu-bolumu") %>
 
     <form class="kart bolum" id="gorunum" method="post" action="/ayarlar/gorunum"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">

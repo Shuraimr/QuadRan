@@ -73,9 +73,14 @@ forum.get("/", async (req, res) => {
   const kategoriId = sayi(req.query.kategori);
   const sirala = typeof req.query.sirala === "string" && AKIS_SIRALAMA[req.query.sirala] ? req.query.sirala : "yeni";
 
+  // ?akis=takip: yalnızca takip ettiklerimin konuları. Giriş yoksa seçim hiç yok, parametre yok sayılır.
+  const takipAkisi = req.query.akis === "takip" && !!res.locals.kullanici;
+  const kosullar: string[] = [], parametreler: unknown[] = [];
+  if (kategoriId) { kosullar.push("topics.category_id = ?"); parametreler.push(kategoriId); }
+  if (takipAkisi) { kosullar.push("topics.user_id IN (SELECT followed_id FROM user_follows WHERE follower_id = ?)"); parametreler.push(res.locals.kullanici.id); }
   const konular = await konuKartlari({
-    kosul: kategoriId ? "topics.category_id = ?" : "1 = 1",
-    parametreler: kategoriId ? [kategoriId] : [],
+    kosul: kosullar.length ? kosullar.join(" AND ") : "1 = 1",
+    parametreler,
     // Sabitlenmiş konular her zaman en üstte (pinned_at IS NULL: sabitliler için 0, diğerleri 1)
     siralama: "t.pinned_at IS NULL, " + AKIS_SIRALAMA[sirala],
     benimId: res.locals.kullanici?.id,
@@ -96,7 +101,7 @@ forum.get("/", async (req, res) => {
       FROM users WHERE users.deleted_at IS NULL
      ORDER BY users.points DESC, users.username LIMIT 3`);
 
-  res.render("konular", { konular, kategoriler, sohbet, liderler, kategoriId, sirala, aktifMenu: "akis" });
+  res.render("konular", { konular, kategoriler, sohbet, liderler, kategoriId, sirala, takipAkisi, aktifMenu: "akis" });
 });
 
 // ---------------------------------------------------------------------------
@@ -198,6 +203,27 @@ forum.post("/konu/yeni", girisGerekli("Konu açmak için giriş yapman gerekiyor
   res.redirect("/konu/" + konuId);
 });
 
+// Konuyu profile sabitle / kaldır (sql/21). Yalnızca konunun sahibi ve silinmemiş konu; her şey sunucuda denetlenir.
+async function profilSabitle(req: express.Request, res: express.Response, next: express.NextFunction, sabitle: boolean) {
+  const id = sayi(req.params.id);
+  if (!id) return next();
+  const k = res.locals.kullanici;
+  const [[konu]]: any = await pool.query("SELECT id, user_id FROM topics WHERE id = ? AND deleted_at IS NULL", [id]);
+  if (!konu) return next();
+  if (konu.user_id !== k.id) return res.status(403).send("Bu konu senin değil.");
+  if (sabitle) {
+    await pool.query("UPDATE users SET sabit_konu_id = ? WHERE id = ?", [id, k.id]);
+    bildir(req, "basari", "Konu profiline sabitlendi");
+  } else {
+    // Başka bir konu sabitliyse ona dokunma: yalnızca bu konu sabitse kaldır
+    await pool.query("UPDATE users SET sabit_konu_id = NULL WHERE id = ? AND sabit_konu_id = ?", [k.id, id]);
+    bildir(req, "basari", "Konu profilinden kaldırıldı");
+  }
+  res.redirect("/konu/" + id);
+}
+forum.post("/konu/:id/profile-sabitle", girisGerekli(), (req, res, next) => profilSabitle(req, res, next, true));
+forum.post("/konu/:id/profilden-kaldir", girisGerekli(), (req, res, next) => profilSabitle(req, res, next, false));
+
 // ---------------------------------------------------------------------------
 // Konu sayfası: /konu/5?sirala=eniyi|yeni
 // ---------------------------------------------------------------------------
@@ -252,6 +278,11 @@ forum.get("/konu/:id", async (req, res, next) => {
   // Çözümü konu sahibi (ya da yetkili) işaretler; kilitli konuda da işaretlenebilir (yeni cevap değil, düzenleme)
   const ben = res.locals.kullanici;
   konu.cozumIsaretleyebilir = !!ben && (ben.id === konu.user_id || yetkiliMi(ben.rol));
+  // ⋮ menüsündeki "Profilime sabitle / Profilimden kaldır" yalnızca konunun sahibine; hangisinin görüneceği için mevcut durum
+  if (ben && ben.id === konu.user_id) {
+    const [[sb]]: any = await pool.query("SELECT sabit_konu_id FROM users WHERE id = ?", [ben.id]);
+    konu.profilde_sabit = Number(sb?.sabit_konu_id) === konu.id;
+  }
 
   konu.duzenlendi = !!ilk?.updated_at;
   konu.kilitli = !!konu.locked_at;
@@ -560,14 +591,17 @@ forum.get("/profil/:username/kart", async (req, res) => {
 
 forum.get("/profil/:username", async (req, res, next) => {
   const [satirlar]: any = await pool.query(
-    `SELECT users.id, users.username, users.bio, users.konum, users.web_sitesi, users.created_at, users.points,
+    `SELECT users.id, users.username, users.bio, users.konum, users.web_sitesi, users.created_at, users.points, users.sabit_konu_id,
             ${profilGorunumSutunlari("users")}, -- avatar, banner, efekt, süs, renkler (premium'a bağlı olanlar premium değilse NULL)
             roles.name AS rol,
             ${rutbeSutunlari("users")},
             (SELECT COUNT(*) FROM topics WHERE topics.user_id = users.id AND topics.deleted_at IS NULL) AS konu_sayisi,
             (SELECT COUNT(*) FROM posts WHERE posts.user_id = users.id AND posts.deleted_at IS NULL) AS mesaj_sayisi,
             (SELECT COALESCE(SUM(post_votes.value), 0) FROM post_votes
-               JOIN posts ON posts.id = post_votes.post_id WHERE posts.user_id = users.id) AS alinan_oy
+               JOIN posts ON posts.id = post_votes.post_id WHERE posts.user_id = users.id) AS alinan_oy,
+            -- Silinmiş hesaplar listelerde görünmediği için sayıda da sayılmaz (src/rotalar/takip.ts ile tutarlı)
+            (SELECT COUNT(*) FROM user_follows f JOIN users u ON u.id = f.follower_id AND u.deleted_at IS NULL WHERE f.followed_id = users.id) AS takipci_sayisi,
+            (SELECT COUNT(*) FROM user_follows f JOIN users u ON u.id = f.followed_id AND u.deleted_at IS NULL WHERE f.follower_id = users.id) AS takip_sayisi
        FROM users
        JOIN roles ON roles.id = users.role_id
       WHERE users.username = ? AND users.deleted_at IS NULL`,
@@ -578,6 +612,8 @@ forum.get("/profil/:username", async (req, res, next) => {
   const hamRol = profil.rol; // yetki denetimi için ham rol adı (aşağıda ekranda gösterilecek Türkçe etikete çevrilir)
   profil.rol = ROL_ADLARI[profil.rol] ?? profil.rol;
   profil.alinan_oy = Number(profil.alinan_oy);
+  profil.takipci_sayisi = Number(profil.takipci_sayisi);
+  profil.takip_sayisi = Number(profil.takip_sayisi);
 
   // Rütbe kartı: bütün rütbeler (renk/simge/ayrıcalık), şimdiki, sonraki ve sonrakinde YENİ açılanlar
   const tumRutbeler = await rutbeler();
@@ -590,7 +626,20 @@ forum.get("/profil/:username", async (req, res, next) => {
   );
   // "puan" (puan geçmişi) yalnızca kişinin kendi profilinde görünür; başkası istese de Konular açılır
   const kendisi = res.locals.kullanici?.id === profil.id;
-  const sekme = req.query.sekme === "yorumlar" ? "yorumlar" : req.query.sekme === "puan" && kendisi ? "puan" : "konular";
+  const sekme = req.query.sekme === "yorumlar" ? "yorumlar" : req.query.sekme === "etkinlik" ? "etkinlik" : req.query.sekme === "puan" && kendisi ? "puan" : "konular";
+
+  // Vitrin (sql/21): sabitlenmiş konu + en çok 3 vitrin rozeti. Sabit konu yalnızca hâlâ kişinin KENDİ ve silinmemiş konusuysa
+  // gösterilir (konu sonradan silinmiş ya da kayıt elle bozulmuş olsa bile başkasının konusu profilde öne çıkmaz).
+  const sabitKonu = profil.sabit_konu_id
+    ? (await konuKartlari({ kosul: "topics.id = ? AND topics.user_id = ?", parametreler: [profil.sabit_konu_id, profil.id], benimId: res.locals.kullanici?.id, limit: 1 }))[0] ?? null
+    : null;
+  const [vitrinRozetleri]: any = await pool.query(
+    `SELECT badges.name, badges.description, user_badges.earned_at
+       FROM user_badges JOIN badges ON badges.id = user_badges.badge_id
+      WHERE user_badges.user_id = ? AND user_badges.vitrin_sira IS NOT NULL
+      ORDER BY user_badges.vitrin_sira LIMIT 3`,
+    [profil.id]
+  );
   const konular = sekme === "konular"
     ? await konuKartlari({ kosul: "topics.user_id = ?", parametreler: [profil.id], benimId: res.locals.kullanici?.id })
     : [];
@@ -610,6 +659,31 @@ forum.get("/profil/:username", async (req, res, next) => {
       [profil.id]
     )) as any;
     for (const y of yorumlar) y.content = kisalt(y.content, 300);
+  }
+
+  // Etkinlik sekmesi: YALNIZCA herkese açık eylemler (konu açma, cevap, rozet, takip). Oy, puan, özel mesaj gibi gizli şeyler
+  // bilerek yok. Dört kaynak UNION ALL ile tek listede birleşir, zamana göre yeniden eskiye en çok 30 satır.
+  // Sütunlar: tur, zaman, konu_id (varsa), baslik (konu başlığı / rozet adı / takip edilen), ek (cevap metni / rozet açıklaması), ek_id (cevap id).
+  let etkinlikler: any[] = [];
+  if (sekme === "etkinlik") {
+    [etkinlikler] = (await pool.query(
+      `(SELECT 'konu' AS tur, t.created_at AS zaman, t.id AS konu_id, t.title AS baslik, NULL AS ek, NULL AS ek_id
+          FROM topics t WHERE t.user_id = ? AND t.deleted_at IS NULL)
+       UNION ALL
+       (SELECT 'cevap', p.created_at, t.id, t.title, p.content, p.id
+          FROM posts p JOIN topics t ON t.id = p.topic_id AND t.deleted_at IS NULL
+         WHERE p.user_id = ? AND p.deleted_at IS NULL
+           AND p.id <> (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = p.topic_id))
+       UNION ALL
+       (SELECT 'rozet', ub.earned_at, NULL, b.name, b.description, NULL
+          FROM user_badges ub JOIN badges b ON b.id = ub.badge_id WHERE ub.user_id = ?)
+       UNION ALL
+       (SELECT 'takip', f.created_at, NULL, u.username, NULL, NULL
+          FROM user_follows f JOIN users u ON u.id = f.followed_id AND u.deleted_at IS NULL WHERE f.follower_id = ?)
+       ORDER BY zaman DESC LIMIT 30`,
+      [profil.id, profil.id, profil.id, profil.id]
+    )) as any;
+    for (const e of etkinlikler) if (e.tur === "cevap") e.ek = kisalt(e.ek, 140);
   }
 
   // Puan geçmişi (yeniden eskiye, sayfa başı 100): her satırın nedeni ve varsa ilgili konu/mesaj bağlantısı.
@@ -653,9 +727,22 @@ forum.get("/profil/:username", async (req, res, next) => {
   const ben = res.locals.kullanici;
   const durum = ben && ben.id !== profil.id ? await mesajDurumu(ben.id, profil.id) : null;
 
+  // Takip düğmesi: ziyaretçi takip ediyor mu, aramızda (iki yönde) engel var mı. Engel varsa düğme hiç çizilmez.
+  let benTakipEdiyorMu = false, aradaEngelVar = false;
+  if (ben && ben.id !== profil.id) {
+    const [[t]]: any = await pool.query(
+      `SELECT (SELECT COUNT(*) FROM user_follows WHERE follower_id = ? AND followed_id = ?) AS takip,
+              (SELECT COUNT(*) FROM user_blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)) AS engel`,
+      [ben.id, profil.id, ben.id, profil.id, profil.id, ben.id]
+    );
+    benTakipEdiyorMu = Number(t.takip) > 0;
+    aradaEngelVar = Number(t.engel) > 0;
+  }
+
   res.render("profil", {
+    benTakipEdiyorMu, aradaEngelVar,
     mesajAtabilir: durum === "izinli", engelledim: durum === "ben_engelledim",
-    profil, rutbeler: tumRutbeler, simdiki, sonraki, acilacaklar, rozetler, konular, haftalik, sekme, yorumlar, puanGecmisi, dahaEskiVar, once, yetkiliProfil: yetkiliMi(hamRol),
+    profil, rutbeler: tumRutbeler, simdiki, sonraki, acilacaklar, rozetler, konular, haftalik, sekme, yorumlar, etkinlikler, sabitKonu, vitrinRozetleri, puanGecmisi, dahaEskiVar, once, yetkiliProfil: yetkiliMi(hamRol),
     kendisi,
     aktifMenu: res.locals.kullanici?.id === profil.id ? "profil" : undefined,
   });

@@ -1,0 +1,50 @@
+<%#
+  Takipçiler / takip edilenler listesi: /profil/:username/takipciler ve /takip-edilenler (src/rotalar/takip.ts)
+  Beklenen veriler:
+  profil        { username }
+  tur           "takipciler" | "takip-edilenler"   açık sekme
+  kisiler       [ { username, points, rutbe, rutbe_id, avatar_url, avatar_susu } ]   en yeni takip önce
+  sayfa, sayfaSayisi   50'lik sayfalama
+  takipciSayisi, takipSayisi   sekme etiketlerindeki sayılar
+  Biçim /ara sayfasının kullanıcı listesiyle aynıdır (ara-sayfa, ara-satir, siralama sekmeleri): yeni CSS yok.
+%>
+<%- include("partials/bas", { baslik: (tur === "takipciler" ? "Takipçiler" : "Takip edilenler") + " · " + profil.username }) %>
+<%- include("partials/ust-cubuk") %>
+<%
+  const tkAdres = "/profil/" + encodeURIComponent(profil.username);
+  const tkSekmeler = [{ ad: "takipciler", etiket: "Takipçiler", sayi: takipciSayisi }, { ad: "takip-edilenler", etiket: "Takip edilenler", sayi: takipSayisi }];
+%>
+<main class="ara-sayfa">
+  <a class="baglanti" href="<%= tkAdres %>">← <%= profil.username %></a>
+  <nav class="ara-sekmeler" aria-label="Takip listesi">
+    <div class="siralama">
+      <% for (const s of tkSekmeler) { %>
+        <a class="<%= tur === s.ad ? 'aktif' : '' %>" href="<%= tkAdres %>/<%= s.ad %>"<%- tur === s.ad ? ' aria-current="page"' : '' %>><%= s.etiket %> <span class="ara-sayi"><%= s.sayi %></span></a>
+      <% } %>
+    </div>
+  </nav>
+
+  <% if (kisiler.length === 0) { %>
+    <div class="kart bos"><%= tur === "takipciler" ? "Henüz takipçisi yok." : "Henüz kimseyi takip etmiyor." %></div>
+  <% } else { %>
+    <div class="ara-liste">
+      <% for (const u of kisiler) { %>
+        <a class="kart ara-satir" href="/profil/<%= encodeURIComponent(u.username) %>">
+          <%- include("partials/avatar", { ad: u.username, url: u.avatar_url, sus: u.avatar_susu, sinif: "avatar-48", bos: true }) %>
+          <span class="ara-satir-govde">
+            <span class="satir"><strong><%= u.username %></strong><% if (u.rutbe) { %><%- include("partials/rutbe", { rutbeAd: u.rutbe, rutbeId: u.rutbe_id }) %><% } %></span>
+          </span>
+          <span class="puan"><%= u.points %> puan</span>
+        </a>
+      <% } %>
+    </div>
+    <% if (sayfaSayisi > 1) { %>
+      <div class="puan-sayfa">
+        <% if (sayfa > 1) { %><a class="baglanti" href="<%= tkAdres %>/<%= tur %>?sayfa=<%= sayfa - 1 %>" rel="prev">← Önceki</a><% } else { %><span></span><% } %>
+        <span class="ikincil kucuk"><%= sayfa %> / <%= sayfaSayisi %></span>
+        <% if (sayfa < sayfaSayisi) { %><a class="baglanti" href="<%= tkAdres %>/<%= tur %>?sayfa=<%= sayfa + 1 %>" rel="next">Sonraki →</a><% } else { %><span></span><% } %>
+      </div>
+    <% } %>
+  <% } %>
+</main>
+<%- include("partials/son") %>

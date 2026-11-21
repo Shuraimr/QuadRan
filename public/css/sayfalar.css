@@ -73,6 +73,12 @@
 .ara-sekmeler { max-width: 100%; }
 .ara-sekmeler .siralama { max-width: 100%; }
 .ara-sekmeler .siralama a { min-width: 0; flex: 1 1 auto; white-space: nowrap; }
+/* Profil sekmeleri kendi profilinde 4 tane (Konular, Yorumlar, Etkinlik, Puan geçmişi): telefonda sığmazsa sütunu
+   genişletip sayfayı sağdan kesmesin diye sütun daralabilir (min-width: 0) ve çubuk yatay kaydırılır. */
+.profil > * { min-width: 0; }
+.profil .siralama { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.profil .siralama a { min-width: 0; flex: 0 0 auto; white-space: nowrap; }
+@media (max-width: 800px) { .profil .siralama a { padding: 0 12px; } }
 .ara-sayi { padding: 1px 8px; border-radius: 10px; background: var(--yuzey-3); color: var(--yazi-2); font-size: 12px; font-weight: 700; }
 .ara-sekmeler .siralama a.aktif .ara-sayi { background: var(--vurgu); color: var(--vurgu-ustu); }
 .ara-sayfa mark { padding: 0 2px; border-radius: 4px; background: var(--ton); color: var(--ton-ustu); }
@@ -523,4 +529,26 @@
   .rutbeler-sayfa { padding: 20px 16px 48px; }
   .rutbe-satir { padding: 10px 12px; gap: 10px; }
   .rutbe-satir .rutbe-kutu { width: 40px; height: 40px; border-radius: 12px; }
+}
+
+/* Akış üstündeki iki segment (Herkes | Takip ettiklerin ve sıralama) yan yana, dar ekranda alt alta sarar */
+.akis-kontrol { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+
+/* Profil vitrini: sabit konu + en çok 3 rozet kartı. Rozet kartları yan yana, dar ekranda alta sarar (en az 200px). */
+.vitrin { display: grid; gap: 12px; }
+.vitrin-sabit { display: grid; gap: 8px; }
+.vitrin-rozetler { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.vitrin-rozet { display: grid; justify-items: start; align-content: start; gap: 6px; padding: 12px 16px; }
+.vitrin-bos { margin: 0; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.vitrin-bos .baglanti { display: inline-flex; align-items: center; min-height: 44px; }
+/* Etkinlik satırı: ikon + metin + zaman; ikon sabit genişlikte, metin taşarsa kırılır (yatay taşma yok) */
+.etkinlik-satir { align-items: flex-start; }
+.etkinlik-ikon { flex: none; display: inline-flex; padding-top: 2px; }
+.etkinlik-satir .puan-metin { flex: 1; overflow-wrap: anywhere; }
+.etkinlik-ek { flex-basis: 100%; }
+.etkinlik-zaman { flex: none; white-space: nowrap; }
+@media (max-width: 800px) {
+  .etkinlik-satir { flex-wrap: wrap; }
+  .etkinlik-satir .puan-metin { flex-basis: calc(100% - 40px); }
+  .etkinlik-zaman { flex-basis: 100%; padding-left: 32px; }
 }

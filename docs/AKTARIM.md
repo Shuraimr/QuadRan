@@ -25,6 +25,8 @@ docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' 
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/17_puan_tavani.sql    # puan_gunluk_tavan ayarı (bir kez)
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/18_profil_premium.sql    # profil/premium sütunları (users: premium_bitis, profil_efekti, avatar_susu, profil_renk_ana/vurgu/gecis, avatar_hareketli, banner_hareketli; bir kez)
 docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/19_banner_konum.sql    # users.banner_konum ENUM(ust,orta,alt) DEFAULT orta (bir kez)
+docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/20_takip.sql    # user_follows tablosu + notifications.tur'a 'takip' (bir kez)
+docker exec -i quadran-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" quadran' < sql/21_profil_vitrin.sql    # user_badges.vitrin_sira (1–3) + users.sabit_konu_id (FK topics, ON DELETE SET NULL) (bir kez; ALTER TABLE tekrar çalışmaz)
 node --env-file=.env src/server.ts
 ```
 
@@ -39,6 +41,7 @@ Deneme kullanıcıları (şifre hepsinde `test1234`): `shurai` (admin), `ayse` (
 | `src/rotalar/iletisim.ts` | `/mesajlar`, `GET /mesajlar/yeni?q=` (JS'siz kullanıcı arama), `GET /mesajlar/kisi-ara?q=` (JSON, en fazla 8), `/mesajlar/:kullanici` (GET/POST), `POST /mesajlar/mesaj/:id/sil` (kendi mesajını yumuşak sil), `POST /engel/:kullanici`, `POST /engel/:kullanici/kaldir`, `/bildirimler`, `/bildirimler/:id`, `POST /bildirimler/okundu`, `/sohbet` (GET herkese açık, POST üyeye; üyede sohbet merkezi, `?genel=1` telefonda genel sohbet konuşmasını açar) |
 | `src/rotalar/hesap.ts` (profil görünümü) | `POST /ayarlar/avatar`, `/ayarlar/banner` (multipart, alan `dosya`), `POST /ayarlar/avatar/kaldir`, `/ayarlar/banner/kaldir`, `POST /ayarlar/profil-gorunumu` (`efekt`, `sus`, `renk_kullan`, `renk_gecis=duz\|gecis`, `renk_ana`, `renk_vurgu`, `varsayilana_don`) |
 | `src/rotalar/premium.ts` | `GET /premium` (yer tutucu: kişinin kendi kartı + "Premium şu an yönetici tarafından veriliyor") |
+| `src/rotalar/takip.ts` | `POST /takip/:kullanici` (takip et), `POST /takip/:kullanici/birak`, `GET /profil/:username/takipciler`, `GET /profil/:username/takip-edilenler` (`?sayfa=`, 50'lik). Takip yalnızca giriş yapana; kendini takip, silinmiş hesap ve aralarında (iki yönde) engel olan kişi reddedilir; dakikada 30 işlem sınırı. Yeni takipte `takip` bildirimi (tekrar takip bildirim üretmez). Akışta `/?akis=takip` yalnızca takip edilenlerin konularını gösterir (giriş yoksa yok sayılır) |
 | `src/rotalar/forum.ts` (kart) | `GET /profil/:ad/kart` (üye kartı penceresi için kısmi HTML) |
 | `src/rotalar/rutbe.ts` | `GET /rutbeler` (herkese açık): rütbe listesi + "Puan nasıl kazanılır?" (bölüm "Rütbe sistemi") |
 | `src/rotalar/odalar.ts` | Özel odalar, aşağıdaki "Özel odalar" bölümüne bak: `GET /oda/yeni`, `POST /oda`, `GET /oda/:id` (+ `/uyeler\|davet\|baglantilar\|ayarlar\|ayril` yedek pencere adresleri), `POST /oda/:id/mesaj\|sessiz\|ayril\|ayarlar\|sil\|davet\|baglanti`, `POST /oda/:id/mesaj/:mid/sil`, `POST /oda/:id/davet/:did/iptal`, `POST /oda/:id/baglanti/:lid/iptal`, `POST /oda/:id/uye/:uid/yonetici\|sahiplik\|cikar`, `GET /oda/:id/kisi-ara?q=` (JSON), `POST /oda/davet/:did/kabul\|ret`, `GET/POST /oda/katil/:kod` |
@@ -52,7 +55,8 @@ Yetki: `girisGerekli()` giriş yoksa `/giris?don=...` adresine yollar; `yetkiliG
 
 ## Tablolar (sql/06_etkilesim.sql, sql/07_hesap.sql, sql/08_yonetim.sql)
 
-`post_votes` (PK user_id + post_id, value +1/-1, puan_etkisi: bu oyun yazara gerçekte uyguladığı puan, sql/16), `notifications` (tur: cevap, oy, rozet, mesaj, moderasyon, duyuru),
+`post_votes` (PK user_id + post_id, value +1/-1, puan_etkisi: bu oyun yazara gerçekte uyguladığı puan, sql/16), `notifications` (tur: cevap, oy, rozet, mesaj, moderasyon, duyuru, oda, rutbe, takip),
+`user_follows` (sql/20: PK follower_id + followed_id, created_at, FK'ler ON DELETE CASCADE, CHECK kendini takip yok; engel eklenince iki yönde de silinir: `takipleriSil`, src/gizlilik.ts),
 `reports` (durum bekliyor/islendi/reddedildi), oturum tablosu.
 `reports` bir mesajı (`post_id`) ya da bir kullanıcıyı (`reported_user_id`) hedefler, ikisi birden dolu olamaz (CHECK).
 UNIQUE (post_id, reporter_id) ve UNIQUE (reported_user_id, reporter_id): aynı kişi aynı hedefi iki kez şikâyet edemez.
@@ -363,3 +367,11 @@ Eksik ya da yanlışsa yanıt 403 olur, toast yazılır ve küçük bir sayfa ku
   `/onizleme/siralama`, `/onizleme/sohbet`, `/onizleme/moderasyon`. Parametreler: `?misafir=1`, `?bos=1`, `?tema=acik&vurgu=zumrut`, `?menu=sag`.
 - Moderatör düğmesi `kullanici.rol` "moderator" veya "admin" ise görünür.
 - Kilitli konuda cevap formu yerine not gösterilir, sabitli konular akışta "Sabit" etiketiyle en üstte durur.
+
+## Profil vitrini ve etkinlik (sql/21_profil_vitrin.sql)
+
+- **Sütunlar:** `user_badges.vitrin_sira` TINYINT NULL (1–3 = vitrinde bu sırada, NULL = değil); `users.sabit_konu_id` INT UNSIGNED NULL, FK `topics(id)` ON DELETE SET NULL.
+- **Profil** (`GET /profil/:ad`, `views/profil.ejs`): sekmelerin üstünde "Vitrin": sabit konu (yalnızca hâlâ kişinin kendi ve silinmemiş konusuysa; `konuKartlari` + gonderi-karti, "Sabitlendi" etiketi) ve en çok 3 vitrin rozeti (ad, açıklama, kazanma tarihi). Boşsa başkasının profilinde alan çizilmez; kendi profilinde `/ayarlar#vitrin`'e giden ince satır. Kenardaki tam rozet listesi aynen kalır.
+- **Etkinlik sekmesi** (`?sekme=etkinlik`, herkese açık): UNION ALL ile en çok 30 satır, yeniden eskiye: konu açtı, cevap yazdı (ilk mesaj değil), rozet kazandı, takip etmeye başladı (silinmemiş hesaplar). Oy/puan/mesaj YOK.
+- **Ayarlar:** `POST /ayarlar/vitrin` (`rozet` onay kutuları ≤3 ve kişinin kendi rozeti olmalı, `sabit_konu_id` kişinin silinmemiş konusu ya da boş). Sıra = kazanma sırası. Bölüm `/ayarlar#vitrin`, Profil formunun altında (menüde ayrı öğe yok).
+- **Konu sayfası ⋮ menüsü (yalnızca konu sahibi):** `POST /konu/:id/profile-sabitle`, `POST /konu/:id/profilden-kaldir` (sahiplik + silinmemişlik denetimi; kaldır yalnızca bu konu sabitse). Sahip aynı zamanda yetkiliyse öğe moderasyon menüsünün başına eklenir (`partials/profil-sabit-oge.ejs`).

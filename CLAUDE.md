@@ -27,11 +27,11 @@ src/islemler.ts      yetkili işlemleri (ban, soft delete/geri al), src/sikayet.
 src/hiz-siniri.ts    bellek içi hız sınırı, src/sifre.ts scrypt
 src/yukleme.ts       dosya yükleme (multer + sharp, avatar/banner; ileride sohbet/oda/DM), src/premium.ts premiumMu, src/profil-gorunum.ts efekt/süs verisi
 src/rotalar/         hesap, forum (akış/konu/profil/ara/sıralama/keşfet/şikâyet), mesaj (kendi mesajını düzenle/sil),
-                     iletisim (DM, bildirim, sohbet, engel), moderasyon (sitedeki ⋮ menüsü), yonetim-* (/yonetim paneli)
+                     takip (takip et/bırak, takipçi listeleri, sql/20), iletisim (DM, bildirim, sohbet, engel), moderasyon (sitedeki ⋮ menüsü), yonetim-* (/yonetim paneli)
 views/partials/      avatar (resim+süs), profil-karti, profil-efekt, avatar-sus, profil-gorunumu-bolumu, ust-cubuk, kenar-menu (masaüstü sol menü + tablet rayı), alt-menu (telefon), avatar-menusu, bildirim-paneli,
                      sikayet-penceresi, oy, yorum, gonderi-karti, ikon (SVG ikon seti), bas/son
 views/yonetim/       panel şablonları (duzen-ust/duzen-alt ortak düzen)
-sql/01..19           sırayla uygulanan şema + seed + değişiklikler (Docker ilk kurulumda hepsini çalıştırır)
+sql/01..21           sırayla uygulanan şema + seed + değişiklikler (Docker ilk kurulumda hepsini çalıştırır)
 ```
 
 ## Kodlama kuralları

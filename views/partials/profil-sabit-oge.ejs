@@ -1,0 +1,4 @@
+<%# Konu sahibinin menü öğesi: konuyu profilinde sabitle ya da kaldır. Beklenen: konu { id, profilde_sabit } %>
+<form method="post" action="/konu/<%= konu.id %>/<%= konu.profilde_sabit ? 'profilden-kaldir' : 'profile-sabitle' %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+  <button class="acilir-oge" type="submit"><%- include("ikon", { ad: "sabitle", boyut: 20 }) %><span class="acilir-ad"><%= konu.profilde_sabit ? "Profilimden kaldır" : "Profilime sabitle" %></span></button>
+</form>

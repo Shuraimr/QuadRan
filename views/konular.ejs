@@ -1,17 +1,19 @@
 <%- include("partials/bas") %>
   <%- include("partials/ust-cubuk") %>
+  <%# ?akis=takip seçiliyken kategori ve sıralama bağlantıları da bunu korur (giriş yoksa takipAkisi hep false) %>
+  <% const akisEki = locals.takipAkisi ? "&akis=takip" : ""; %>
 
   <div class="govde govde-akis">
     <%# Masaüstü ve tabletteki kategori listesi kenar menüde; bu sütun yalnızca telefonda yatay çipler olarak kalır (CSS) %>
     <nav class="sutun akis-kategoriler" id="kategoriler" aria-label="Kategoriler">
       <div class="bolum-etiketi">KATEGORİLER</div>
       <div class="kategoriler">
-        <a class="kategori-ogesi <%= !locals.kategoriId ? 'aktif' : '' %>" href="/?sirala=<%= locals.sirala || 'yeni' %>">
+        <a class="kategori-ogesi <%= !locals.kategoriId ? 'aktif' : '' %>" href="/?sirala=<%= locals.sirala || 'yeni' %><%= akisEki %>">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
           Tümü
         </a>
         <% for (const kategori of kategoriler) { %>
-          <a class="kategori-ogesi <%= locals.kategoriId === kategori.id ? 'aktif' : '' %>" href="/?kategori=<%= kategori.id %>&sirala=<%= locals.sirala || 'yeni' %>">
+          <a class="kategori-ogesi <%= locals.kategoriId === kategori.id ? 'aktif' : '' %>" href="/?kategori=<%= kategori.id %>&sirala=<%= locals.sirala || 'yeni' %><%= akisEki %>">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>
             <%= kategori.name %>
           </a>
@@ -25,16 +27,35 @@
         const sekmeler = [["yeni", "Yeni"], ["populer", "Popüler"], ["eniyi", "En iyi"]];
         const suAnki = locals.sirala || "yeni";
       %>
+      <div class="akis-kontrol">
+      <%# Herkes | Takip ettiklerin: yalnızca giriş yapmış kişide. Sıralama ve kategori seçimi korunur. %>
+      <% if (locals.kullanici) { %>
+        <div class="siralama" role="group" aria-label="Akış kaynağı">
+          <% for (const [ad, etiket] of [["", "Herkes"], ["takip", "Takip ettiklerin"]]) { %>
+            <% const secili = (ad === "takip") === !!locals.takipAkisi; %>
+            <a class="<%= secili ? 'aktif' : '' %>" href="/?sirala=<%= suAnki %><%= locals.kategoriId ? '&kategori=' + kategoriId : '' %><%= ad ? '&akis=' + ad : '' %>"<%- secili ? ' aria-current="true"' : '' %>>
+              <% if (secili) { %><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><% } %>
+              <%= etiket %>
+            </a>
+          <% } %>
+        </div>
+      <% } %>
       <div class="siralama">
         <% for (const [ad, etiket] of sekmeler) { %>
-          <a class="<%= suAnki === ad ? 'aktif' : '' %>" href="/?sirala=<%= ad %><%= locals.kategoriId ? '&kategori=' + kategoriId : '' %>">
+          <a class="<%= suAnki === ad ? 'aktif' : '' %>" href="/?sirala=<%= ad %><%= locals.kategoriId ? '&kategori=' + kategoriId : '' %><%= akisEki %>">
             <% if (suAnki === ad) { %><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><% } %>
             <%= etiket %>
           </a>
         <% } %>
       </div>
+      </div>
 
-      <% if (konular.length === 0) { %>
+      <% if (konular.length === 0 && locals.takipAkisi) { %>
+        <div class="kart bos">
+          Takip ettiğin kimse yok ya da henüz konu açmadılar.
+          <a class="baglanti" href="/siralama">Kimleri takip edebileceğine bak</a>
+        </div>
+      <% } else if (konular.length === 0) { %>
         <div class="kart bos">
           <%= locals.kategoriId ? "Bu kategoride henüz konu yok." : "Henüz konu yok." %>
           <a class="baglanti" href="/konu/yeni<%= locals.kategoriId ? '?kategori=' + kategoriId : '' %>">İlk konuyu sen aç.</a>

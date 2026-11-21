@@ -249,7 +249,7 @@ hesap.post("/sifre-sifirla/:token", async (req, res) => {
 async function ayarlariOku(userId: number) {
   const [satirlar]: any = await pool.query(
     `SELECT username, bio, konum, web_sitesi, imza, dm_izni, cevrimici_goster, email, avatar_url, banner_url, created_at, tema, vurgu, menu_sagda, kompakt, az_animasyon,
-            premium_bitis, banner_konum, ${premiumSql("users")} AS premium_aktif, profil_efekti, avatar_susu, profil_renk_ana, profil_renk_vurgu, profil_renk_gecis
+            premium_bitis, banner_konum, sabit_konu_id, ${premiumSql("users")} AS premium_aktif, profil_efekti, avatar_susu, profil_renk_ana, profil_renk_vurgu, profil_renk_gecis
        FROM users WHERE id = ?`,
     [userId]
   );
@@ -262,6 +262,13 @@ async function ayarlariOku(userId: number) {
     [userId]
   );
   ayar.engelliler = engelliler;
+  // Vitrin bölümü (sql/21): kişinin rozetleri (kazanma sırasıyla; vitrin_sira doluysa seçili) ve sabitlenebilecek konuları (en yeni 50)
+  [ayar.rozetler] = (await pool.query(
+    `SELECT badges.id, badges.name, badges.description, user_badges.vitrin_sira
+       FROM user_badges JOIN badges ON badges.id = user_badges.badge_id
+      WHERE user_badges.user_id = ? ORDER BY user_badges.earned_at, badges.id`, [userId])) as any;
+  [ayar.konular] = (await pool.query(
+    "SELECT id, title FROM topics WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC, id DESC LIMIT 50", [userId])) as any;
   return ayar;
 }
 
@@ -311,6 +318,41 @@ hesap.post("/ayarlar/profil", girisGerekli(), async (req, res) => {
   if (imzaIzni) await pool.query("UPDATE users SET imza = ? WHERE id = ?", [imza || null, k.id]);
   bildir(req, "basari", "Profilin kaydedildi");
   res.redirect("/ayarlar#profil");
+});
+
+// Vitrin: en çok 3 rozet + sabit konu. Hepsi sunucuda yeniden doğrulanır (formdaki değerler değiştirilebilir).
+hesap.post("/ayarlar/vitrin", girisGerekli(), async (req, res) => {
+  const k = res.locals.kullanici;
+  const geri = "/ayarlar#vitrin";
+  // Tek onay kutusu string, çoğu dizi gelir; sayıya çevirip yinelenenleri at. Sıra = kişinin rozetlerinin kazanma sırası (seçim sırası değil).
+  const gelen = ([] as unknown[]).concat(req.body.rozet ?? []);
+  const secilen = [...new Set(gelen.map((v) => Number(v)))];
+  if (secilen.some((n) => !Number.isInteger(n) || n < 1)) { bildir(req, "hata", "Geçersiz rozet seçimi."); return res.redirect(geri); }
+  if (secilen.length > 3) { bildir(req, "hata", "Vitrine en çok 3 rozet koyabilirsin."); return res.redirect(geri); }
+  const [sahip]: any = await pool.query("SELECT badge_id FROM user_badges WHERE user_id = ? ORDER BY earned_at, badge_id", [k.id]);
+  const sahipOlunan: number[] = sahip.map((r: any) => r.badge_id);
+  if (secilen.some((n) => !sahipOlunan.includes(n))) { bildir(req, "hata", "Yalnızca kazandığın rozetleri vitrine koyabilirsin."); return res.redirect(geri); }
+
+  // Sabit konu: boş = yok; doluysa kişinin kendi ve silinmemiş konusu olmalı
+  const ham = metin(req.body.sabit_konu_id);
+  let sabitId: number | null = null;
+  if (ham) {
+    sabitId = Number(ham);
+    const [[konu]]: any = Number.isInteger(sabitId) && sabitId > 0
+      ? await pool.query("SELECT id FROM topics WHERE id = ? AND user_id = ? AND deleted_at IS NULL", [sabitId, k.id])
+      : [[null]];
+    if (!konu) { bildir(req, "hata", "Yalnızca kendi konularından birini sabitleyebilirsin."); return res.redirect(geri); }
+  }
+
+  // Önce hepsini vitrinden çıkar, sonra seçilenlere kazanma sırasıyla 1..n ver
+  await pool.query("UPDATE user_badges SET vitrin_sira = NULL WHERE user_id = ?", [k.id]);
+  const sirali = sahipOlunan.filter((id) => secilen.includes(id));
+  for (let i = 0; i < sirali.length; i++) {
+    await pool.query("UPDATE user_badges SET vitrin_sira = ? WHERE user_id = ? AND badge_id = ?", [i + 1, k.id, sirali[i]]);
+  }
+  await pool.query("UPDATE users SET sabit_konu_id = ? WHERE id = ?", [sabitId, k.id]);
+  bildir(req, "basari", "Vitrinin kaydedildi");
+  res.redirect(geri);
 });
 
 hesap.post("/ayarlar/gorunum", girisGerekli(), async (req, res) => {

@@ -3,7 +3,7 @@ import express from "express";
 import { pool } from "../db.ts";
 import { yasakliIfade } from "../ayarlar.ts";
 import { rutbeSutunlari, bildirimGonder, bildir, kisalt, girisGerekli, sayi, metin, likeKac, geriAdres } from "../yardimci.ts";
-import { mesajDurumu, cevrimiciSql } from "../gizlilik.ts";
+import { mesajDurumu, cevrimiciSql, takipleriSil } from "../gizlilik.ts";
 import { hubVerisi } from "../odalar.ts";
 
 export const iletisim = express.Router();
@@ -187,6 +187,7 @@ iletisim.post("/engel/:kullanici", girisGerekli(), async (req, res, next) => {
   if (hedef === undefined) return;
   if (!hedef) return next();
   await pool.query("INSERT IGNORE INTO user_blocks (blocker_id, blocked_id) VALUES (?, ?)", [res.locals.kullanici.id, hedef.id]);
+  await takipleriSil(res.locals.kullanici.id, hedef.id); // engel takibi de bitirir (src/gizlilik.ts)
   bildir(req, "basari", `${hedef.username} engellendi`);
   res.redirect(geriAdres(req, "/mesajlar"));
 });

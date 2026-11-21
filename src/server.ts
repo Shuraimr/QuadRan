@@ -6,6 +6,7 @@ import { oturum, ortakVeriler, csrfKoru } from "./oturum.ts";
 import { hesap } from "./rotalar/hesap.ts";
 import { forum } from "./rotalar/forum.ts";
 import { mesaj } from "./rotalar/mesaj.ts";
+import { takip } from "./rotalar/takip.ts";
 import { rutbeRotasi } from "./rotalar/rutbe.ts";
 import { iletisim } from "./rotalar/iletisim.ts";
 import { odalar } from "./rotalar/odalar.ts";
@@ -69,6 +70,7 @@ app.use((req, res, next) => {
 
 // Gerçek sayfalar
 app.use(hesap);
+app.use(takip);        // /takip: takip et/bırak, /profil/:ad/takipciler|takip-edilenler
 app.use(forum);
 app.use(rutbeRotasi);  // /rutbeler
 app.use(premiumRotasi); // /premium
