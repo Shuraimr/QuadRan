@@ -1,0 +1,45 @@
+<%#
+  Yakut ödül penceresi (Figma onaylı B yönü). Beklenen: locals.yakutOdul { tur: "seri" | "harclik" | "premium", miktar, gun?, rutbe?, sonraki? { ad, aylik, kalan } }
+  (src/oturum.ts › yakutOdulHazirla; yoksa hiçbir şey çizilmez). son.ejs içinde: bütün sayfalarda ve panelde çıkar.
+  <dialog open> JS'siz de görünür; "Tamam" bir <form method="dialog"> olduğu için JS olmadan da kapanır. quadran.js açık pencereyi
+  showModal ile modal yapar (karartma, odak kilidi, Esc) ve sayıyı 0'dan saydırır (data-say). Telefonda (≤800) alttan açılan sayfa.
+%>
+<% if (locals.yakutOdul) { const o_ = locals.yakutOdul;
+  const ayAd_ = new Date().toLocaleDateString("tr-TR", { month: "long" }).toLocaleUpperCase("tr");
+  const cok_ = !!(o_.parcalar && o_.parcalar.length > 1); // birden çok ödül tek pencerede toplandıysa başlık ve cümle parçaları sayar
+  const etiket_ = cok_ ? "BUGÜNÜN ÖDÜLLERİ · " + o_.parcalar.length : o_.tur === "seri" ? o_.gun + ". GÜN · SERİ ÖDÜLÜ" : o_.tur === "harclik" ? "AYLIK RÜTBE HARÇLIĞI · " + ayAd_ : "PREMIUM · " + ayAd_;
+  const dongu_ = ((o_.gun || 1) - 1) % 7 + 1; %>
+  <dialog class="yakut-odul" open aria-labelledby="yakut-odul-baslik" data-yakut-odul>
+    <div class="yakut-odul-simge"><%- include("yakut", { boyut: 128, buyuk: true }) %></div>
+    <p class="yakut-odul-etiket" id="yakut-odul-baslik"><%= etiket_ %></p>
+    <p class="yakut-odul-miktar">+<span data-say="<%= o_.miktar %>"><%= o_.miktar.toLocaleString("tr-TR") %></span> yakut</p>
+    <% if (cok_) {
+      // Yalnızca bulunan parçalar sayılır: "Günlük serin, aylık harçlığın ve premium yakutun cüzdanına eklendi."
+      const adlar_ = { seri: "günlük serin", harclik: "aylık harçlığın", premium: "premium yakutun" };
+      const liste_ = o_.parcalar.map((p_) => adlar_[p_.tur] || p_.etiket.toLocaleLowerCase("tr"));
+      const cumle_ = liste_.length > 1 ? liste_.slice(0, -1).join(", ") + " ve " + liste_[liste_.length - 1] : liste_[0];
+      const bas_ = cumle_.charAt(0).toLocaleUpperCase("tr") + cumle_.slice(1); %>
+      <p class="yakut-odul-aciklama ikincil"><%= bas_ %> cüzdanına eklendi.</p>
+      <% if (o_.tur === "harclik" && o_.sonraki) { %><p class="yakut-odul-not"><%= bulunmaEki(o_.sonraki.ad) %> ayda <%= o_.sonraki.aylik.toLocaleString("tr-TR") %> · <%= o_.sonraki.kalan.toLocaleString("tr-TR") %> puan kaldı</p><% } %>
+    <% } else if (o_.tur === "seri") { %>
+      <ol class="yakut-seri-serit" aria-label="Seri: 7 günün <%= dongu_ %>. günü">
+        <% for (let i = 1; i <= 7; i++) { %><li class="<%= i <= dongu_ ? 'dolu' : '' %><%= i === dongu_ ? ' bugun' : '' %>"><%- include("yakut", { boyut: 22 }) %></li><% } %>
+      </ol>
+      <p class="yakut-odul-aciklama ikincil"><%= o_.gun %> gündür her gün geliyorsun. Her 7. günde ödül büyüyor.</p>
+    <% } else if (o_.tur === "harclik") { %>
+      <p class="yakut-odul-aciklama ikincil"><%= o_.rutbe %> rütben için bu ayın yakutu cüzdanına eklendi.</p>
+      <% if (o_.sonraki) { %><p class="yakut-odul-not"><%= bulunmaEki(o_.sonraki.ad) %> ayda <%= o_.sonraki.aylik.toLocaleString("tr-TR") %> · <%= o_.sonraki.kalan.toLocaleString("tr-TR") %> puan kaldı</p><% } %>
+    <% } else { %>
+      <p class="yakut-odul-aciklama ikincil">Premium üyeliğin için bu ayın yakutu cüzdanına eklendi.</p>
+    <% } %>
+    <% if (o_.parcalar && o_.parcalar.length > 1) { %>
+      <ul class="yakut-odul-dokum">
+        <% for (const p_ of o_.parcalar) { %><li><span><%= p_.etiket %></span><span>+<%= p_.miktar.toLocaleString("tr-TR") %></span></li><% } %>
+      </ul>
+    <% } %>
+    <div class="yakut-odul-butonlar">
+      <a class="buton buton-cerceveli" href="/yakut"><%= o_.tur === "seri" ? "Cüzdan" : "Mağazaya bak" %></a>
+      <form method="dialog"><button class="buton buton-birincil" autofocus>Tamam</button></form>
+    </div>
+  </dialog>
+<% } %>

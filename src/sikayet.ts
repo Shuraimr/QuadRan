@@ -29,11 +29,13 @@ export const SEBEP_LISTESI = [
   { ad: "Taciz veya zorbalık", aciklama: "Bir kişiyi hedef alan, rahatsız eden davranış" },
   { ad: "Nefret söylemi", aciklama: "Bir gruba kimliği nedeniyle saldırı" },
   { ad: "Müstehcen içerik", aciklama: "Cinsel ya da rahatsız edici görseller, metin" },
+  { ad: "İşaretlenmemiş +18 içerik", aciklama: "Cinsel ya da şiddet içeren ek, +18 işareti yok", sadeceKonu: true },
+  { ad: "Uygunsuz profil fotoğrafı/banner", aciklama: "Herkese uygun olmayan avatar ya da banner", sadeceKullanici: true },
   { ad: "Kişisel bilgi paylaşımı", aciklama: "Adres, telefon gibi izinsiz paylaşılan bilgiler" },
   { ad: "Yanıltıcı içerik", aciklama: "Kasıtlı yanlış bilgi, dolandırıcılık" },
   { ad: "Konu dışı", aciklama: "Konuyla ilgisi olmayan mesaj", sadeceMesaj: true },
   { ad: "Başka bir sebep", aciklama: "Not yazman gerekir" },
-] as { ad: string; aciklama: string; sadeceMesaj?: boolean }[];
+] as { ad: string; aciklama: string; sadeceMesaj?: boolean; sadeceKullanici?: boolean; sadeceKkon?: boolean }[];
 export const SEBEPLER = SEBEP_LISTESI.map((s) => s.ad);
 export const SEBEP_DIGER = "Başka bir sebep";
 
@@ -41,6 +43,8 @@ export const SEBEP_DIGER = "Başka bir sebep";
 // hedefTur: reports.hedef_tur değeri ("kullanici" ve "ozel_mesaj" için "Konu dışı" geçersiz).
 export function sebepHatasi(sebep: string | null, aciklama: string | null, hedefTur: string): string | null {
   if (!sebep) return "Bir şikâyet sebebi seç.";
+  if (sebep === "Uygunsuz profil fotoğrafı/banner" && hedefTur !== "kullanici") return "Bu sebep yalnızca kullanıcı şikâyetlerinde seçilebilir.";
+  if (sebep === "İşaretlenmemiş +18 içerik" && hedefTur !== "konu_mesaji") return "Bu sebep yalnızca konu mesajlarındaki ekler için seçilebilir.";
   if (sebep === "Konu dışı" && (hedefTur === "kullanici" || hedefTur === "ozel_mesaj")) return "Bu sebep yalnızca konu ve sohbet mesajları için seçilebilir.";
   if (sebep === SEBEP_DIGER && !aciklama) return "“Başka bir sebep” için bir not yazman gerekiyor.";
   return null;

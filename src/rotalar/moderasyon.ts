@@ -147,6 +147,24 @@ moderasyon.post("/moderasyon/kategori-degistir", async (req, res) => {
   res.redirect(geri);
 });
 
+// +18 işareti (sql/23): yorumun BÜTÜN ekleri birlikte işaretlenir / işareti kaldırılır (ekler tablosunda satır başına var, ama arayüzde yorum tek birim).
+// Yetkili kaldırınca yazarın kendi işareti de gider (yetkili kararı üstündür); yetkili işaretlediğinde nsfw_kim = 'yetkili' olur ve
+// yazar bunu geri alamaz (yazarın düzenleme yolu zaten yok; ekler düzenlenemez).
+moderasyon.post("/moderasyon/nsfw", async (req, res) => {
+  const { postId, topicId } = await hedefiBul(req);
+  const geri = geriAdres(req, topicId ? `/konu/${topicId}` : "/");
+  if (!postId) { bildir(req, "hata", "Mesaj bulunamadı."); return res.redirect(geri); }
+  const [[durum]]: any = await pool.query(
+    "SELECT COUNT(*) AS adet, COALESCE(MAX(nsfw), 0) AS nsfw FROM ekler JOIN posts ON posts.id = ekler.post_id WHERE ekler.post_id = ? AND posts.deleted_at IS NULL", [postId]
+  );
+  if (!Number(durum.adet)) { bildir(req, "hata", "Bu mesajda ek yok."); return res.redirect(geri); }
+  const yeni = Number(durum.nsfw) ? 0 : 1;
+  await pool.query("UPDATE ekler SET nsfw = ?, nsfw_kim = ? WHERE post_id = ?", [yeni, yeni ? "yetkili" : null, postId]);
+  await denetim(req, res, yeni ? "icerik.nsfw" : "icerik.nsfw_kaldir", "konu_mesaji", postId, { konu: topicId, kaynak: "moderasyon menüsü" });
+  bildir(req, "basari", yeni ? "Ekler +18 olarak işaretlendi." : "+18 işareti kaldırıldı.");
+  res.redirect(geri + (geri.includes("#") ? "" : `#mesaj-${postId}`));
+});
+
 moderasyon.post("/moderasyon/sil", async (req, res) => {
   const k = res.locals.kullanici;
   const { postId } = await hedefiBul(req);

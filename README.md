@@ -2,7 +2,7 @@
 
 Türkçe bir forum sitesi. Üyeler kategorilere ayrılmış konular açar, cevap yazar, oy verir; puan topladıkça rütbe ve rozet kazanır. Genel sohbet, davetle girilen özel odalar, özel mesajlar, bildirimler ve moderatörler için gelişmiş bir yönetim paneli vardır.
 
-**Sürüm:** 0.6.0 · **Teknolojiler:** Node.js 22 (TypeScript'i doğrudan çalıştırır) · Express 5 · EJS · MySQL 8.4 (ORM yok, saf SQL) · Docker Compose
+**Sürüm:** 0.7.0 · **Teknolojiler:** Node.js 22 (TypeScript'i doğrudan çalıştırır) · Express 5 · EJS · MySQL 8.4 (ORM yok, saf SQL) · Docker Compose
 
 ## Özellikler
 
@@ -99,15 +99,19 @@ docs/AKTARIM.md       ayrıntılı geliştirici notları: route'lar, tablolar, y
 
 ## Tasarım
 
-Arayüz Figma'da tasarlandı: bilgi mimarisi, tasarım sistemi (renk değişkenleri, bileşenler, hareket kuralları) ve ekranlar. Eski ekran çizimleri [`docs/tasarim`](docs/tasarim) klasöründe.
+Arayüz Figma'da tasarlandı: bilgi mimarisi, tasarım sistemi (renk değişkenleri, bileşenler, hareket kuralları) ve ekranlar. Telefon (≤800px), tablet (801–1180px) ve masaüstü (>1180px) ayrı ayrı düşünüldü; koyu, açık ve sistem teması ile "Animasyonları azalt" her ekranda çalışır.
 
-| Akış | Konu sayfası |
-|---|---|
-| ![Akış](docs/tasarim/akis.svg) | ![Konu sayfası](docs/tasarim/konu.svg) |
+Güncel ekranlar (telefon, v0.7.0; içerik `npm run ornek` ile eklenen örnek veridir):
+
+| Akış | YouTube kartı | Fotoğraf ekleri | Sohbet · Hepsi / Odalar / DM | Profil: yakut ve bildirimler |
+|---|---|---|---|---|
+| ![Akış](docs/ekranlar/akis.webp) | ![YouTube kartı](docs/ekranlar/konu-youtube.webp) | ![Fotoğraf ekleri](docs/ekranlar/fotograflar.webp) | ![Sohbet](docs/ekranlar/sohbet.webp) | ![Profil sayfası](docs/ekranlar/profil-sayfasi.webp) |
+
+İlk sürümün (v0.1) ekran çizimleri arşiv olarak [`docs/tasarim`](docs/tasarim) klasöründe duruyor.
 
 ## Durum ve sıradakiler
 
-Temel özellikler çalışıyor. Bilinen eksikler (avatar yükleme, gerçek e-posta gönderimi) [`docs/AKTARIM.md`](docs/AKTARIM.md) içinde. Sıradaki büyük işler: referans ve üyelik sistemi, rütbe ve profil geliştirmeleri, çok oyunculu oyunlar, avatar ve profil efektleri.
+Forum, rütbe, özel odalar, profil görünümü (avatar/banner yükleme, efektler, süsler), takip, yakut para birimi ve mağaza, yorum ekleri (fotoğraf, video, YouTube/GitHub kartları, +18 işareti) çalışıyor. Bilinen eksikler (gerçek e-posta gönderimi, canlı olmayan sohbet) [`docs/AKTARIM.md`](docs/AKTARIM.md) içinde. Sıradaki büyük işler: yardım teklifi, süper yorum ve bahşiş, referanslı odalar, çok oyunculu oyunlar.
 
 ## Lisans
 

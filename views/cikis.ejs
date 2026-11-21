@@ -1,0 +1,25 @@
+<%#
+  Dış bağlantı onayı (JS'siz yol; JS varsa quadran.js aynı içeriği pencerede açar). Beklenen: hata (bool), adres (tam adres), alan (alan adı), geri (Vazgeç adresi).
+  Alan adı büyük gösterilir (kimin sitesine gidildiği asıl bilgi), tam adres kırpılmadan altında durur.
+%>
+<%- include("partials/bas", { sade: true, baslik: "QuadRan'dan ayrılıyorsun" }) %>
+<div class="orta-sayfa">
+  <%- include("partials/kontur") %>
+  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <div class="kart form-karti cikis-karti">
+    <% if (hata) { %>
+      <h1>Bağlantı açılamadı</h1>
+      <div class="bilgi-notu hata-notu" role="alert"><%- include("partials/ikon", { ad: "uyari", boyut: 18 }) %><span>Bu adres geçerli bir web adresi değil. Yalnızca http ve https adresleri açılır.</span></div>
+      <a class="buton buton-tonal buton-genis" href="<%= geri %>">Geri dön</a>
+    <% } else { %>
+      <h1>QuadRan’dan ayrılıyorsun</h1>
+      <div class="cikis-alan"><strong><%= alan %></strong><span><%= adres %></span></div>
+      <div class="bilgi-notu cikis-uyari"><%- include("partials/ikon", { ad: "uyari", boyut: 18 }) %><span>Görünen yazı ile adres farklıysa dikkat et. Başka sitelerin içeriğinden QuadRan sorumlu değildir.</span></div>
+      <div class="cikis-eylem">
+        <a class="buton buton-cerceveli" href="<%= geri %>" data-geri>Vazgeç</a>
+        <a class="buton buton-birincil" href="<%= adres %>" target="_blank" rel="nofollow ugc noopener noreferrer">Siteye git <%- include("partials/ikon", { ad: "dis", boyut: 16 }) %></a>
+      </div>
+    <% } %>
+  </div>
+</div>
+<%- include("partials/son", { sade: true }) %>

@@ -21,9 +21,11 @@
         <%- include("partials/avatar", { ad: konu.yazar, url: konu.avatar_url, sus: konu.avatar_susu, sinif: "avatar-36", bos: true }) %>
         <a class="kullanici" href="/profil/<%= konu.yazar %>"><%= konu.yazar %></a>
         <% if (konu.rutbe) { %><%- include("partials/rutbe", { rutbeAd: konu.rutbe, rutbeId: konu.rutbe_id }) %><% } %>
+        <%- include("partials/unvan", { unvan: konu.unvan, premium: konu.premium }) %>
       </div>
       <% if (ilk) { %>
         <div class="metin"><%- icerikHtml(ilk.content, ilk.rutbe_id, ilk.yazar_rol) %></div>
+        <%- include("partials/kartlar", { mesaj: ilk }) %>
         <%- include("partials/imza", { yazar: ilk }) %>
         <div class="eylem-satiri">
           <div class="oy-yatay"><%- include("partials/oy", { hedef: ilk }) %></div>
@@ -59,15 +61,37 @@
         <%- include("partials/ikon", { ad: "kilit", boyut: 16 }) %> Bu konu kilitli, yeni cevap yazılamaz.
       </div>
     <% } else if (locals.kullanici) { %>
-      <form class="kart cevap-kutusu" id="cevap" method="post" action="/konu/<%= konu.id %>/cevap"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+      <%# Cevap formu (Figma 15): metin + araç satırı (fotoğraf, video) + seçilen eklerin önizleme kareleri + bağlantı çipi + +18 kutusu.
+          multipart: JS'siz de olduğu gibi gönderilir; quadran.js varsa XHR ile gönderir (kare başına ilerleme). _csrf İLK alan olmalı (src/ekler.ts). %>
+      <% const ey_ = locals.ekYetki || { gorsel: { acik: false }, video: { acik: false }, baglanti: false }; const tas_ = locals.taslak || {}; %>
+      <form class="kart cevap-kutusu" id="cevap" method="post" action="/konu/<%= konu.id %>/cevap" enctype="multipart/form-data" data-ek-form data-baglanti="<%= ey_.baglanti ? '1' : '0' %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <div class="ust">
           <%- include("partials/avatar", { ad: kullanici.username, url: kullanici.avatar_url, sus: kullanici.avatar_susu, sinif: "avatar-36", bos: true }) %>
-          <textarea name="content" placeholder="Cevabını yaz" required maxlength="10000" aria-label="Cevabın"></textarea>
+          <textarea name="content" placeholder="Cevabını yaz" maxlength="10000" aria-label="Cevabın" data-ek-metin><%= tas_.content || "" %></textarea>
         </div>
-        <div class="satir">
-          <span class="ikincil kucuk bosluk">Saygılı ol, konuya katkı sağla.</span>
-          <button class="buton buton-birincil">Cevapla</button>
+        <div class="ek-onizleme" data-ek-onizleme hidden></div>
+        <div class="ek-baglanti-cip" data-ek-baglanti-cip hidden><span class="ek-cip-ikon" data-cip-ikon></span><span class="ek-cip-metin" data-cip-metin></span><button class="ek-cip-kapat" type="button" data-cip-kapat aria-label="Bağlantı önizlemesini kaldır">×</button></div>
+        <input type="hidden" name="kart_kapali" value="<%= tas_.kartKapali ? '1' : '' %>" data-kart-kapali>
+        <label class="ek-nsfw-satir" data-ek-nsfw><input type="checkbox" name="nsfw" value="1" <%= tas_.nsfw ? "checked" : "" %>><span>Eklerim +18 içerik</span></label>
+        <div class="ek-arac">
+          <% if (ey_.gorsel.acik) { %>
+            <label class="ek-dugme" title="Fotoğraf ekle"><%- include("partials/ikon", { ad: "resim", boyut: 20 }) %><span class="arama-gizli-baslik">Fotoğraf ekle</span>
+              <input type="file" class="gorunmez" name="resimler" accept="image/jpeg,image/png,image/webp,image/gif" multiple data-ek-resim aria-label="Fotoğraf ekle (en fazla 6)"></label>
+          <% } %>
+          <% if (ey_.video.acik) { %>
+            <label class="ek-dugme" title="Video ekle"><%- include("partials/ikon", { ad: "video", boyut: 20 }) %><span class="arama-gizli-baslik">Video ekle</span>
+              <input type="file" class="gorunmez" name="video" accept="video/mp4,video/webm" data-ek-video aria-label="Video ekle (en fazla 50 MB)"></label>
+          <% } %>
+          <span class="ikincil kucuk bosluk ek-ipucu">Saygılı ol, konuya katkı sağla.</span>
+          <button class="buton buton-birincil" data-ek-gonder>Gönder</button>
         </div>
+        <% if (!ey_.gorsel.acik || !ey_.video.acik) { %>
+          <div class="ek-kilitler">
+            <% if (!ey_.gorsel.acik) { %><%- include("partials/kilit", { kilit: ey_.gorsel, ek: "Yorumlarına en fazla 6 fotoğraf ekleyebilirsin." }) %><% } %>
+            <% if (!ey_.video.acik) { %><%- include("partials/kilit", { kilit: ey_.video, ek: "Yorumlarına 50 MB’a kadar video ekleyebilirsin." }) %><% } %>
+          </div>
+        <% } %>
+        <div class="ek-hata bilgi-notu hata-notu" role="alert" data-ek-hata hidden></div>
       </form>
     <% } else { %>
       <a class="kart cevap-kutusu kilitli" id="cevap" href="/giris?don=/konu/<%= konu.id %>">

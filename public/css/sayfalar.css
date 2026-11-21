@@ -15,7 +15,7 @@
 .mesaj-satir:hover { background: var(--yuzey-2); }
 .mesaj-satir.aktif { background: var(--ton); color: var(--ton-ustu); }
 .mesaj-satir.aktif .ikincil { color: var(--ton-ustu); opacity: .8; }
-.mesaj-satir-govde { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.mesaj-satir-govde { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; } /* sütun tanımı olmazsa uzun önizleme (bağlantı) sütunu genişletip satırı taşırıyordu */
 .mesaj-satir-ust { display: flex; align-items: baseline; gap: 8px; }
 .mesaj-satir-ust strong { flex: 1; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mesaj-satir-ust .kucuk { font-size: 12px; flex: none; }
@@ -75,6 +75,7 @@
 .ara-sekmeler .siralama a { min-width: 0; flex: 1 1 auto; white-space: nowrap; }
 /* Profil sekmeleri kendi profilinde 4 tane (Konular, Yorumlar, Etkinlik, Puan geçmişi): telefonda sığmazsa sütunu
    genişletip sayfayı sağdan kesmesin diye sütun daralabilir (min-width: 0) ve çubuk yatay kaydırılır. */
+.profil, .profil .sutun { grid-template-columns: minmax(0, 1fr); } /* tek sütun: sekme şeridi (max-content) sütunu genişletip 320px ekranda yatay taşma yapmasın */
 .profil > * { min-width: 0; }
 .profil .siralama { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .profil .siralama a { min-width: 0; flex: 0 0 auto; white-space: nowrap; }
@@ -531,8 +532,47 @@
   .rutbe-satir .rutbe-kutu { width: 40px; height: 40px; border-radius: 12px; }
 }
 
-/* Akış üstündeki iki segment (Herkes | Takip ettiklerin ve sıralama) yan yana, dar ekranda alt alta sarar */
-.akis-kontrol { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+/* Akış kontrolü TEK satır: segment (Öne çıkan · Yeni · Takip) + Kategori düğmesi. Eskiden üç satırdı (kategori, kaynak, sıralama). */
+.akis-kontrol { display: flex; align-items: center; gap: 8px 12px; }
+.akis-segment { flex: 0 1 auto; min-width: 0; }
+.akis-segment a { min-width: 0; }
+.kategori-dugmesi {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 0 1 auto; min-width: 44px; max-width: 220px; height: 40px; padding: 0 12px 0 16px;
+  border: 1px solid var(--kenar); border-radius: 20px; font-size: 14px; font-weight: 600;
+}
+.kategori-dugmesi:hover { background: var(--yuzey-2); }
+.kategori-dugmesi.secili { background: var(--ton); color: var(--ton-ustu); border-color: transparent; }
+.kategori-dugmesi-ad { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Masaüstünde sol menüde kategori listesi zaten var: düğme gizlenir (aynı hedef iki kez durmaz) */
+@media (min-width: 1181px) { .kategori-dugmesi { display: none; } }
+
+/* Kategori seçici: tablet/masaüstünde düğmenin altında açılır menü (konumu quadran.js verir), telefonda alttan açılan sayfa.
+   JS/popover yoksa hiç çizilmez (düğme /kategoriler sayfasına gider). */
+.kategori-secici { width: 320px; padding: 8px; }
+.kategori-secici-baslik { display: none; padding: 4px 12px 12px; font-family: var(--baslik-tipi); font-size: 18px; font-weight: 700; }
+.kategori-satir { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; border-radius: 12px; font-size: 15px; font-weight: 500; }
+.kategori-satir:hover, .kategori-satir:focus-visible { background: color-mix(in srgb, var(--yazi) 8%, transparent); }
+.kategori-satir.aktif { background: var(--ton); color: var(--ton-ustu); font-weight: 600; }
+.kategori-satir-ad { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kategori-satir-sayi { font-size: 13px; color: var(--yazi-2); white-space: nowrap; }
+.kategori-satir.aktif .kategori-satir-sayi { color: inherit; opacity: .8; }
+@media (max-width: 800px) {
+  .akis-segment { flex: 1 1 auto; }
+  .akis-segment a { flex: 1 1 auto; height: 44px; padding: 0 12px; }
+  .kategori-dugmesi { height: 44px; }
+  .acilir-menu.kategori-secici:not(.katman-statik) {
+    inset: auto 0 0 0; width: 100%; max-width: none; max-height: 80dvh; margin: 0; padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-radius: 24px 24px 0 0; border-bottom: 0; transform-origin: bottom center;
+    opacity: 1; transform: translateY(100%);
+    transition: transform var(--sure-orta) var(--egri-giris), overlay var(--sure-orta) allow-discrete, display var(--sure-orta) allow-discrete;
+  }
+  .acilir-menu.kategori-secici:popover-open { transform: none; transition-timing-function: var(--egri-cikis); }
+  @starting-style { .acilir-menu.kategori-secici:popover-open { transform: translateY(100%); } }
+  .kategori-secici::backdrop { background: rgb(0 0 0 / .5); }
+  .kategori-secici-baslik { display: block; }
+}
+@media (max-width: 420px) { .akis-segment a.aktif svg { display: none; } }
+@media (max-width: 360px) { .akis-kontrol { gap: 6px; } .akis-segment a { padding: 0 8px; } .kategori-dugmesi { padding: 0 8px 0 12px; } }
 
 /* Profil vitrini: sabit konu + en çok 3 rozet kartı. Rozet kartları yan yana, dar ekranda alta sarar (en az 200px). */
 .vitrin { display: grid; gap: 12px; }

@@ -18,11 +18,20 @@ export const rutbeIdSql = (tablo: string) =>
   `(SELECT ranks.id FROM ranks WHERE ranks.min_points <= ${tablo}.points ORDER BY ranks.min_points DESC LIMIT 1)`;
 // Bir kullanıcının rolü (admin / moderator / uye)
 export const rolSql = (tablo: string) => `(SELECT roles.name FROM roles WHERE roles.id = ${tablo}.role_id)`;
-// Kullanıcı gösteren her sorgu bu üç sütunu birlikte alır: rutbe (ad), rutbe_id (çip/ayrıcalık çözümü) ve yazar_rol
+// Kişinin GÖSTERİLEN unvanı (sql/22; yoksa NULL). Kural (kullanıcı kararı 2026-11-21): seçtiği unvan (unvan_id) varsa o; seçmediyse
+// sahip olduğu aktif unvanların EN PAHALISI (fiyat eşitse en son alınan). Pasif unvan seçili olsa bile gösterilmez (sahiplikte kalır).
+// Kural tek yerde dursun diye rutbeSutunlari'na eklendi: yorum, konu, profil, kart, hepsi aynı sorgudan alır.
+export const unvanSql = (tablo: string) =>
+  `COALESCE(
+     (SELECT unvanlar.ad FROM unvanlar WHERE unvanlar.id = ${tablo}.unvan_id AND unvanlar.aktif = 1),
+     (SELECT unvanlar.ad FROM kullanici_unvanlari JOIN unvanlar ON unvanlar.id = kullanici_unvanlari.unvan_id
+       WHERE kullanici_unvanlari.user_id = ${tablo}.id AND unvanlar.aktif = 1
+       ORDER BY unvanlar.fiyat DESC, kullanici_unvanlari.alindi DESC LIMIT 1))`;
+// Kullanıcı gösteren her sorgu bu sütunları (premium: unvan çipinin "PRE" öneki için) birlikte alır: rutbe (ad), rutbe_id (çip/ayrıcalık çözümü) ve yazar_rol
 // (yönetici/moderatör muafiyeti: bağlantı, imza). Şablonlar: include("rutbe", { rutbeAd: x.rutbe, rutbeId: x.rutbe_id }),
 // icerikHtml(metin, x.rutbe_id, x.yazar_rol).
 export const rutbeSutunlari = (tablo: string) =>
-  `${rutbeSql(tablo)} AS rutbe, ${rutbeIdSql(tablo)} AS rutbe_id, ${rolSql(tablo)} AS yazar_rol, ${avatarSutunlari(tablo)}`;
+  `${rutbeSql(tablo)} AS rutbe, ${rutbeIdSql(tablo)} AS rutbe_id, ${rolSql(tablo)} AS yazar_rol, ${unvanSql(tablo)} AS unvan, ${premiumSql(tablo)} AS premium, ${avatarSutunlari(tablo)}`;
 
 // Premium ayrıcalıkları açık mı (SQL ifadesi): süresi geçmemiş premium_bitis YA DA admin rolü.
 // Kullanıcı kararı (2026-11-20): kurucu/admin premium özelliklerini panelden kendine premium vermeden kullanabilir.
@@ -345,3 +354,17 @@ export const banliSql = (tablo: string) =>
 
 // LIKE içinde % ve _ özel karakterdir; kullanıcı yazarsa harfi harfine aransın diye önlerine \ koyarız.
 export const likeKac = (s: string) => "%" + s.replace(/[\\%_]/g, "\\$&") + "%";
+
+// Türkçe bulunma eki (-da/-de/-ta/-te), kesme işaretiyle: "Usta'da", "Gezgin'de", "Çaylak'ta". Rütbe adları panelden değişebildiği için
+// sabit "'da" yazılamaz. Kural: son ÜNLÜ kalınsa (a ı o u) da/ta, inceyse (e i ö ü) de/te; son HARF sert ünsüzse (fıstıkçı şahap:
+// f s t k ç ş h p) t'li biçim.
+export function bulunmaEki(ad: string): string {
+  const k = String(ad).trim().toLocaleLowerCase("tr");
+  if (!k) return "";
+  const unluler = "aıoueiöü";
+  let sonUnlu = "";
+  for (const h of k) if (unluler.includes(h)) sonUnlu = h;
+  const kalin = "aıou".includes(sonUnlu);
+  const sert = "fstkçşhp".includes(k[k.length - 1]);
+  return `${ad.trim()}'${sert ? "t" : "d"}${kalin ? "a" : "e"}`;
+}

@@ -4,11 +4,12 @@
   aktifMenu          "akis" | "kesfet" | "konu-ac" | "sohbet" | "giris" | "profil" (yoksa "akis")
   kullanici          giriş yapmışsa { username }
   okunmamisOda       true ise Sohbet üzerinde küçük nokta (okunmamış oda mesajı)
-  okunmamisBildirim  0'dan büyükse Bildirimler üzerinde küçük nokta çıkar
+  okunmamisBildirim  0'dan büyükse Profil üzerinde vurgu renginde küçük nokta (bildirimler Profil sayfasında)
+  okunmamisMesaj     0'dan büyükse Sohbet üzerinde sayı (DM'ler Sohbet › DM)
   statik             true ise sabit olmadan gösterilir (yalnızca önizleme sayfası için)
 %>
 <% const aktifMenu_ = locals.aktifMenu || "akis";
-   /* Kategoriler ve Sıralama telefonda Keşfet sayfasından açılır (2 dokunuş); Ara da orada. Bildirimler üst çubukta (zil). */
+   /* Kategoriler ve Sıralama telefonda Keşfet sayfasından açılır (2 dokunuş); Ara da orada. Bildirimler Profil sayfasında (hesap menüsü). */
    const ogeler_ = locals.kullanici ? [
      { id: "akis", ad: "Akış", href: "/", ikon: "ev" },
      { id: "kesfet", ad: "Keşfet", href: "/kesfet", ikon: "pusula" },
@@ -25,15 +26,18 @@
 <nav class="alt-menu<%= locals.statik ? ' katman-statik' : '' %>" aria-label="Alt gezinti"<%- locals.statik ? "" : " data-alt-cubuk" %>>
   <% for (const o of ogeler_) { %>
     <% if (o.hesapMenusu) { %>
-    <button class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" type="button" popovertarget="avatar-menusu" aria-label="Hesap menüsü">
-      <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %></span>
+    <%# Bildirimler bu sayfanın içinde: okunmamış bildirim varsa Profil'in üstünde kişinin seçtiği vurgu renginde (--vurgu) küçük nokta %>
+    <% const bn_ = locals.okunmamisBildirim || 0; %>
+    <button class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" type="button" popovertarget="avatar-menusu" aria-label="Hesap menüsü<%= bn_ > 0 ? ' (' + bn_ + ' okunmamış bildirim)' : '' %>">
+      <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %><% if (bn_ > 0) { %><span class="menu-nokta menu-nokta-vurgu" aria-hidden="true"></span><% } %></span>
       <span class="menu-etiket"><%= o.ad %></span>
     </button>
     <% continue; } %>
     <a class="menu-ogesi<%= aktifMenu_ === o.id ? ' aktif' : '' %>" href="<%= o.href %>"<%- o.arama ? ' data-arama-ac' : '' %><%- aktifMenu_ === o.id ? ' aria-current="page"' : '' %>>
       <span class="menu-hap">
         <%- include("ikon", { ad: o.ikon, boyut: 24 }) %>
-        <% if (o.id === "sohbet" && locals.okunmamisOda) { %><span class="menu-nokta" role="img" aria-label="Okunmamış oda mesajı var"></span><% } %>
+        <%# Sohbet: okunmamış DM sayısı rozet (DM'ler Sohbet'in içinde); yalnızca oda mesajı varsa küçük nokta %>
+        <% if (o.id === "sohbet" && (locals.okunmamisMesaj || 0) > 0) { %><span class="menu-sayi" role="img" aria-label="<%= locals.okunmamisMesaj %> okunmamış özel mesaj"><%= locals.okunmamisMesaj > 99 ? "99+" : locals.okunmamisMesaj %></span><% } else if (o.id === "sohbet" && locals.okunmamisOda) { %><span class="menu-nokta" role="img" aria-label="Okunmamış oda mesajı var"></span><% } %>
         <% if (o.nokta) { %><span class="menu-nokta" role="img" aria-label="Okunmamış bildirim var"></span><% } %>
       </span>
       <span class="menu-etiket"><%= o.ad %></span>

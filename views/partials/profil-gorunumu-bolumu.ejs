@@ -21,7 +21,7 @@
           ama klavyeyle odaklanır (odak halkası label'da :focus-within ile çizilir). JS varsa dosya seçilince "Kırp ve konumla" penceresi
           açılır (aşağıda); JS yoksa "Yükle" düğmesi görünür ve form eskisi gibi gönderilir, sunucu ortadan kırpar. %>
       <div class="pg-grup">
-        <div><div class="ust-etiket">GÖRSELLER</div><p class="ikincil kucuk">JPG, PNG, WebP ya da GIF · en fazla 8 MB. Hareketli GIF premium'da oynar.</p></div>
+        <div><div class="ust-etiket">GÖRSELLER</div><p class="ikincil kucuk">JPG, PNG, WebP ya da GIF · en fazla 8 MB. Hareketli GIF premium'da oynar. Profil fotoğrafı ve banner herkese uygun olmalı (+18 içerik olamaz); uygunsuz olanlar şikâyet üzerine kaldırılır.</p></div>
         <% for (const [tur_, baslik_, adres_, bilgi_] of [["avatar", "Avatar", ayar.avatar_url, "Kare · 256 px"], ["banner", "Banner", ayar.banner_url, "Geniş · telefonda 2,2:1"]]) { %>
           <div class="gs-satir" data-gorsel-satiri="<%= tur_ %>">
             <% if (tur_ === "avatar") { %><%- include("avatar", { ad: ayar.username, url: ayar.avatar_url, sinif: "gs-avatar", bos: true }) %>

@@ -21,7 +21,8 @@
       <%- include("avatar", { ad: konu.yazar, url: konu.avatar_url, sus: konu.avatar_susu, etiket: "a", href: "/profil/" + encodeURIComponent(konu.yazar), ek: 'data-uye-karti="' + konu.yazar.replace(/"/g, "") + '" tabindex="-1"', bos: true }) %>
       <a class="kullanici" href="/profil/<%= encodeURIComponent(konu.yazar) %>" data-uye-karti="<%= konu.yazar %>"><%= konu.yazar %></a>
       <% if (konu.rutbe) { %><%- include("rutbe", { rutbeAd: konu.rutbe, rutbeId: konu.rutbe_id }) %><% } %>
-      <span class="zaman">· <%= zaman(konu.created_at) %></span>
+      <%- include("unvan", { unvan: konu.unvan, premium: konu.premium }) %>
+      <%# Zaman ayraçsız: satır kırılınca başta yalnız bir "·" kalıyordu; aradaki boşluk (gap) yeterli ayraç %><span class="zaman"><%= zaman(konu.created_at) %></span>
     </div>
     <h2><a href="/konu/<%= konu.id %>"><%= konu.title %></a></h2>
     <% if (konu.ozet) { %><p class="ozet"><%= konu.ozet %></p><% } %>

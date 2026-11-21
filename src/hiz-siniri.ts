@@ -62,3 +62,9 @@ export const odaMesaj = new HizSiniri(20, 1);
 export const cevapYazma = new HizSiniri(6, 1);
 // Dosya yükleme (avatar/banner, src/yukleme.ts): aynı kullanıcıdan 10 dakikada en çok 10 yükleme (sharp işlemi pahalı, disk dolmasın).
 export const dosyaYukleme = new HizSiniri(10, 10);
+// Yakut harcaması (unvan satın alma/seçme, src/rotalar/yakut.ts): aynı kullanıcıdan dakikada en çok 12 işlem
+// (düğmeye art arda basmak ya da betikle satın alma denemek yavaşlasın). Anahtar kullanıcı numarasıdır.
+export const yakutHarcama = new HizSiniri(12, 1);
+// Ekli cevap (fotoğraf/video, src/ekler.ts): aynı kullanıcıdan 10 dakikada en çok 6 ekli gönderi (sharp işlemi pahalı, disk dolmasın).
+// cevapYazma sayacından ayrı: normal cevap yazmayı etkilemez. Yetkililer muaf.
+export const ekliCevap = new HizSiniri(6, 10);

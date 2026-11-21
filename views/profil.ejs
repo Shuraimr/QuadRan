@@ -41,14 +41,14 @@
     <div class="kimlik">
       <%- include("partials/avatar", { ad: profil.username, url: profil.avatar_url, sus: profil.avatar_susu, sinif: "avatar-buyuk", oynat: true, bos: true }) %>
       <div class="kimlik-bilgi">
-        <div class="satir"><h1><%= profil.username %></h1><% if (profil.rutbe) { %><%- include("partials/rutbe", { rutbeAd: profil.rutbe, rutbeId: profil.rutbe_id }) %><% } %></div>
+        <div class="satir"><h1><%= profil.username %></h1><% if (profil.rutbe) { %><%- include("partials/rutbe", { rutbeAd: profil.rutbe, rutbeId: profil.rutbe_id }) %><% } %><%- include("partials/unvan", { unvan: profil.unvan, premium: profil.premium }) %></div>
         <div class="satir ikincil kucuk kimlik-meta">
           <span class="meta-oge"><%- include("partials/ikon", { ad: "takvim", boyut: 16 }) %> <%= profil.rol %> · <%= new Date(profil.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %> tarihinden beri üye</span>
           <%# Takip sayıları: iki ayrı bağlantı, ilgili listeye gider (src/rotalar/takip.ts). Önizleme verisinde sayı yoksa 0 sayılır. %>
           <span class="meta-oge"><a class="baglanti" href="/profil/<%= encodeURIComponent(profil.username) %>/takipciler"><strong><%= profil.takipci_sayisi || 0 %></strong> takipçi</a> · <a class="baglanti" href="/profil/<%= encodeURIComponent(profil.username) %>/takip-edilenler"><strong><%= profil.takip_sayisi || 0 %></strong> takip</a></span>
           <% if (profil.konum) { %><span class="meta-oge"><%- include("partials/ikon", { ad: "konum", boyut: 16 }) %> <%= profil.konum %></span><% } %>
           <%# Kullanıcının yazdığı adres: yalnızca http(s) kabul edilir (hesap.ts); arama motorlarına güven aktarma (nofollow ugc) ve yeni sekmede güvenli aç (noopener) %>
-          <% if (profil.web_sitesi) { %><a class="meta-oge baglanti" href="<%= profil.web_sitesi %>" rel="nofollow noopener ugc" target="_blank"><%- include("partials/ikon", { ad: "baglanti", boyut: 16 }) %> <%= profil.web_sitesi.replace(/^https?:\/\//i, "").replace(/\/$/, "") %></a><% } %>
+          <% if (profil.web_sitesi) { %><a class="meta-oge baglanti" href="<%= cikisAdresi(profil.web_sitesi) %>" data-dis-baglanti="<%= profil.web_sitesi %>" rel="nofollow ugc noopener noreferrer"><%- include("partials/ikon", { ad: "baglanti", boyut: 16 }) %> <%= profil.web_sitesi.replace(/^https?:\/\//i, "").replace(/\/$/, "") %></a><% } %>
         </div>
       </div>
       <div class="satir">

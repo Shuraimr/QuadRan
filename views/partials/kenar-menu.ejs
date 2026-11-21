@@ -4,7 +4,10 @@
   Kategoriler'in altında kategori listesiyle (rayda gizli). Telefonda görünmez (orada alt menü var).
   Beklenen veriler (hepsi isteğe bağlı):
   menuKategoriler  [ { id, name } ] (oturum.ts, önbellekli); kategoriId seçili kategori (yalnızca akışta)
-  aktifMenu   "akis" | "kategoriler" | "sohbet" | "siralama" | "ayarlar" (yoksa "akis")
+  aktifMenu   "akis" | "kategoriler" | "sohbet" | "siralama" | "yakut" | "ayarlar" (yoksa "akis")
+  ayarBolum   başka ayar sayfalarında hangi bölüm satırı seçili görünsün ("hesap": /hesap/sifre|eposta, "profil-gorunumu": /premium)
+  ayarSayfasi true ise /ayarlar sayfasındayız: masaüstünde Ayarlar'ın altındaki bölüm satırları sayfa içi çapadır (#profil...)
+              ve data-bolum-bag taşır (quadran.js o an okunan bölümü vurgular). Başka ayar sayfalarında (/hesap/sifre) /ayarlar#… olur.
   okunmamisOda  true ise Sohbet öğesinde küçük nokta (sessize alınmamış bir odada okunmamış mesaj var; src/odalar.ts)
   kullanici   giriş yapmışsa { username }; yoksa "Konu aç" ve "Ayarlar" gösterilmez
   statik      true ise sayfanın içinde sabit olmadan gösterilir (yalnızca önizleme sayfası için)
@@ -25,25 +28,53 @@
   <div class="kenar-menu-liste">
     <% for (const o of ogeler_) { %>
       <%# Kategori seçiliyken "Kategoriler" yalnızca rayda (tablet) aktif görünür; geniş çubukta aktif olan alt satırdır (.kisa-aktif) %>
-      <a class="menu-ogesi<%= aktifMenu_ === o.id ? (o.id === 'kategoriler' && kategoriId_ ? ' kisa-aktif' : ' aktif') : '' %>" href="<%= o.href %>"<%- aktifMenu_ === o.id && !kategoriId_ ? ' aria-current="page"' : '' %>>
-        <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %><% if (o.id === "sohbet" && locals.okunmamisOda) { %><span class="menu-nokta" role="img" aria-label="Okunmamış oda mesajı var"></span><% } %></span>
+      <a data-oge="<%= o.id %>" class="menu-ogesi<%= aktifMenu_ === o.id ? (o.id === 'kategoriler' && kategoriId_ ? ' kisa-aktif' : ' aktif') : '' %>" href="<%= o.href %>"<%- aktifMenu_ === o.id && !kategoriId_ ? ' aria-current="page"' : '' %>>
+        <span class="menu-hap"><%- include("ikon", { ad: o.ikon, boyut: 24 }) %><% if (o.id === "sohbet" && (locals.okunmamisMesaj || 0) > 0) { %><span class="menu-sayi" role="img" aria-label="<%= locals.okunmamisMesaj %> okunmamış özel mesaj"><%= locals.okunmamisMesaj > 99 ? "99+" : locals.okunmamisMesaj %></span><% } else if (o.id === "sohbet" && locals.okunmamisOda) { %><span class="menu-nokta" role="img" aria-label="Okunmamış oda mesajı var"></span><% } %></span>
         <span class="menu-etiket"><%= o.ad %></span>
       </a>
-      <% if (o.id === "kategoriler" && (locals.menuKategoriler || []).length) { %>
+    <% } %>
+    <%# Masaüstü (1181+): "Kategoriler" bir öğe değil, listenin bölüm başlığı. Sıralama'dan SONRA DOM'da durur ki klavye sırası
+        ekrandakiyle aynı olsun (eskiden CSS order ile taşınıyordu). Rayda gizli; rayda yukarıdaki simgeli öğe görünür. %>
+    <div class="kenar-kategori-grubu">
+      <a class="kenar-bolum-basligi<%= aktifMenu_ === 'kategoriler' && !kategoriId_ ? ' aktif' : '' %>" href="/kategoriler"<%- aktifMenu_ === "kategoriler" && !kategoriId_ ? ' aria-current="page"' : '' %>><span>Kategoriler</span><span class="kenar-tumu" aria-hidden="true">Tümü</span></a>
+      <% if ((locals.menuKategoriler || []).length) { %>
         <div class="kenar-menu-kategoriler" role="group" aria-label="Kategoriler">
           <% for (const c of menuKategoriler) { %>
-            <a class="kenar-kategori<%= kategoriId_ === c.id ? ' aktif' : '' %>" href="/?kategori=<%= c.id %>"<%- kategoriId_ === c.id ? ' aria-current="page"' : '' %>># <%= c.name %></a>
+            <a class="kenar-kategori<%= kategoriId_ === c.id ? ' aktif' : '' %>" href="/?kategori=<%= c.id %>"<%- kategoriId_ === c.id ? ' aria-current="page"' : '' %>><span class="kenar-diyez" aria-hidden="true">#</span><span class="kenar-kategori-ad"><%= c.name %></span></a>
           <% } %>
         </div>
       <% } %>
-    <% } %>
+    </div>
   </div>
-  <% if (uye_) { %>
+  <% if (uye_) { const ayarda_ = aktifMenu_ === "ayarlar";
+       // Alt satırlar yalnızca bir bölüm seçili gösterebiliyorsak açılır (Ayarlar sayfası ya da ayarBolum verilen alt sayfa);
+       // aksi hâlde Ayarlar öğesi eskisi gibi dolu hap olur, menüde konum işareti hiç kaybolmaz.
+       const acik_ = ayarda_ && (locals.ayarSayfasi || locals.ayarBolum);
+       // Ayarlar bölümleri (ayarlar.ejs'teki bölüm kimlikleriyle aynı). Masaüstünde Ayarlar açıkken alt satır olarak görünür:
+       // ayrı bir ikinci menü sütunu yerine tek sol menü. Kenar menü sabit (fixed) olduğu için kaydırırken de yerinde durur.
+       const ayarBolumleri_ = [["profil", "Profil"], ["profil-gorunumu", "Profil görünümü"], ["gorunum", "Görünüm"], ["gizlilik", "Gizlilik"], ["hesap", "Hesap ve güvenlik"]]; %>
+    <%# Yakut: masaüstünde Ayarlar'ın üstünde kart (bakiye, seri, Mağaza ve cüzdan), tablette rayda simge + bakiye. Telefonda yok
+        (orada Profil sayfasında). Üst çubuktaki bakiye çipinin yerini aldı (kullanıcı kararı 2026-11-21). %>
+    <div class="kenar-yakut">
+      <%- include("yakut-bolumu", { tur: "kenar" }) %>
+      <a class="menu-ogesi kenar-yakut-ray<%= aktifMenu_ === 'yakut' ? ' aktif' : '' %>" href="/yakut" aria-label="Yakut: <%= Number(locals.kullanici.yakut || 0).toLocaleString('tr-TR') %>"<%- aktifMenu_ === "yakut" ? ' aria-current="page"' : '' %>>
+        <span class="menu-hap"><%- include("yakut", { boyut: 24 }) %></span>
+        <% const yr_ = Number(locals.kullanici.yakut || 0); %>
+        <span class="menu-etiket"><%= yr_ >= 10000 ? (Math.floor(yr_ / 100) / 10).toLocaleString("tr-TR") + " B" : yr_.toLocaleString("tr-TR") %></span>
+      </a>
+    </div>
     <div class="kenar-menu-alt">
-      <a class="menu-ogesi<%= aktifMenu_ === 'ayarlar' ? ' aktif' : '' %>" href="/ayarlar"<%- aktifMenu_ === "ayarlar" ? ' aria-current="page"' : '' %>>
+      <a class="menu-ogesi<%= ayarda_ ? ' aktif' : '' %><%= acik_ ? ' acik' : '' %>" href="/ayarlar"<%- ayarda_ ? ' aria-current="page"' : '' %>>
         <span class="menu-hap"><%- include("ikon", { ad: "ayar", boyut: 24 }) %></span>
         <span class="menu-etiket">Ayarlar</span>
       </a>
+      <% if (acik_) { %>
+        <div class="kenar-ayar-bolumleri" role="group" aria-label="Ayarlar bölümleri">
+          <% ayarBolumleri_.forEach(([id, ad], i) => { %>
+             <a class="kenar-kategori<%= (locals.ayarSayfasi ? i === 0 : locals.ayarBolum === id) ? ' aktif' : '' %>"<%- !locals.ayarSayfasi && locals.ayarBolum === id ? ' aria-current="page"' : '' %> href="<%= locals.ayarSayfasi ? '#' + id : '/ayarlar#' + id %>"<%- locals.ayarSayfasi ? ' data-bolum-bag' : '' %>><span class="kenar-kategori-ad"><%= ad %></span></a>
+          <% }) %>
+        </div>
+      <% } %>
     </div>
   <% } %>
 </nav>

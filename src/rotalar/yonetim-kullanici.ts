@@ -11,6 +11,7 @@ import {
 import { denetim } from "../denetim.ts";
 import { dosyaSil } from "../yukleme.ts";
 import { PREMIUM_SURELERI, PREMIUM_SURESIZ } from "../premium.ts";
+import { yakutEkle, YONETIM_ENFAZLA, yakutYaz } from "../yakut.ts";
 import { kullaniciGetir, islemHatasi, banla, banKaldir, BAN_SURELERI } from "../islemler.ts";
 import { yaptirimGecmisi, BAN_EYLEMLERI } from "../yaptirim.ts";
 import { sadeceAdmin, sayfala, secim, onayIste } from "./yonetim-ortak.ts";
@@ -103,7 +104,7 @@ yonetimKullanici.get("/yonetim/uyeler/:id", async (req, res, next) => {
   const [satirlar]: any = await pool.query(
     `SELECT users.id, users.username, users.email, users.bio, users.points, users.created_at, users.last_seen_at, users.deleted_at,
             users.banned_at, users.banned_until, users.ban_reason, ${banliSql("users")} AS banli,
-            users.premium_bitis, (users.premium_bitis > NOW()) AS premium_aktif,
+            users.premium_bitis, (users.premium_bitis > NOW()) AS premium_aktif, users.yakut,
             roles.name AS rol, ${rutbeSutunlari("users")}
        FROM users JOIN roles ON roles.id = users.role_id WHERE users.id = ?`,
     [id]
@@ -251,6 +252,26 @@ yonetimKullanici.post("/yonetim/uyeler/:id/puan", sadeceAdmin, async (req, res, 
   await denetim(req, res, "kullanici.puan", "kullanici", id, { fark, sebep, onceki, sonraki });
   await bildirimGonder({ alan: id, yapan: null, tur: "moderasyon", metin: `Puanın yönetici tarafından ${fark > 0 ? "+" : ""}${fark} değiştirildi: ${sebep}`, link: "/profil/" + hedef!.username });
   bildir(req, "basari", `Puan ${onceki} → ${sonraki} oldu.`);
+  res.redirect(geriAdres(req, detay(id)));
+});
+
+// Yakut ver / al (yalnızca admin): miktar işaretli (+ver, -al), SEBEP ZORUNLU; yakut_log'a 'yonetim' olarak yazılır (açıklama = sebep)
+// ve işlem kaydına düşer. Alma bakiyeyi sıfırın altına indiremez: yakutEkle yetersizse hiçbir şey yazmaz.
+yonetimKullanici.post("/yonetim/uyeler/:id/yakut", sadeceAdmin, async (req, res, next) => {
+  const id = sayi(req.params.id);
+  if (!id) return next();
+  const miktar = Number(metin(req.body.miktar));
+  const sebep = metin(req.body.sebep);
+  const hedef = await kullaniciGetir(id);
+  let hata = !hedef ? "Kullanıcı bulunamadı." : null;
+  if (!hata && (!Number.isInteger(miktar) || miktar === 0 || Math.abs(miktar) > YONETIM_ENFAZLA)) hata = `Miktar 0 olmayan, en fazla ${yakutYaz(YONETIM_ENFAZLA)} büyüklüğünde bir tam sayı olmalı.`;
+  if (!hata && (sebep.length < 3 || sebep.length > 200)) hata = "Sebep 3 ile 200 karakter arasında olmalı.";
+  if (!hata && hedef!.silindi) hata = "Kapatılmış hesabın yakutu değiştirilemez.";
+  if (hata) { bildir(req, "hata", hata); return res.redirect(geriAdres(req, detay(id))); }
+  const s = await yakutEkle(id, miktar, "yonetim", null, sebep);
+  if (s.yetersiz) { bildir(req, "hata", `Bakiye yetmiyor: ${hedef!.username} kullanıcısında ${yakutYaz(s.eski)} yakut var.`); return res.redirect(geriAdres(req, detay(id))); }
+  await denetim(req, res, "kullanici.yakut", "kullanici", id, { kullanici: hedef!.username, miktar, sebep, onceki: s.eski, sonraki: s.yeni });
+  bildir(req, "basari", `Yakut ${yakutYaz(s.eski)} → ${yakutYaz(s.yeni)} oldu.`);
   res.redirect(geriAdres(req, detay(id)));
 });
 

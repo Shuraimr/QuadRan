@@ -175,7 +175,7 @@ Davetle girilen grup sohbetleri (konu yok; ad, açıklama, üyeler, mesajlar). H
   gönderene "Bu mesajı sildin", alıcıya "Bu mesaj silindi"; moderatör silmesi de aynı yer tutucuyu gösterir). Üst bilgideki avatar + ad profile giden TEK bağlantıdır;
   altında "Çevrimiçi" ya da rütbe. Üst ⋮ menüsü: `<ad>'i engelle` ve "Kullanıcıyı şikâyet et"; zaten engelliysen "Engeli kaldır" yalnızca yazı kutusunun yerindeki kartta durur (aynı eylem iki yerde çıkmasın).
 - Profil: konum + web sitesi meta satırında; ziyaretçide "Mesaj gönder" (yazamıyorsa gizli) ve tek ⋮ menüsü (Engelle / Engeli kaldır, Şikâyet et). Ayarlar'da yeni "Gizlilik" bölümü
-  (`#gizlilik`; sol menü, tablet dock'u ve telefon şeridinde `data-bolum-bag`) ve "Engellenenler" listesi.
+  (`#gizlilik`; masaüstünde kenar menüdeki Ayarlar alt satırı, tablette yapışkan şerit, telefonda üstteki çiplerde `data-bolum-bag`) ve "Engellenenler" listesi.
 - `/mesajlar/yeni` adı rota olduğu için `yeni` kullanıcı adı olarak ayrılmıştır (`hesap.ts` `AYRILMIS_AD`).
 
 ## Şikâyet sebepleri ve pencere
@@ -318,6 +318,21 @@ Telefonda alt menü ve üst çubuğun CSS ile gizlenen parçaları "Tekrarı ön
 - Sızma testi (2026-11-21, kod + canlı istek): SQLi, XSS, CSRF, IDOR/yetki, oturum sabitleme, dosya yükleme, açık yönlendirme,
   puan/oy hileleri denendi, açık bulunmadı; `npm audit --omit=dev` 0 zafiyet. Bulunanlar yalnızca yukarıdaki başlık eksikleriydi.
 
+## Masaüstü düzeni ve Ayarlar gezintisi (2026-11-21, Figma 13 · 62:2)
+
+- **Kenar menü** (`views/partials/kenar-menu.ejs`, `public/css/katmanlar.css`): masaüstünde (1181+) Akış, Sohbet, Sıralama; altında
+  "KATEGORİLER" bölüm başlığı (`.kenar-bolum-basligi`, `/kategoriler`'e gider, "Tümü" yazısı orada ton hapı olur) ve `# kategori` satırları;
+  en altta ince çizginin altında Ayarlar. Rayda (801–1180) simgeli "Kategoriler" öğesi eski yerinde durur, başlık grubu gizlidir.
+  İkisi aynı anda görünmediği için klavye sırası ekrandaki sırayla aynıdır (CSS `order` kullanılmaz).
+- **Ayarlar bölümleri tek yerde:** masaüstünde ayrı ikinci menü sütunu YOK; Ayarlar açıkken kenar menüdeki "Ayarlar"ın altında 5 bölüm
+  satırı çıkar (kenar menü sabit olduğu için kaydırırken de görünür). Şablon yerelleri:
+  - `ayarSayfasi: true` (yalnızca `ayarlar.ejs` → `partials/son`): satırlar `#profil…` çapası + `data-bolum-bag` (quadran.js okunan bölümü vurgular).
+  - `ayarBolum: "hesap" | "profil-gorunumu"` (hesap.ts /hesap/sifre, /hesap/eposta; premium.ts /premium): satırlar `/ayarlar#…`, o satır seçili.
+  - İkisi de yoksa alt satırlar açılmaz, Ayarlar dolu hap olur (menüde konum işareti hiç kaybolmaz).
+- **Tablet:** `.ayar-gezinti` (başlık + `nav.kategoriler`) üst çubuğun altına yapışan şerittir (`--ayar-serit: 68px`, sekmeler 44px).
+  Eski altta yüzen "ayar dock'u" kaldırıldı. Şeridin altına yapışan öğeler `top: calc(64px + var(--ayar-serit) + 16px)` kullanır (`.pg-onizleme`).
+- **Telefon:** değişmedi (başlık + yatay çipler). Konum ve Web sitesi alanları masaüstü/tablette yan yana (`.iki-alan`).
+
 Çevrimiçi listesi eksik değil: sohbetteki liste `users.last_seen_at` (her istekte en fazla dakikada bir güncellenir) ile çalışıyor.
 
 ## Dosyalar
@@ -384,3 +399,61 @@ Eksik ya da yanlışsa yanıt 403 olur, toast yazılır ve küçük bir sayfa ku
 - **Etkinlik sekmesi** (`?sekme=etkinlik`, herkese açık): UNION ALL ile en çok 30 satır, yeniden eskiye: konu açtı, cevap yazdı (ilk mesaj değil), rozet kazandı, takip etmeye başladı (silinmemiş hesaplar). Oy/puan/mesaj YOK.
 - **Ayarlar:** `POST /ayarlar/vitrin` (`rozet` onay kutuları ≤3 ve kişinin kendi rozeti olmalı, `sabit_konu_id` kişinin silinmemiş konusu ya da boş). Sıra = kazanma sırası. Bölüm `/ayarlar#vitrin`, Profil formunun altında (menüde ayrı öğe yok).
 - **Konu sayfası ⋮ menüsü (yalnızca konu sahibi):** `POST /konu/:id/profile-sabitle`, `POST /konu/:id/profilden-kaldir` (sahiplik + silinmemişlik denetimi; kaldır yalnızca bu konu sabitse). Sahip aynı zamanda yetkiliyse öğe moderasyon menüsünün başına eklenir (`partials/profil-sabit-oge.ejs`).
+
+## Yakut (sql/22_yakut.sql)
+
+Para birimi; puandan AYRI (puan rütbeyi belirler, harcanmaz; yakut harcanır). Figma 14 · Yakut, B3 jeton çerçeveli simge.
+
+**Tablolar / sütunlar:** `users.yakut` (bakiye), `users.son_harclik` (CHAR(7) "YYYY-MM": o ayın harçlığı verildi mi), `users.unvan_id` (seçili unvan, NULL = yok);
+`yakut_log (user_id, miktar işaretli, sebep VARCHAR(20), ilgili_id, aciklama, created_at)` sebepler: harclik, seri, premium, yonetim, unvan_al (ileride yardim, bahsis, super_yorum, one_cikar);
+`ranks.aylik_yakut` (40 … 400, rütbe sırasıyla artar; panel: Puan ve ödüller > Rütbeler); `unvanlar (ad UNIQUE, fiyat, aktif, sira)` seed 5 unvan; `kullanici_unvanlari (user_id, unvan_id)`.
+site_settings: `yakut_seri_gunluk`=10, `yakut_seri_yedinci`=50 (7., 14. … günde), `yakut_premium_aylik`=300 (ayarlar.ts `yakut`, panel: Puan kuralları).
+
+**Kural: bakiye YALNIZCA `src/yakut.ts › yakutEkle(userId, miktar, sebep, ilgiliId?, aciklama?, baglanti?)` ile değişir** (FOR UPDATE transaction + yakut_log). Harcama bakiyeyi sıfırın altına düşürecekse hiçbir şey yazmaz, `{ yetersiz: true }` döner (kırpma yok). `baglanti` verilirse commit/rollback çağırandadır (unvanAl yakut düşümü + sahiplik satırını tek transaction'da yazar).
+
+**Kazanma (oturum.ts › gunlukPuan → yakut.ts › gunlukYakutVer):** günde ilk istekte seri yakutu (10, `seri_gun % 7 === 0` ise 50); ay değiştiyse (`son_harclik` koşullu UPDATE, ay DB'den) rütbenin `aylik_yakut`'u (admin/moderatör dahil) + premium (admin dahil) ise ayrı satır `premium`.
+Ödüller `req.session.yakutOdulleri` kuyruğuna yazılır; sıradaki çizilen sayfada (GET, `Sec-Fetch-Dest` yok ya da document) ilki `partials/yakut-odul.ejs` penceresi olur ve çizim sırasında kuyruktan düşer (son.ejs'te: panelde de çıkar). quadran.js pencereyi modal yapar, `data-say` sayar.
+
+**Rotalar:** `GET /yakut` (`?k=tumu|unvanlar|susler|efektler|one-cikarma`; cüzdan, `#kazan` bölümü), `GET /yakut/hareketler` (`?f=tumu|kazanilan|harcanan`, `?sayfa=`, 30'ar), `POST /yakut/unvan/:id/al` (onay `data-onay`), `POST /yakut/unvan/:id/kullan` (sahiplik sunucuda doğrulanır), `POST /yakut/unvan/kaldir`. Bu POST'lara hız sınırı `yakutHarcama` (12/dk/kullanıcı). Süs/efekt/öne çıkarma ürünleri "Yakında" (satın alma yok).
+**Panel:** üye kartı "Yakut ver / al" `POST /yonetim/uyeler/:id/yakut` (admin; miktar ±, sebep ZORUNLU → yakut_log `yonetim` + işlem kaydı `kullanici.yakut`); Rütbeler tablosunda "Aylık yakut" sütunu; Puan kuralları'nda yakut kazanma alanları. **Unvanlar sekmesi** `/yonetim/puan/unvanlar` (yalnızca admin): ekle (ad 2–40 benzersiz, fiyat 0–100000, sıra), ad/fiyat/sıra düzenle, aktif/pasif; SİLME YOK (sahipler var). İşlem kaydı `unvan.ekle` / `unvan.duzenle`. Yakut kuralları değişirse ayrı kayıt `ayar.yakut` (puan kaydı `ayar.puan`'a karışmaz).
+**Arayüz:** `partials/yakut.ejs` (boyutlu SVG, `buyuk: true` ışıltılı), üst çubukta zilin solunda bakiye çipi (`.yakut-cip`; hesap menüsünde bakiye satırı YOK), `partials/unvan.ejs` çipi (yorum, konu başlığı/kartı, profil, mağaza önizlemesi; `rutbeSutunlari` artık `unvan` ve `premium` sütunlarını getirir).
+**Unvan kuralı (tek yerde: `yardimci.ts › unvanSql`):** gösterilen unvan = kişinin seçtiği (`unvan_id`, aktifse); seçmediyse sahip olduğu aktif unvanların EN PAHALISI (eşitse en son alınan). /yakut'ta otomatik gösterilen kartta "Otomatik gösteriliyor" + "Bunu sabitle". **PRE:** premium kişide (`premiumSql`, admin dahil) çip `<b>PRE</b> + unvan` (unvan yoksa yalnızca PRE), mor (`--pre-1..3`, açık tema karşılıklı), üstte 3 küçük alev dili animasyonu (`[data-az-animasyon]`/reduced-motion'da durağan). Rütbe çipi ayrı durur. **`bulunmaEki(ad)`** (`yardimci.ts`, `app.locals`): "Usta'da", "Gezgin'de", "Çaylak'ta" (rütbe adı panelden değişebildiği için sabit "'da" yazılmaz)., `public/css/yakut.css` (`--yakut-*`).
+**Bilinen eksikler:** süper yorum/öne çıkarma/süs/efekt satın alma, yardım ödülü, bahşiş (sebepler ayrılmış, kod yok); unvan üye kartında (/kart) ve sohbette görünmüyor.
+
+## Telefon arayüzü (3.7, onaylı telefon tasarımı 1. bölüm)
+- **Üst çubuk:** telefonda mesaj + yakut çipi + zil TEK kapsülde (`.ust-kapsul`: `--yuzey-1`, ince kenar, radius 22, her hedef 44px; yakut çipinin kendi kenarı kalkar). Masaüstü/tablette kapsül `display: contents` (düzen aynı). Sayfa 64px'i geçince quadran.js `<header class="ust-cubuk">`'a `data-yuzen` ekler (16px altına inince kaldırır; scroll pasif + requestAnimationFrame): çubuk 12px içeriden 52px yüzen kapsüle döner (`--yuzey-2`, `--kat-2`), "QuadRan" yazısı söner (`.logo-yazi` max-width/opacity), Q ortaya kayar (`translateX(calc(50vw - 81px))`), mesaj sola, yakut + zil sağa geçer. Çubuk sticky kalır ve toplam yer kaplaması 56px'te sabittir (52 + 4 alt boşluk): içerik zıplamaz. Açılış `--egri-cikis`, dönüş `--egri-giris`, süre `--sure-orta`; azaltılmış harekette anlık. 360px ve altında logo yazısı gizli. Arama düğmesi (telefonda görünmez) logoyu ezmesin diye 0 genişlikte.
+- **Akış filtresi (tüm ölçekler):** tek satır = segment "Öne çıkan · Yeni · Takip" + "Kategori ▾" düğmesi. Öne çıkan = `?sirala=populer`, Yeni = `?sirala=yeni` (varsayılan), Takip = `?akis=takip` (takip edilenlerin konuları, yeni sırasıyla; misafirde `/giris?don=...`). "En iyi" akıştan kalktı; `?sirala=eniyi` popülere düşer (src/rotalar/forum.ts). Kategori düğmesi JS'siz `/kategoriler` bağlantısıdır; JS varsa `#kategori-secici` (popover) açılır: telefonda alttan sayfa (başlık "Kategori", 52px satırlar: ad + konu sayısı, seçili satır `--ton` + onay), tablette düğmenin altında menü. Masaüstünde (>1180) düğme gizli: sol menüde kategoriler var. Eski telefon kategori çipleri (`.akis-kategoriler`) kaldırıldı.
+- **Yorum satırı (`partials/yorum.ejs`, tüm ölçekler):** üstte avatar 36px + [ad, rütbe, unvan] / altında zaman ("8 gün önce · düzenlendi"), sağ üstte ⋮ (44px) menüsü (`#yorum-menusu-<id>`, popover): çözüm işaretle/kaldır, düzenle, sil (kendi) ya da şikâyet et (başkası), yetkiliyse ayırıcıdan sonra moderasyon öğeleri (`moderasyon-menusu.ejs` `satirIci: true` ile kutusuz basılır; eski ayrı moderasyon ⋮'ü kalktı). Altta yatay oy grubu (`.oy-yatay`) + Cevapla. Oy sütunu soldan kalktı.
+- **44px:** telefonda `.oy*` düğmeleri, `.kategori-ogesi`, `.siralama a/label`, `.eylem`, `.buton`, `.baglanti` (metin dışı), kart/yorum yazar adı, kart başlığı bağlantısı, logo ≥44px (quadran.css sonundaki blok). Avatar bağlantıları (`tabindex="-1"`, ad bağlantısının kopyası) ölçüm dışıdır; yorumdakine ::after ile 44px dokunma alanı verildi. `/profil` sayfasında sekme şeridi 320px'te taşıyordu: `.profil, .profil .sutun` tek sütun (`minmax(0, 1fr)`).
+- **Üye kartı (`/profil/:ad/kart` + quadran.js):** telefonda alttan sayfa; sağ üstte 44px Kapat, tutamaç (`.uye-karti-tutamac`, 44px yüksek) pointer olaylarıyla gerçekten sürüklenir (≥80px aşağı → kapanır, azsa yerine döner). Açılış/kapanış CSS geçişi (`transform` + `overlay`/`display` `allow-discrete`, `@starting-style`). Avatar süsü sayfa içinde kalır: avatar sol kenardan 24px, süslüyse 48px, ejderha halkasında 72px. Kartta "Mesaj gönder" yanında çerçeveli "Profili aç" (`profiliAc`).
+- **Yakut ödül penceresi:** birden çok ödül birleşince başlık "BUGÜNÜN ÖDÜLLERİ · N", açıklama yalnızca bulunan parçaları sayar ("Günlük serin, aylık harçlığın ve premium yakutun cüzdanına eklendi."); `parcalar[].tur` eklendi (src/yakut.ts).
+- **Alt menü etkin öğe:** başka üyenin profilinde `aktifMenu = "yok"` (alt menü ve kenar menüde hiçbir öğe etkin değil); kendi profilinde "Profil".
+
+
+## Gezinme revizyonu (2026-11-21)
+
+Kullanıcı isteği: üst çubuk sade, yakut/mağaza için her ölçekte bir bölüm, DM'ler Sohbet'te, telefonda bildirimler Profil'de.
+
+- **Telefon üst çubuğu:** yalnızca logo. `data-yuzen` (quadran.js, 64px kaydırma) çubuğu ortada küçük bir logo levhasına çevirir
+  (köşe 12px, 44px yükseklik). Kapsül (`.ust-kapsul`), üst çubuktaki Mesajlar (`.ust-mesajlar`) ve bakiye çipi (`.yakut-cip`) kaldırıldı.
+- **Yakut bölümü** `views/partials/yakut-bolumu.ejs` (`tur: "kenar" | "hesap"`): bakiye, seri (`users.seri_gun`, oturum sorgusuna eklendi),
+  sonraki harçlık tarihi (telefonda), Mağaza bağlantısı. Masaüstü: kenar menüde Ayarlar'ın üstünde kart. Tablet: rayda `.kenar-yakut-ray`
+  (yakut simgesi + kısaltılmış bakiye). Telefon: hesap menüsünde (`.yalniz-telefon`, 801px+ gizli). Stiller `public/css/yakut.css` sonunda.
+- **Hesap menüsü:** Mesajlar satırı kalktı. Telefonda en üstte Yakut bölümü + Bildirimler satırı (`/bildirimler` sayfası, okunmamış sayı).
+  Telefonda menü alt menünün üstünde tam genişlik. Alt menüde Profil'in üstünde okunmamış bildirim varsa `.menu-nokta-vurgu` (`--vurgu`).
+- **Sohbet sekmeleri** `views/partials/sohbet-filtre.ejs`: Hepsi (`/sohbet`) · Odalar (`/sohbet?f=oda`) · DM (`/mesajlar`, okunmamış sayı).
+  Hepsi listesi odaları ve DM'leri son mesaja göre birleştirir (`hubVerisi().dmler`, en yeni 30 DM; satırlarda "DM"/"Oda" etiketi).
+  /mesajlar başlığı "Sohbet", aktif menü `sohbet`. Sohbet menü öğesinde okunmamış DM sayısı (`.menu-sayi`), yoksa oda noktası.
+
+## Yorum ekleri ve +18 (sql/23_ekler.sql, Figma 15 · 2. bölüm)
+
+- **Tablo `ekler`:** `post_id, user_id, tur ('resim'|'video'), adres, genislik, yukseklik, boyut, sira, nsfw, nsfw_kim ('yazar'|'yetkili'), created_at`. `posts.kart_kapali` (bağlantı kartları çizilmesin), `users.nsfw_tercih` (`gizle|bulanik|goster`, varsayılan bulanık). Soft delete'te ekler gösterilmez (şablon "silindi" der); dosyalar diskte kalır.
+- **Sınırlar:** yorum başına en çok 6 fotoğraf YA DA 1 video (ikisi birden olmaz). Fotoğraf 10 MB/adet, video 50 MB. Gövde üst sınırı `Content-Length` ile multer'dan önce denetlenir. Ekli gönderiye hız sınırı: `ekliCevap` (10 dakikada 6, yetkili muaf). Metin boş olabilir ancak ek varsa. Mesaj düzenlemede ekler değişmez (düzenleme sayfasında not).
+- **Yetki:** fotoğraf `izinli(kisi,"gorsel")`, video `izinli(kisi,"video")` (admin/moderatör muaf); yetkisizse cevap formunda araç düğmesi yerine kilit kartı. `/rutbeler`'de görsel/video artık "yakında" değil (`AYRICALIKLAR.hazir: true`).
+- **Rotalar:** `POST /konu/:id/cevap` (multipart ya da urlencoded; `Accept: application/json` ise JSON `{yonlendir}` / `{hata}` döner, quadran.js XHR'ı böyle kullanır) · `POST /moderasyon/nsfw` (post_id, topic_id; yetkili "+18 işaretle / kaldır", audit `icerik.nsfw` / `icerik.nsfw_kaldir`) · `GET /cikis?u=` (dış bağlantı onayı).
+- **Güvenlik:** fotoğraf sharp ile yeniden kodlanır (EXIF yönü uygulanır, EXIF/GPS/ICC SİLİNİR, uzun kenar ≤2048, WebP q88; hareketli GIF yalnızca premium'da hareketli, avatarla aynı kural). Video dönüştürülmez: dosya İMZASINDAN doğrulanır (mp4 `ftyp`, webm EBML `1A45DFA3`), uzantı/MIME'a güvenilmez, rastgele adla `yuklemeler/` altına yazılır. CSRF multer'dan SONRA doğrulanır (`oturum.ts › cokluParcaliMi`: `/konu/<id>/cevap`; `_csrf` formda ilk alan). Hatada yazılan metin kaybolmaz: JS'siz yolda `req.session.cevapTaslagi`, JS'te form yerinde kalır.
+- **CSP değişikliği:** yalnızca `frame-src https://www.youtube-nocookie.com` eklendi (YouTube kartı oynatılınca açılan iframe). Başka bir şey açılmadı.
+- **Bağlantı kartları (`src/rutbe.ts › baglantiKartlari`):** yazar `baglanti` ayrıcalığına sahipse (ya da yetkiliyse) ve `kart_kapali` değilse metnin altında en çok 2 kart: YouTube (watch?v=, youtu.be, shorts) ve GitHub (sahip/depo). Sayfa yüklenirken dışarıya istek gitmez: YouTube kutusu oynat'a basılınca iframe koyar; JS'siz /cikis üzerinden gider. Cevap formunda metindeki ilk adres önizleme çipi olur, × `kart_kapali=1` yazar.
+- **Dış bağlantı onayı:** kullanıcı içeriğindeki bütün dış bağlantılar (`icerikHtml` — yorum, konu, sohbet, DM, oda; profil web sitesi) `href="/cikis?u=…"` + `data-dis-baglanti` + `rel="nofollow ugc noopener noreferrer"` ile çizilir. JS varsa pencere (telefonda alttan sayfa); "Bu oturumda <alan> için tekrar sorma" `sessionStorage` anahtarı `quadran.cikisIzin`. `/cikis` yalnızca http/https kabul eder (aksi 400); kendi alan adımızsa doğrudan yönlendirir.
+- **+18:** yazar formdaki "Eklerim +18 içerik" kutusuyla işaretler; yetkili ⋮ menüsünden işaretler/kaldırır (kaldırınca yazarın işareti de gider). Görünüm `users.nsfw_tercih`'e göre (misafir = gizle): gizle → kutu (dosya adresi sayfada hiç yok), bulanık → `filter: blur(28px)` + JS'siz çalışan "Göster" (gizli onay kutusu + label), göster → köşede "+18" çipi. Ayarlar › Görünüm'de "+18 içerik" radyo kartları. Şikâyet sebepleri: "İşaretlenmemiş +18 içerik" (yalnızca konu mesajı), "Uygunsuz profil fotoğrafı/banner" (yalnızca kullanıcı). Avatar/banner +18 olamaz: Ayarlar › Görseller'de kural notu.
+- **Dosyalar:** `src/ekler.ts` (multer, işleme, doğrulama), `src/rotalar/cikis.ts`, `views/cikis.ejs`, `views/partials/ekler.ejs` + `kartlar.ejs`, `public/css/ekler.css`, quadran.js "Yorum ekleri ve dış bağlantı onayı" bölümü.

@@ -4,50 +4,48 @@
   <% const akisEki = locals.takipAkisi ? "&akis=takip" : ""; %>
 
   <div class="govde govde-akis">
-    <%# Masaüstü ve tabletteki kategori listesi kenar menüde; bu sütun yalnızca telefonda yatay çipler olarak kalır (CSS) %>
-    <nav class="sutun akis-kategoriler" id="kategoriler" aria-label="Kategoriler">
-      <div class="bolum-etiketi">KATEGORİLER</div>
-      <div class="kategoriler">
-        <a class="kategori-ogesi <%= !locals.kategoriId ? 'aktif' : '' %>" href="/?sirala=<%= locals.sirala || 'yeni' %><%= akisEki %>">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-          Tümü
-        </a>
-        <% for (const kategori of kategoriler) { %>
-          <a class="kategori-ogesi <%= locals.kategoriId === kategori.id ? 'aktif' : '' %>" href="/?kategori=<%= kategori.id %>&sirala=<%= locals.sirala || 'yeni' %><%= akisEki %>">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>
-            <%= kategori.name %>
-          </a>
-        <% } %>
-      </div>
-    </nav>
-
     <main class="sutun">
       <%
-        // Sıralama sekmeleri seçili kategoriyi korur: /?sirala=eniyi&kategori=2
-        const sekmeler = [["yeni", "Yeni"], ["populer", "Popüler"], ["eniyi", "En iyi"]];
-        const suAnki = locals.sirala || "yeni";
+        // Akış kontrolü TEK satır: segment (Öne çıkan · Yeni · Takip) + Kategori düğmesi. Seçili kategori her bağlantıda korunur.
+        // Öne çıkan = popüler sıralama; Takip = takip ettiklerimin konuları, yeni sırasıyla (src/rotalar/forum.ts).
+        const katEki_ = locals.kategoriId ? "&kategori=" + kategoriId : "";
+        const takipMi_ = !!locals.takipAkisi;
+        const kip_ = takipMi_ ? "takip" : (locals.sirala === "populer" ? "populer" : "yeni");
+        // Misafir Takip'e dokunursa girişe gider, girişten sonra aynı akışa döner
+        const takipAdresi_ = locals.kullanici ? "/?akis=takip" + katEki_ : "/giris?don=" + encodeURIComponent("/?akis=takip" + katEki_);
+        const sekmeler_ = [["populer", "Öne çıkan", "/?sirala=populer" + katEki_], ["yeni", "Yeni", "/?sirala=yeni" + katEki_], ["takip", "Takip", takipAdresi_]];
+        // Kategori satırları mevcut kipi korur (takip ya da sıralama)
+        const kipEki_ = takipMi_ ? "&akis=takip" : "&sirala=" + (locals.sirala || "yeni");
+        const seciliKat_ = locals.kategoriId ? kategoriler.find((c) => c.id === kategoriId) : null;
       %>
       <div class="akis-kontrol">
-      <%# Herkes | Takip ettiklerin: yalnızca giriş yapmış kişide. Sıralama ve kategori seçimi korunur. %>
-      <% if (locals.kullanici) { %>
-        <div class="siralama" role="group" aria-label="Akış kaynağı">
-          <% for (const [ad, etiket] of [["", "Herkes"], ["takip", "Takip ettiklerin"]]) { %>
-            <% const secili = (ad === "takip") === !!locals.takipAkisi; %>
-            <a class="<%= secili ? 'aktif' : '' %>" href="/?sirala=<%= suAnki %><%= locals.kategoriId ? '&kategori=' + kategoriId : '' %><%= ad ? '&akis=' + ad : '' %>"<%- secili ? ' aria-current="true"' : '' %>>
-              <% if (secili) { %><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><% } %>
-              <%= etiket %>
+        <div class="siralama akis-segment" role="group" aria-label="Akış">
+          <% for (const [kod_, etiket_, adres_] of sekmeler_) { %>
+            <a class="<%= kip_ === kod_ ? 'aktif' : '' %>" href="<%= adres_ %>"<%- kip_ === kod_ ? ' aria-current="true"' : '' %>>
+              <% if (kip_ === kod_) { %><%- include("partials/ikon", { ad: "onay", boyut: 16 }) %><% } %>
+              <%= etiket_ %>
             </a>
           <% } %>
         </div>
-      <% } %>
-      <div class="siralama">
-        <% for (const [ad, etiket] of sekmeler) { %>
-          <a class="<%= suAnki === ad ? 'aktif' : '' %>" href="/?sirala=<%= ad %><%= locals.kategoriId ? '&kategori=' + kategoriId : '' %><%= akisEki %>">
-            <% if (suAnki === ad) { %><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><% } %>
-            <%= etiket %>
+        <%# JS'siz: /kategoriler sayfasına gider. JS varsa quadran.js aynı listeyi (#kategori-secici) açar. Masaüstünde gizli: sol menüde kategoriler zaten var (tekrar olmasın). %>
+        <a class="kategori-dugmesi<%= seciliKat_ ? ' secili' : '' %>" href="/kategoriler" data-kategori-ac aria-haspopup="dialog" aria-label="Kategori<%= seciliKat_ ? ': ' + seciliKat_.name : '' %>">
+          <span class="kategori-dugmesi-ad"><%= seciliKat_ ? seciliKat_.name : "Kategori" %></span>
+          <%- include("partials/ikon", { ad: "asagi-ok", boyut: 16 }) %>
+        </a>
+      </div>
+      <div class="acilir-menu kategori-secici" id="kategori-secici" popover aria-label="Kategori">
+        <div class="kategori-secici-baslik">Kategori</div>
+        <a class="kategori-satir<%= !locals.kategoriId ? ' aktif' : '' %>" href="/?<%= kipEki_.slice(1) %>"<%- !locals.kategoriId ? ' aria-current="true"' : '' %>>
+          <span class="kategori-satir-ad">Tümü</span>
+          <% if (!locals.kategoriId) { %><%- include("partials/ikon", { ad: "onay", boyut: 20 }) %><% } %>
+        </a>
+        <% for (const kategori of kategoriler) { const sec_ = locals.kategoriId === kategori.id; %>
+          <a class="kategori-satir<%= sec_ ? ' aktif' : '' %>" href="/?kategori=<%= kategori.id %><%= kipEki_ %>"<%- sec_ ? ' aria-current="true"' : '' %>>
+            <span class="kategori-satir-ad"><%= kategori.name %></span>
+            <span class="kategori-satir-sayi"><%= Number(kategori.konu_sayisi).toLocaleString("tr-TR") %> konu</span>
+            <% if (sec_) { %><%- include("partials/ikon", { ad: "onay", boyut: 20 }) %><% } %>
           </a>
         <% } %>
-      </div>
       </div>
 
       <% if (konular.length === 0 && locals.takipAkisi) { %>

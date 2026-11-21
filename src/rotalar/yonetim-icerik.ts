@@ -260,6 +260,7 @@ const RUTBELER = "/yonetim/puan/rutbeler";
 
 yonetimIcerik.use("/yonetim/puan/rutbeler", sadeceAdmin);
 yonetimIcerik.use("/yonetim/puan/rozetler", sadeceAdmin);
+yonetimIcerik.use("/yonetim/puan/unvanlar", sadeceAdmin);
 
 const BAYRAKLAR = ["oda_ac", "baglanti", "gorsel", "video", "imza"] as const;
 const GUNLUK_OY_ENFAZLA = 1_000_000;
@@ -274,7 +275,7 @@ function esikHatasi(ham: string, puan: number) {
 yonetimIcerik.get(RUTBELER, async (req, res) => {
   const [rutbeSatirlari]: any = await pool.query(
     `SELECT ranks.id, ranks.name, ranks.min_points, ranks.renk, ranks.simge, ranks.oda_ac, ranks.baglanti, ranks.gorsel,
-            ranks.video, ranks.imza, ranks.gunluk_oy,
+            ranks.video, ranks.imza, ranks.gunluk_oy, ranks.aylik_yakut,
             (SELECT COUNT(*) FROM users WHERE users.deleted_at IS NULL AND ${rutbeIdSql("users")} = ranks.id) AS kullanici_sayisi
        FROM ranks ORDER BY ranks.min_points`
   );
@@ -294,11 +295,11 @@ yonetimIcerik.post(RUTBELER, async (req, res) => {
   if (hata) { bildir(req, "hata", hata); return res.redirect(RUTBELER); }
   const [var_]: any = await pool.query("SELECT name, min_points FROM ranks WHERE name = ? OR min_points = ?", [ad, puan]);
   if (var_[0]) { bildir(req, "hata", var_[0].name === ad ? "Bu adda bir rütbe zaten var." : `${puan} puanlık bir rütbe zaten var (${var_[0].name}).`); return res.redirect(RUTBELER); }
-  const [alt]: any = await pool.query("SELECT oda_ac, baglanti, gorsel, video, imza, gunluk_oy FROM ranks WHERE min_points < ? ORDER BY min_points DESC LIMIT 1", [puan]);
-  const a = alt[0] ?? { oda_ac: 0, baglanti: 0, gorsel: 0, video: 0, imza: 0, gunluk_oy: 20 };
+  const [alt]: any = await pool.query("SELECT oda_ac, baglanti, gorsel, video, imza, gunluk_oy, aylik_yakut FROM ranks WHERE min_points < ? ORDER BY min_points DESC LIMIT 1", [puan]);
+  const a = alt[0] ?? { oda_ac: 0, baglanti: 0, gorsel: 0, video: 0, imza: 0, gunluk_oy: 20, aylik_yakut: 40 };
   const [s]: any = await pool.query(
-    "INSERT INTO ranks (name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    [ad, puan, renk, simge, a.oda_ac, a.baglanti, a.gorsel, a.video, a.imza, a.gunluk_oy]
+    "INSERT INTO ranks (name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy, aylik_yakut) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [ad, puan, renk, simge, a.oda_ac, a.baglanti, a.gorsel, a.video, a.imza, a.gunluk_oy, a.aylik_yakut]
   );
   rutbeOnbellekTemizle();
   await denetim(req, res, "rutbe.ekle", "rutbe", s.insertId, { ad, min_points: puan, renk, simge });
@@ -308,7 +309,7 @@ yonetimIcerik.post(RUTBELER, async (req, res) => {
 
 // Tabloyu kaydet: bütün rütbeler birlikte doğrulanır; tek hata varsa hiçbiri yazılmaz
 yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
-  const [eskiler]: any = await pool.query("SELECT id, name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy FROM ranks ORDER BY min_points");
+  const [eskiler]: any = await pool.query("SELECT id, name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy, aylik_yakut FROM ranks ORDER BY min_points");
   const yeniler: any[] = [];
   let hata: string | undefined;
   for (const e of eskiler) {
@@ -323,7 +324,9 @@ yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
     if (!hata && e.min_points !== 0 && puan === 0) hata = "0 puanlık eşik yalnızca taban rütbeye ait.";
     if (!hata && (!RENKLER.includes(renk) || !SIMGELER.includes(simge))) hata = "Geçersiz renk ya da simge.";
     if (!hata && oy !== null && (!Number.isInteger(oy) || oy < 0 || oy > GUNLUK_OY_ENFAZLA)) hata = `Günlük oy 0 ile ${GUNLUK_OY_ENFAZLA} arasında tam sayı olmalı (boş bırakırsan sınırsız).`;
-    const yeni: any = { id: e.id, name: ad, min_points: puan, renk, simge, gunluk_oy: oy };
+    const yakutHam = metin(req.body["aylik_yakut_" + e.id]), yakutSayi = Number(yakutHam);
+    if (!hata && (yakutHam === "" || !Number.isInteger(yakutSayi) || yakutSayi < 0 || yakutSayi > 100_000)) hata = "Aylık yakut 0 ile 100.000 arasında tam sayı olmalı.";
+    const yeni: any = { id: e.id, name: ad, min_points: puan, renk, simge, gunluk_oy: oy, aylik_yakut: yakutSayi };
     for (const b of BAYRAKLAR) yeni[b] = req.body[b + "_" + e.id] ? 1 : 0; // işaretli onay kutusu gönderilir, işaretsiz gönderilmez
     yeniler.push(yeni);
   }
@@ -341,8 +344,8 @@ yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
     for (const y of yeniler) await bag.query("UPDATE ranks SET name = CONCAT('~', id), min_points = 4000000000 + id WHERE id = ?", [y.id]);
     for (const y of yeniler) {
       await bag.query(
-        `UPDATE ranks SET name = ?, min_points = ?, renk = ?, simge = ?, oda_ac = ?, baglanti = ?, gorsel = ?, video = ?, imza = ?, gunluk_oy = ? WHERE id = ?`,
-        [y.name, y.min_points, y.renk, y.simge, y.oda_ac, y.baglanti, y.gorsel, y.video, y.imza, y.gunluk_oy, y.id]
+        `UPDATE ranks SET name = ?, min_points = ?, renk = ?, simge = ?, oda_ac = ?, baglanti = ?, gorsel = ?, video = ?, imza = ?, gunluk_oy = ?, aylik_yakut = ? WHERE id = ?`,
+        [y.name, y.min_points, y.renk, y.simge, y.oda_ac, y.baglanti, y.gorsel, y.video, y.imza, y.gunluk_oy, y.aylik_yakut, y.id]
       );
     }
     await bag.commit();
@@ -358,7 +361,7 @@ yonetimIcerik.post(RUTBELER + "/kaydet", async (req, res) => {
   for (const y of yeniler) {
     const e = eskiler.find((x: any) => x.id === y.id);
     const fark: Record<string, unknown> = {};
-    for (const alan of ["name", "min_points", "renk", "simge", ...BAYRAKLAR, "gunluk_oy"]) {
+    for (const alan of ["name", "min_points", "renk", "simge", ...BAYRAKLAR, "gunluk_oy", "aylik_yakut"]) {
       const onceki = typeof e[alan] === "boolean" ? Number(e[alan]) : e[alan];
       if (onceki !== y[alan]) fark[alan] = [onceki, y[alan]];
     }
@@ -465,4 +468,66 @@ yonetimIcerik.post(ROZETLER + "/:id/sil", async (req, res, next) => {
   await denetim(req, res, "rozet.sil", "rozet", id, { ad: eski[0].name });
   bildir(req, "basari", `“${eski[0].name}” rozeti ve sahiplikleri silindi.`);
   res.redirect(ROZETLER);
+});
+
+// ---------------------------------------------------------------------------
+// Unvan mağazası (sql/22): ekle, ad/fiyat/sıra düzenle, aktif/pasif. SİLME YOK: unvanın sahipleri var (yakut ödemişler);
+// kaldırmak istenirse "pasif" yapılır: mağazada görünmez, sahiplerde kalır ama (pasifken) gösterilmez (yardimci.ts › unvanSql).
+// ---------------------------------------------------------------------------
+const UNVANLAR = "/yonetim/puan/unvanlar";
+const UNVAN_FIYAT_ENFAZLA = 100_000;
+
+function unvanAlanlari(body: any) {
+  const ad = metin(body.ad);
+  const fiyatHam = metin(body.fiyat);
+  const fiyat = Number(fiyatHam);
+  const siraHam = metin(body.sira);
+  const sira = siraHam === "" ? 0 : Number(siraHam);
+  let hata: string | undefined;
+  if (ad.length < 2 || ad.length > 40) hata = "Unvan adı 2 ile 40 karakter arasında olmalı.";
+  else if (fiyatHam === "" || !Number.isInteger(fiyat) || fiyat < 0 || fiyat > UNVAN_FIYAT_ENFAZLA) hata = `Fiyat 0 ile ${UNVAN_FIYAT_ENFAZLA} arasında tam bir sayı olmalı.`;
+  else if (!Number.isInteger(sira) || sira < -9999 || sira > 9999) hata = "Sıra −9999 ile 9999 arasında tam bir sayı olmalı.";
+  return { hata, ad, fiyat, sira };
+}
+
+yonetimIcerik.get(UNVANLAR, async (req, res) => {
+  const [unvanlar] = await pool.query(
+    `SELECT unvanlar.id, unvanlar.ad, unvanlar.fiyat, unvanlar.aktif, unvanlar.sira,
+            (SELECT COUNT(*) FROM kullanici_unvanlari WHERE kullanici_unvanlari.unvan_id = unvanlar.id) AS sahip_sayisi
+       FROM unvanlar ORDER BY unvanlar.sira, unvanlar.id`);
+  res.render("yonetim/unvanlar", { baslik: "Puan ve ödüller", aktif: "puan", unvanlar });
+});
+
+yonetimIcerik.post(UNVANLAR, async (req, res) => {
+  const a = unvanAlanlari(req.body);
+  if (a.hata) { bildir(req, "hata", a.hata); return res.redirect(UNVANLAR); }
+  const [var_]: any = await pool.query("SELECT id FROM unvanlar WHERE ad = ?", [a.ad]);
+  if (var_[0]) { bildir(req, "hata", "Bu adda bir unvan zaten var."); return res.redirect(UNVANLAR); }
+  const [s]: any = await pool.query("INSERT INTO unvanlar (ad, fiyat, sira) VALUES (?, ?, ?)", [a.ad, a.fiyat, a.sira]);
+  await denetim(req, res, "unvan.ekle", "unvan", s.insertId, { ad: a.ad, fiyat: a.fiyat, sira: a.sira });
+  bildir(req, "basari", `“${a.ad}” unvanı eklendi.`);
+  res.redirect(UNVANLAR);
+});
+
+yonetimIcerik.post(UNVANLAR + "/:id/duzenle", async (req, res, next) => {
+  const id = sayi(req.params.id);
+  if (!id) return next();
+  const [eski]: any = await pool.query("SELECT ad, fiyat, sira, aktif FROM unvanlar WHERE id = ?", [id]);
+  if (!eski[0]) return next();
+  const a = unvanAlanlari(req.body);
+  let hata = a.hata;
+  if (!hata) {
+    const [var_]: any = await pool.query("SELECT id FROM unvanlar WHERE ad = ? AND id <> ?", [a.ad, id]);
+    if (var_[0]) hata = "Bu adda başka bir unvan zaten var.";
+  }
+  if (hata) { bildir(req, "hata", hata); return res.redirect(UNVANLAR); }
+  // Aktiflik onay kutusundan gelir (işaretli değilse alan hiç gönderilmez); sunucu yalnızca "1"i aktif sayar
+  const aktif = req.body.aktif === "1" ? 1 : 0;
+  await pool.query("UPDATE unvanlar SET ad = ?, fiyat = ?, sira = ?, aktif = ? WHERE id = ?", [a.ad, a.fiyat, a.sira, aktif, id]);
+  await denetim(req, res, "unvan.duzenle", "unvan", id, {
+    eski: { ad: eski[0].ad, fiyat: Number(eski[0].fiyat), sira: Number(eski[0].sira), aktif: Number(eski[0].aktif) },
+    yeni: { ad: a.ad, fiyat: a.fiyat, sira: a.sira, aktif },
+  });
+  bildir(req, "basari", "Unvan güncellendi.");
+  res.redirect(UNVANLAR);
 });

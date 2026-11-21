@@ -11,7 +11,7 @@
   yeni        true ise sağ tarafta "Yeni mesaj" araması (JS'siz yol: GET /mesajlar/yeni?q=); aramaQ, sonuclar [ { username, rutbe } ]
   Gönderim: POST /mesajlar/<kullanici>  alan: content · Sil: POST /mesajlar/mesaj/<id>/sil · Engel: POST /engel/<kullanici>[/kaldir]
 %>
-<%- include("partials/bas", { baslik: "Mesajlar" }) %>
+<%- include("partials/bas", { baslik: "Sohbet · DM" }) %>
 <%- include("partials/ust-cubuk") %>
 <%
   const mjAcik = locals.acik || null;
@@ -58,10 +58,11 @@
   <section class="kart mesaj-liste" aria-label="Konuşmalar">
     <div class="mesaj-liste-ust">
       <div class="mesaj-liste-baslik">
-        <h1>Mesajlar</h1>
+        <h1>Sohbet</h1>
         <%# "Yeni mesaj" yalnızca yeni mesaj sayfasında yok: orada zaten aynı arama açık, aynı eylem iki yerde durmasın %>
         <% if (!locals.yeni) { %><a class="buton buton-tonal yeni-mesaj-dugme" href="/mesajlar/yeni" data-yeni-mesaj-ac><%- include("partials/ikon", { ad: "kalem", boyut: 18 }) %> Yeni mesaj</a><% } %>
       </div>
+      <%- include("partials/sohbet-filtre", { secili: "dm" }) %>
       <form class="mesaj-ara" method="get" action="/mesajlar" role="search">
         <%- include("partials/ikon", { ad: "ara", boyut: 18 }) %>
         <input type="search" name="q" value="<%= mjQ %>" placeholder="Konuşmalarda ara" aria-label="Konuşmalarda ara">

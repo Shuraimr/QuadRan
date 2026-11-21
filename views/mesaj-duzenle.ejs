@@ -18,9 +18,9 @@
       <div class="yardim"><span><%= h.title || "Sorunu tek cümlede özetle" %></span><span>en fazla 120</span></div>
     <% } %>
     <label class="alan <%= h.content ? 'hatali' : '' %>"><span>İçerik</span>
-      <textarea name="content" required maxlength="10000"><%= d.content || '' %></textarea>
+      <textarea name="content"<%- m.ek_sayisi ? "" : " required" %> maxlength="10000"><%= d.content || '' %></textarea>
     </label>
-    <div class="yardim"><span><%= h.content || "Kaydedince mesajın yanında “düzenlendi” yazar." %></span><span>en fazla 10.000</span></div>
+    <div class="yardim"><span><%= h.content || "Kaydedince mesajın yanında “düzenlendi” yazar." %><%= m.ek_sayisi ? " Ekler düzenlenemez; silmek için mesajı sil." : "" %></span><span>en fazla 10.000</span></div>
     <div class="satir" style="justify-content: flex-end">
       <a class="buton buton-metin" href="/konu/<%= m.topic_id %>#mesaj-<%= m.id %>">Vazgeç</a>
       <button class="buton buton-birincil">Kaydet</button>

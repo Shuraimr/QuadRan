@@ -2,7 +2,7 @@
   Profil kartı (Figma 38:75 üye kartı, Ayarlar önizlemesi, /premium). Sitenin kart dilinde: zemin --yuzey-1, kenar --kenar-ince.
   Beklenen: u { username, bio, avatar_url, banner_url, avatar_susu, profil_efekti, profil_renk_ana, profil_renk_vurgu,
                 rutbe, rutbe_id, created_at }   (premium'a bağlı alanlar sorguda premium değilse NULL gelir)
-  mesajAtabilir (bool, ziyaretçi için), onizleme (bool: Ayarlar önizlemesi; 6 efekt/süs birden çizilir, JS seçilene göre gösterir, düğme yok)
+  mesajAtabilir (bool, ziyaretçi için), profiliAc (bool: üye kartı penceresinde "Profili aç" düğmesi), onizleme (bool: Ayarlar önizlemesi; 6 efekt/süs birden çizilir, JS seçilene göre gösterir, düğme yok)
   Renk kullanımı (ölçülü): ANA renk yalnızca banner'ı (resim yoksa) ve avatar halkasını boyar, VURGU rengi üst kenar çizgisi ve küçük vurgular.
   Renk seçilmemişse CSS yedekleri (--ton / --yuzey-2 ve --vurgu) devreye girer. Renkler sunucuda #rrggbb olarak doğrulanır.
 %><%
@@ -19,7 +19,12 @@
       <% if (u.rutbe) { %><%- include("rutbe", { rutbeAd: u.rutbe, rutbeId: u.rutbe_id }) %><% } %></div>
     <% if (u.bio) { %><div><div class="ust-etiket">HAKKINDA</div><p class="pk-bio"><%= u.bio %></p></div><% } %>
     <div class="ikincil kucuk">Üye · <%= new Date(u.created_at).toLocaleDateString("tr-TR", { month: "long", year: "numeric" }) %></div>
-    <% if (!o_ && locals.mesajAtabilir) { %><a class="buton buton-birincil" href="/mesajlar/<%= encodeURIComponent(u.username) %>">Mesaj gönder</a><% } %>
+    <% if (!o_ && (locals.mesajAtabilir || locals.profiliAc)) { %>
+      <div class="pk-eylemler">
+        <% if (locals.mesajAtabilir) { %><a class="buton buton-birincil" href="/mesajlar/<%= encodeURIComponent(u.username) %>">Mesaj gönder</a><% } %>
+        <% if (locals.profiliAc) { %><a class="buton buton-cerceveli" href="/profil/<%= encodeURIComponent(u.username) %>">Profili aç</a><% } %>
+      </div>
+    <% } %>
   </div>
   <%- include("profil-efekt", { efekt: u.profil_efekti, katman: "on", tum: o_ }) %>
 </article>

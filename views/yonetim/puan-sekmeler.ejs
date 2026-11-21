@@ -1,2 +1,2 @@
-<%# Puan ve ödüller sekmeleri. Beklenen: sekme ("kurallar" | "rutbeler" | "rozetler") %>
-<div class="yn-sekmeler siralama"><% for (const [id, ad, href] of [["kurallar","Puan kuralları","/yonetim/puan"],["rutbeler","Rütbeler","/yonetim/puan/rutbeler"],["rozetler","Rozetler","/yonetim/puan/rozetler"]]) { %><a class="<%= sekme === id ? 'aktif' : '' %>" href="<%= href %>"><%= ad %></a><% } %></div>
+<%# Puan ve ödüller sekmeleri. Beklenen: sekme ("kurallar" | "rutbeler" | "rozetler" | "unvanlar") %>
+<div class="yn-sekmeler siralama"><% for (const [id, ad, href] of [["kurallar","Puan kuralları","/yonetim/puan"],["rutbeler","Rütbeler","/yonetim/puan/rutbeler"],["rozetler","Rozetler","/yonetim/puan/rozetler"],["unvanlar","Unvanlar","/yonetim/puan/unvanlar"]]) { %><a class="<%= sekme === id ? 'aktif' : '' %>" href="<%= href %>"><%= ad %></a><% } %></div>

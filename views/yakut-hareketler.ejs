@@ -1,0 +1,34 @@
+<%# /yakut/hareketler: tüm yakut hareketleri. f (tumu | kazanilan | harcanan), hareketler [{ miktar, sebep, aciklama, created_at }], sayfa, sayfaSayisi, toplam, sebepler %>
+<%- include("partials/bas", { baslik: "Yakut hareketleri" }) %>
+<%- include("partials/ust-cubuk") %>
+<main class="yakut-sayfa yakut-tek">
+  <header class="yakut-baslik">
+    <a class="rutbeler-geri yakut-geri" href="/yakut">← Yakut</a>
+    <h1>Hareketler</h1>
+    <p class="ikincil">Yakut bakiyendeki her artış ve azalış burada durur. Toplam <%= yakutYaz(toplam) %> hareket.</p>
+  </header>
+  <nav class="yakut-kategoriler" aria-label="Filtre">
+    <% for (const [id, ad] of [["tumu", "Tümü"], ["kazanilan", "Kazanılan"], ["harcanan", "Harcanan"]]) { %><a class="yakut-kat<%= f === id ? ' aktif' : '' %>" href="/yakut/hareketler<%= id === 'tumu' ? '' : '?f=' + id %>"<%- f === id ? ' aria-current="page"' : '' %>><%= ad %></a><% } %>
+  </nav>
+  <section class="kart yakut-hareket-tam">
+    <% if (!hareketler.length) { %>
+      <p class="ikincil yakut-bos"><%= f === "tumu" ? "Henüz yakut hareketin yok. Her gün giriş yaparak ve rütbe harçlığınla bakiye birikir." : f === "kazanilan" ? "Henüz kazandığın yakut yok." : "Henüz yakut harcamadın." %></p>
+    <% } %>
+    <ul class="yakut-hareket-liste">
+      <% for (const h of hareketler) { %>
+        <li>
+          <span><strong><%= sebepler[h.sebep] || h.sebep %></strong><small class="ikincil"><%= new Date(h.created_at).toLocaleString("tr-TR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) %><%= h.aciklama ? " · " + h.aciklama : "" %></small></span>
+          <span class="yakut-miktar<%= h.miktar > 0 ? ' artti' : '' %>"><%= h.miktar > 0 ? "+" : "−" %><%= yakutYaz(Math.abs(h.miktar)) %> <%- include("partials/yakut", { boyut: 14 }) %></span>
+        </li>
+      <% } %>
+    </ul>
+  </section>
+  <% if (sayfaSayisi > 1) { const q_ = (p) => "/yakut/hareketler?" + (f !== "tumu" ? "f=" + f + "&" : "") + "sayfa=" + p; %>
+    <nav class="yakut-sayfalar" aria-label="Sayfalar">
+      <% if (sayfa > 1) { %><a class="buton buton-cerceveli" href="<%= q_(sayfa - 1) %>">‹ Önceki</a><% } %>
+      <span class="ikincil kucuk"><%= sayfa %> / <%= sayfaSayisi %></span>
+      <% if (sayfa < sayfaSayisi) { %><a class="buton buton-cerceveli" href="<%= q_(sayfa + 1) %>">Sonraki ›</a><% } %>
+    </nav>
+  <% } %>
+</main>
+<%- include("partials/son") %>

@@ -1,0 +1,8 @@
+<%#
+  Unvan çipi (sql/22). Beklenen: unvan (gösterilen unvan adı ya da boş; src/yardimci.ts › unvanSql seçili/otomatik kuralını çözer),
+  premium (0/1; rutbeSutunlari'ndan "premium"; premiumSql ile aynı kaynak, admin dahil).
+  Premium kişide "PRE" öneki + mor çip + 3 küçük alev dili (CSS, hareket kapalıyken durağan); unvanı yoksa yalnızca "PRE".
+  Rütbe çipi ayrı durur, bu partial onu çizmez. Profil, konu, yorum, kart ve mağaza önizlemesi AYNI partial'ı kullanır.
+%>
+<% if (locals.premium && Number(locals.premium) === 1) { %><span class="unvan-cip unvan-pre"><b>PRE</b><% if (locals.unvan) { %> <%= locals.unvan %><% } %><span class="unvan-alev" aria-hidden="true"><i></i><i></i><i></i></span></span>
+<% } else if (locals.unvan) { %><span class="unvan-cip"><%= locals.unvan %></span><% } %>

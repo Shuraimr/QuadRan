@@ -15,8 +15,16 @@ export type SiteAyarlari = {
   duyuruSurum: string;
   yasakli: string[];
   puan: PuanKurallari;
+  yakut: YakutKurallari;
   oda: OdaAyarlari;
 };
+
+// Yakut kazanma kuralları (sql/22; site_settings: yakut_seri_gunluk, yakut_seri_yedinci, yakut_premium_aylik).
+// Rütbe başına aylık harçlık ayarı ranks.aylik_yakut'ta durur (panel: Puan ve ödüller > Rütbeler). Panel: Puan ve ödüller > Puan kuralları.
+//   seriGunluk: günlük giriş yakutu · seriYedinci: 7., 14., 21... ardışık günde seriGunluk yerine verilir · premiumAylik: premium üyeye ayda bir
+export type YakutKurallari = { seriGunluk: number; seriYedinci: number; premiumAylik: number };
+export const YAKUT_VARSAYILAN: YakutKurallari = { seriGunluk: 10, seriYedinci: 50, premiumAylik: 300 };
+export const YAKUT_ENFAZLA = 100000; // yanlışlıkla çok büyük bir sayı yazılmasın
 
 // Özel oda ayarı (sql/12): bir kişinin sahibi olabileceği en çok oda sayısı. Yönetim: Sohbet > Odalar.
 // (Oda açabilecek rütbe artık ayar değil, rütbenin "oda_ac" ayrıcalığıdır: sql/13, Puan ve ödüller > Rütbeler.)
@@ -71,6 +79,11 @@ export async function ayarlar(): Promise<SiteAyarlari> {
       rozet: puanDegeri(h.puan_rozet, PUAN_VARSAYILAN.rozet),
       davet: puanDegeri(h.puan_davet, PUAN_VARSAYILAN.davet), // henüz kullanılmıyor (referans aşamasında bağlanacak)
       gunlukTavan: tamSayi(h.puan_gunluk_tavan, PUAN_VARSAYILAN.gunlukTavan, 0, TAVAN_ENFAZLA),
+    },
+    yakut: {
+      seriGunluk: tamSayi(h.yakut_seri_gunluk, YAKUT_VARSAYILAN.seriGunluk, 0, YAKUT_ENFAZLA),
+      seriYedinci: tamSayi(h.yakut_seri_yedinci, YAKUT_VARSAYILAN.seriYedinci, 0, YAKUT_ENFAZLA),
+      premiumAylik: tamSayi(h.yakut_premium_aylik, YAKUT_VARSAYILAN.premiumAylik, 0, YAKUT_ENFAZLA),
     },
     oda: {
       kisiSiniri: tamSayi(h.kisi_basi_oda_siniri, ODA_VARSAYILAN.kisiSiniri, 1, ODA_SINIR_ENFAZLA),

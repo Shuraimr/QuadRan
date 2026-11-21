@@ -1,0 +1,23 @@
+<%# Unvanlar: unvanlar [{id, ad, fiyat, aktif, sira, sahip_sayisi}]. Silme yok (sahipler var); pasif unvan mağazada görünmez. %>
+<%- include("duzen-ust", { baslik: "Puan ve ödüller", aktif: "puan" }) %>
+<%- include("puan-sekmeler", { sekme: "unvanlar" }) %>
+<form class="kart yn-kart yn-form yn-satir yn-genis" method="post" action="/yonetim/puan/unvanlar"><%- include("csrf") %>
+  <label class="yn-etiketli">Yeni unvan<input class="yn-girdi" name="ad" minlength="2" maxlength="40" required></label>
+  <label class="yn-etiketli">Fiyat (yakut)<input class="yn-girdi" name="fiyat" type="number" min="0" max="100000" step="1" required inputmode="numeric"></label>
+  <label class="yn-etiketli">Sıra<input class="yn-girdi" name="sira" type="number" min="-9999" max="9999" step="1" value="0" inputmode="numeric"></label>
+  <button class="buton buton-birincil">Ekle</button>
+</form>
+<% for (const u of unvanlar) { %>
+  <div class="kart yn-kart yn-satir yn-genis">
+    <form class="yn-form yn-satir yn-genis" method="post" action="/yonetim/puan/unvanlar/<%= u.id %>/duzenle"><%- include("csrf") %>
+      <label class="yn-etiketli">Ad<input class="yn-girdi" name="ad" value="<%= u.ad %>" minlength="2" maxlength="40" required></label>
+      <label class="yn-etiketli">Fiyat<input class="yn-girdi" name="fiyat" type="number" min="0" max="100000" step="1" value="<%= u.fiyat %>" required inputmode="numeric"></label>
+      <label class="yn-etiketli">Sıra<input class="yn-girdi" name="sira" type="number" min="-9999" max="9999" step="1" value="<%= u.sira %>" inputmode="numeric"></label>
+      <label class="yn-etiketli"><span>Mağazada</span><span><input type="checkbox" name="aktif" value="1"<%= Number(u.aktif) ? " checked" : "" %>> aktif</span></label>
+      <button class="buton buton-tonal">Kaydet</button>
+    </form>
+    <span class="ikincil kucuk"><%= u.sahip_sayisi %> sahip<%= Number(u.aktif) ? "" : " · pasif" %></span>
+  </div>
+<% } %>
+<p class="ikincil kucuk">Unvan silinemez: sahipleri yakut ödedi. Kaldırmak için pasif yap; mağazadan kalkar ve kimsede görünmez. Kişi seçmediyse sahip olduğu en pahalı aktif unvan gösterilir.</p>
+<%- include("duzen-alt") %>

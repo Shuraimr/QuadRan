@@ -190,6 +190,23 @@
     el.style.top = ust + "px";
   }, true);
 
+  /* ---------- Akış kategori seçici (konular.ejs #kategori-secici) ----------
+     Düğme JS'siz /kategoriler sayfasına giden bir bağlantıdır; popover destekleniyorsa aynı listeyi açar.
+     Telefonda liste CSS'te alttan açılan sayfadır (konum vermeyiz); tablette düğmenin altında, ekrandan taşmayacak biçimde durur. */
+  d.addEventListener("click", function (e) {
+    var dugme = e.target.closest ? e.target.closest("[data-kategori-ac]") : null;
+    var liste = d.getElementById("kategori-secici");
+    if (!dugme || !liste || !liste.showPopover || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+    if (liste.matches(":popover-open")) { liste.hidePopover(); return; }
+    liste.showPopover();
+    if (window.matchMedia("(max-width: 800px)").matches) { liste.style.inset = ""; liste.style.margin = ""; return; }
+    var r = dugme.getBoundingClientRect(), g = liste.offsetWidth, y = liste.offsetHeight;
+    liste.style.inset = "auto"; liste.style.margin = "0";
+    liste.style.left = Math.max(8, Math.min(r.left, window.innerWidth - g - 8)) + "px";
+    liste.style.top = (r.bottom + 6 + y > window.innerHeight - 8 ? Math.max(8, r.top - y - 6) : r.bottom + 6) + "px";
+  });
+
   /* ---------- Bildirim çubukları: yaklaşık 5 saniye sonra gizle ---------- */
   hepsi("[data-otomatik-gizle]").forEach(function (cubuk) {
     var zamanlayici = null;
@@ -511,8 +528,28 @@
     guncelle();
   }
 
+  /* ---------- Telefon üst çubuğu: yüzen hâl ----------
+     Aşağı kaydırma 64px'i geçince <header class="ust-cubuk">'a data-yuzen eklenir (CSS çubuğu yüzen kapsüle çevirir, katmanlar.css),
+     sayfa başına (<16px) dönünce kalkar. İki eşik (64 açar, 16 kapatır) titremeyi önler: tam sınırda kaydıran kişide çubuk gidip gelmez.
+     Scroll olayı pasif dinlenir ve requestAnimationFrame ile kare başına en çok bir kez işlenir. JS yoksa çubuk hep sabit (normal) kalır. */
+  var ustCubuk = bul(".ust-cubuk"), yuzenBekleyen = false;
+  function yuzenGuncelle() {
+    yuzenBekleyen = false;
+    if (!ustCubuk) return;
+    var y = window.pageYOffset || d.documentElement.scrollTop || 0;
+    var telefon = window.matchMedia && window.matchMedia("(max-width: 800px)").matches;
+    var acik = ustCubuk.hasAttribute("data-yuzen");
+    if (telefon && !acik && y > 64) ustCubuk.setAttribute("data-yuzen", "");
+    else if ((!telefon || y < 16) && acik) ustCubuk.removeAttribute("data-yuzen");
+  }
+  if (ustCubuk) {
+    window.addEventListener("scroll", function () { if (!yuzenBekleyen) { yuzenBekleyen = true; window.requestAnimationFrame(yuzenGuncelle); } }, { passive: true });
+    window.addEventListener("resize", yuzenGuncelle, { passive: true });
+    yuzenGuncelle();
+  }
+
   /* ---------- Alt çubuk yüksekliği (--alt-yer) ----------
-     Ekranın altına sabitlenen çubuklar (telefonda alt menü, tablette ayar dock'u, paneldeki seçim ve karar çubukları)
+     Ekranın altına sabitlenen çubuklar (telefonda alt menü, paneldeki seçim ve karar çubukları)
      data-alt-cubuk ile işaretlenir. O an görünen ve ekranın dibine değenlerin kapladığı yükseklik ölçülüp
      <html>'e --alt-yer olarak yazılır; bildirim çubuğu (toast) bunun üstünde durur, böylece hiçbir zaman üst üste binmez.
      Yeni bir alt çubuk eklemek için yalnızca data-alt-cubuk yeterli. */
@@ -569,7 +606,7 @@
   });
 
   /* ---------- Ayarlar: o an görünen bölümü vurgula ----------
-     Sol menü (masaüstü) ve alttaki dock (tablet) aynı bağlantıları taşır (data-bolum-bag). Sayfa kaydırıldıkça
+     Kenar menüdeki Ayarlar alt satırları (masaüstü) ve sayfadaki bölüm sekmeleri (tablet/telefon) aynı bağlantıları taşır (data-bolum-bag). Sayfa kaydırıldıkça
      ekranın üst üçte birine giren bölümün bağlantıları aria-current alır; dokununca da hemen vurgulanır. */
   (function () {
     var baglar = hepsi("[data-bolum-bag]");
@@ -1082,18 +1119,54 @@
     e.preventDefault(); panelAc(g);
   });
 
-  /* Üye kartı penceresi: yazar adı/avatarı (data-uye-karti) JS varsa kartı popover'da açar; yoksa bağlantı profile gider */
+  /* Üye kartı penceresi: yazar adı/avatarı (data-uye-karti) JS varsa kartı popover'da açar; yoksa bağlantı profile gider.
+     Masaüstü/tablette adın yanında küçük kart; telefonda ALTTAN SAYFA: sağ üstte 44px Kapat, tutamaç gerçekten sürüklenir
+     (aşağı >=80px bırakılırsa kapanır, azsa yerine döner). Açılış/kapanış kayması CSS geçişidir (efektler.css), burada yalnızca sürükleme var. */
   var kartPop = null;
+  var KART_KAPAT = '<button type="button" class="uye-karti-kapat" aria-label="Kapat"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>';
+  var KART_TUTAMAC = '<div class="uye-karti-tutamac" aria-hidden="true"></div>';
+  function kartDoldur(icerik) { if (kartPop) kartPop.innerHTML = icerik + KART_KAPAT + KART_TUTAMAC; }
+  function kartKur() {
+    kartPop = d.createElement("div"); kartPop.className = "uye-karti"; kartPop.setAttribute("popover", ""); kartPop.setAttribute("aria-label", "Üye kartı");
+    d.body.appendChild(kartPop);
+    kartPop.addEventListener("click", function (e) {
+      if (e.target.closest && e.target.closest(".uye-karti-kapat")) kartPop.hidePopover();
+    });
+    /* Sürükle-kapat: pointer olayları fareyi, dokunmayı ve kalemi aynı koddan geçirir. Sürerken geçiş kapatılır (parmağı birebir izlesin),
+       bırakınca satır içi stil silinir: CSS geçişi ya kapanış kaymasını ya da yerine dönmeyi oynatır. */
+    var bas = null, dy = 0;
+    kartPop.addEventListener("pointerdown", function (e) {
+      if (!e.target.closest || !e.target.closest(".uye-karti-tutamac")) return;
+      bas = e.clientY; dy = 0;
+      try { e.target.setPointerCapture(e.pointerId); } catch (x) { /* yakalanamazsa da sürükleme çalışır (olaylar sayfaya gelir) */ }
+      kartPop.style.transition = "none";
+    });
+    kartPop.addEventListener("pointermove", function (e) {
+      if (bas === null) return;
+      dy = Math.max(0, e.clientY - bas);
+      kartPop.style.transform = "translateY(" + dy + "px)";
+    });
+    function birak() {
+      if (bas === null) return;
+      var kapan = dy >= 80;
+      bas = null;
+      kartPop.style.transition = ""; kartPop.style.transform = "";
+      if (kapan) kartPop.hidePopover();
+    }
+    kartPop.addEventListener("pointerup", birak);
+    kartPop.addEventListener("pointercancel", birak);
+  }
   d.addEventListener("click", function (e) {
     var a = e.target.closest ? e.target.closest("[data-uye-karti]") : null;
     if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
     if (!d.createElement("div").showPopover) return;
     e.preventDefault();
-    if (!kartPop) { kartPop = d.createElement("div"); kartPop.className = "uye-karti"; kartPop.setAttribute("popover", ""); kartPop.setAttribute("aria-label", "Üye kartı"); d.body.appendChild(kartPop); }
-    kartPop.innerHTML = '<div class="uye-karti-yukleniyor">Yükleniyor…</div>';
+    if (!kartPop) kartKur();
+    kartDoldur('<div class="uye-karti-yukleniyor">Yükleniyor…</div>');
     var telefon = window.matchMedia && window.matchMedia("(max-width: 800px)").matches, r = a.getBoundingClientRect();
     if (kartPop.matches(":popover-open")) kartPop.hidePopover();
-    if (telefon) { kartPop.style.inset = ""; kartPop.style.margin = ""; }  /* varsayılan popover konumu: ekranın ortası, taşmaz */
+    kartPop.style.transform = ""; kartPop.style.transition = "";
+    if (telefon) { kartPop.style.inset = ""; kartPop.style.margin = ""; }  /* konumu CSS verir: ekranın altına oturan sayfa */
     else {
       kartPop.style.inset = "auto"; kartPop.style.margin = "0";
       kartPop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 316)) + "px";
@@ -1102,7 +1175,273 @@
     kartPop.showPopover();
     fetch("/profil/" + encodeURIComponent(a.getAttribute("data-uye-karti")) + "/kart", { credentials: "same-origin", headers: { Accept: "text/html" } })
       .then(function (y) { if (!y.ok) throw new Error("hata"); return y.text(); })
-      .then(function (html) { kartPop.innerHTML = html; })
+      .then(function (html) { kartDoldur(html); })
       .catch(function () { kartPop.hidePopover(); window.location.href = a.getAttribute("href"); });
+  });
+  /* Yakut ödül penceresi (partials/yakut-odul.ejs): sunucu <dialog open> olarak çizer (JS'siz de görünür, "Tamam" form method=dialog).
+     Burada modal yapılır (karartma, odak kilidi, Esc) ve miktar 0'dan saydırılır. Hareket azaltılmışsa sayı doğrudan son değerde kalır. */
+  hepsi("dialog[data-yakut-odul]").forEach(function (dlg) {
+    if (acilabilir(dlg) && dlg.open) { dlg.removeAttribute("open"); dlg.showModal(); }
+    var say = bul("[data-say]", dlg);
+    if (!say || hareketAzMi()) return;
+    var hedef = parseInt(say.getAttribute("data-say"), 10) || 0, sure = 900, bas = null;
+    say.textContent = "0";
+    function adim(t) {
+      if (bas === null) bas = t;
+      var o = Math.min(1, (t - bas) / sure), e = 1 - Math.pow(1 - o, 3); /* yavaşlayarak durur */
+      say.textContent = Math.round(hedef * e).toLocaleString("tr-TR");
+      if (o < 1) requestAnimationFrame(adim);
+    }
+    requestAnimationFrame(adim);
+  });
+  /* ======================================================================
+     Yorum ekleri ve dış bağlantı onayı (sql/23). Hepsi aşamalı geliştirme: JS yoksa fotoğraf bağlantısı dosyayı açar, YouTube kutusu
+     ve dış bağlantılar /cikis sayfasına gider, cevap formu normal multipart gönderilir.
+     ====================================================================== */
+  function guvenliAdres(u) { try { var x = new URL(u, location.href); return /^https?:$/.test(x.protocol) && x.hostname ? x : null; } catch (e) { return null; } }
+
+  /* ---------- Dış bağlantı onayı: "QuadRan'dan ayrılıyorsun" ----------
+     Telefonda alttan sayfa, büyük ekranda ortada pencere (CSS: .cikis-penceresi). "Bu oturumda <alan> için tekrar sorma" sessionStorage'a yazılır
+     (sekme kapanınca gider); depo kullanılamazsa (gizli pencere vb.) try/catch ile sessizce her seferinde sorulur. */
+  var IZIN_ANAHTARI = "quadran.cikisIzin";
+  function izinliAlanlar() { try { return JSON.parse(sessionStorage.getItem(IZIN_ANAHTARI) || "[]") || []; } catch (e) { return []; } }
+  function alanIzniVer(alan) { try { var l = izinliAlanlar(); if (l.indexOf(alan) < 0) l.push(alan); sessionStorage.setItem(IZIN_ANAHTARI, JSON.stringify(l)); } catch (e) { /* depo yok: her seferinde sorulur */ } }
+  function yeniSekme(adres) { var w = window.open(adres, "_blank", "noopener,noreferrer"); if (!w) location.href = adres; }
+  var cikisDlg = null;
+  function cikisPenceresi(url) {
+    if (!acilabilir(d.createElement("dialog"))) { location.href = "/cikis?u=" + encodeURIComponent(url.href); return; }
+    if (!cikisDlg) {
+      cikisDlg = d.createElement("dialog"); cikisDlg.className = "cikis-penceresi"; cikisDlg.setAttribute("aria-labelledby", "cikis-baslik");
+      d.body.appendChild(cikisDlg);
+      cikisDlg.addEventListener("click", function (e) { if (e.target === cikisDlg) kapat(cikisDlg); }); /* karartmaya dokununca kapanır */
+    }
+    var alan = url.hostname.replace(/^www\./, "");
+    cikisDlg.textContent = "";
+    var kap = d.createElement("div"); kap.className = "cikis-ic";
+    var h = d.createElement("h2"); h.id = "cikis-baslik"; h.textContent = "QuadRan’dan ayrılıyorsun";
+    var kutu = d.createElement("div"); kutu.className = "cikis-alan";
+    var b = d.createElement("strong"); b.textContent = alan;
+    var tam = d.createElement("span"); tam.textContent = url.href;
+    kutu.appendChild(b); kutu.appendChild(tam);
+    var uyari = d.createElement("div"); uyari.className = "bilgi-notu cikis-uyari";
+    uyari.textContent = "Görünen yazı ile adres farklıysa dikkat et. Başka sitelerin içeriğinden QuadRan sorumlu değildir.";
+    var onay = d.createElement("label"); onay.className = "cikis-onay";
+    var kutucuk = d.createElement("input"); kutucuk.type = "checkbox";
+    var onayMetin = d.createElement("span"); onayMetin.textContent = "Bu oturumda " + alan + " için tekrar sorma";
+    onay.appendChild(kutucuk); onay.appendChild(onayMetin);
+    var eylem = d.createElement("div"); eylem.className = "cikis-eylem";
+    var vazgec = d.createElement("button"); vazgec.type = "button"; vazgec.className = "buton buton-cerceveli"; vazgec.textContent = "Vazgeç";
+    var git = d.createElement("a"); git.className = "buton buton-birincil"; git.textContent = "Siteye git"; git.href = url.href;
+    git.target = "_blank"; git.rel = "nofollow ugc noopener noreferrer";
+    vazgec.addEventListener("click", function () { kapat(cikisDlg); });
+    git.addEventListener("click", function () { if (kutucuk.checked) alanIzniVer(alan); kapat(cikisDlg); });
+    eylem.appendChild(vazgec); eylem.appendChild(git);
+    kap.appendChild(h); kap.appendChild(kutu); kap.appendChild(uyari); kap.appendChild(onay); kap.appendChild(eylem);
+    cikisDlg.appendChild(kap);
+    ac(cikisDlg);
+    git.focus();
+  }
+  d.addEventListener("click", function (e) {
+    var a = e.target.closest ? e.target.closest("a[data-dis-baglanti]") : null;
+    if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    var url = guvenliAdres(a.getAttribute("data-dis-baglanti"));
+    if (!url) return; /* geçersizse /cikis sayfası 400 gösterir */
+    e.preventDefault();
+    if (izinliAlanlar().indexOf(url.hostname.replace(/^www\./, "")) > -1) yeniSekme(url.href); else cikisPenceresi(url);
+  });
+  /* /cikis sayfasında "Vazgeç": gelinen sayfaya döner (geçmiş varsa), yoksa bağlantı olarak akışa gider */
+  d.addEventListener("click", function (e) {
+    var g = e.target.closest ? e.target.closest("a[data-geri]") : null;
+    if (g && history.length > 1 && !e.defaultPrevented) { e.preventDefault(); history.back(); }
+  });
+
+  /* ---------- YouTube kartı: oynat'a basınca iframe (dışarıya istek ancak o zaman gider) ---------- */
+  d.addEventListener("click", function (e) {
+    var k = e.target.closest ? e.target.closest("[data-yt-oynat]") : null;
+    if (!k || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var id = k.getAttribute("data-yt-oynat");
+    if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return;
+    e.preventDefault();
+    var kutu = d.createElement("div"); kutu.className = "yt-oynatici";
+    var f = d.createElement("iframe");
+    f.src = "https://www.youtube-nocookie.com/embed/" + id + "?autoplay=1";
+    f.title = "YouTube videosu"; f.allow = "autoplay; encrypted-media; picture-in-picture"; f.allowFullscreen = true;
+    f.referrerPolicy = "strict-origin-when-cross-origin";
+    kutu.appendChild(f);
+    k.parentNode.replaceChild(kutu, k);
+  });
+
+  /* ---------- Tam ekran fotoğraf görüntüleyici ---------- */
+  var gor = null, gorListe = [], gorSira = 0;
+  var GOR_IKON = {
+    kapat: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+    sol: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+    sag: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>'
+  };
+  function gorGoster() {
+    var img = bul("img", gor), say = bul(".gor-sayac", gor);
+    img.src = gorListe[gorSira].href;
+    img.alt = "Fotoğraf " + (gorSira + 1) + " / " + gorListe.length;
+    say.textContent = gorListe.length > 1 ? (gorSira + 1) + " / " + gorListe.length : "";
+    hepsi(".gor-gez", gor).forEach(function (b) { b.hidden = gorListe.length < 2; });
+  }
+  function gorGit(adim) { gorSira = (gorSira + adim + gorListe.length) % gorListe.length; gorGoster(); }
+  d.addEventListener("click", function (e) {
+    var a = e.target.closest ? e.target.closest("a[data-ek-gor]") : null;
+    if (!a || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    var bulanik = a.closest(".ek-bulanik");
+    if (bulanik) { var onay = bul(".ek-nsfw-onay", bulanik); if (onay && !onay.checked) { e.preventDefault(); return; } } /* +18 bulanıkken görüntüleyici açılmaz */
+    if (!acilabilir(d.createElement("dialog"))) return; /* destek yoksa bağlantı dosyayı açar */
+    e.preventDefault();
+    if (!gor) {
+      gor = d.createElement("dialog"); gor.className = "ek-gorunturu"; gor.setAttribute("aria-label", "Fotoğraf görüntüleyici");
+      gor.innerHTML = '<img alt=""><button type="button" class="gor-kapat" aria-label="Kapat">' + GOR_IKON.kapat + '</button>' +
+        '<button type="button" class="gor-gez gor-onceki" aria-label="Önceki fotoğraf">' + GOR_IKON.sol + '</button>' +
+        '<button type="button" class="gor-gez gor-sonraki" aria-label="Sonraki fotoğraf">' + GOR_IKON.sag + '</button><span class="gor-sayac" aria-live="polite"></span>';
+      d.body.appendChild(gor);
+      gor.addEventListener("click", function (ev) {
+        var t = ev.target;
+        if (t.closest(".gor-kapat") || t === gor) kapat(gor);
+        else if (t.closest(".gor-onceki")) gorGit(-1);
+        else if (t.closest(".gor-sonraki")) gorGit(1);
+      });
+      gor.addEventListener("keydown", function (ev) {
+        if (ev.key === "ArrowLeft" && gorListe.length > 1) { ev.preventDefault(); gorGit(-1); }
+        else if (ev.key === "ArrowRight" && gorListe.length > 1) { ev.preventDefault(); gorGit(1); }
+      });
+    }
+    var grup = a.getAttribute("data-ek-gor");
+    gorListe = hepsi('a[data-ek-gor]').filter(function (x) { return x.getAttribute("data-ek-gor") === grup; });
+    gorSira = Math.max(0, gorListe.indexOf(a));
+    gorGoster(); ac(gor);
+    var kb = bul(".gor-kapat", gor); if (kb) kb.focus();
+  });
+
+  /* ---------- Cevap formu: ek seçme, önizleme, bağlantı çipi, ilerlemeli gönderim ---------- */
+  var RESIM_SINIR = 10 * 1024 * 1024, VIDEO_SINIR = 50 * 1024 * 1024, EN_COK_RESIM = 6;
+  var CIP_IKON = {
+    youtube: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>',
+    github: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>',
+    video: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>'
+  };
+  var YT_RE = /https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:[^\s"'<>]*&)?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i;
+  var GH_RE = /https?:\/\/(?:www\.)?github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)/i;
+  var GH_ADSIZ = ["features", "sponsors", "orgs", "settings", "marketplace", "topics", "about", "pricing", "login", "join"];
+  function boyutYazi(b) { return b >= 1048576 ? (b / 1048576).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(b / 1024)) + " KB"; }
+
+  hepsi("form[data-ek-form]").forEach(function (form) {
+    var metin = bul("[data-ek-metin]", form), onizleme = bul("[data-ek-onizleme]", form), hata = bul("[data-ek-hata]", form);
+    var nsfwSatir = bul("[data-ek-nsfw]", form), gonder = bul("[data-ek-gonder]", form);
+    var resimGirdi = bul("[data-ek-resim]", form), videoGirdi = bul("[data-ek-video]", form);
+    var cip = bul("[data-ek-baglanti-cip]", form), cipIkon = bul("[data-cip-ikon]", form), cipMetin = bul("[data-cip-metin]", form), kartKapali = bul("[data-kart-kapali]", form);
+    var secili = []; /* { dosya, tur, url (önizleme nesne adresi) } */
+    var gonderiyor = false;
+
+    function hataGoster(m) { if (!hata) return; if (m) { hata.textContent = m; hata.hidden = false; } else { hata.hidden = true; hata.textContent = ""; } }
+    function yenile() {
+      onizleme.textContent = "";
+      secili.forEach(function (s, i) {
+        var oge = d.createElement("div"); oge.className = "ek-onizleme-oge" + (s.tur === "video" ? " ek-onizleme-video" : "");
+        if (s.tur === "resim") { var im = d.createElement("img"); im.src = s.url; im.alt = ""; oge.appendChild(im); }
+        else {
+          var ik = d.createElement("span"); ik.className = "ek-video-ikon"; ik.innerHTML = CIP_IKON.video;
+          var bo = d.createElement("span"); bo.className = "ek-video-boyut"; bo.textContent = boyutYazi(s.dosya.size);
+          oge.appendChild(ik); oge.appendChild(bo);
+        }
+        oge.title = s.dosya.name;
+        var yz = d.createElement("span"); yz.className = "ek-yuzde"; yz.setAttribute("data-yuzde", ""); oge.appendChild(yz);
+        var sil = d.createElement("button"); sil.type = "button"; sil.className = "ek-sil"; sil.setAttribute("aria-label", "Eki kaldır: " + s.dosya.name); sil.textContent = "×";
+        sil.addEventListener("click", function () {
+          if (gonderiyor) return;
+          try { if (s.url) URL.revokeObjectURL(s.url); } catch (e) { /* önemsiz */ }
+          secili.splice(secili.indexOf(s), 1); yenile(); hataGoster("");
+        });
+        oge.appendChild(sil); onizleme.appendChild(oge);
+      });
+      onizleme.hidden = !secili.length;
+      if (nsfwSatir) nsfwSatir.hidden = !secili.length; /* +18 kutusu yalnızca ek varken (JS'siz hep görünür) */
+    }
+    if (nsfwSatir) nsfwSatir.hidden = true;
+
+    function resimEkle(liste) {
+      hataGoster("");
+      if (secili.some(function (s) { return s.tur === "video"; })) { hataGoster("Bir yoruma fotoğraf ya da video eklenebilir, ikisi birden eklenemez."); return; }
+      Array.prototype.forEach.call(liste, function (f) {
+        if (secili.length >= EN_COK_RESIM) { hataGoster("Bir yoruma en fazla " + EN_COK_RESIM + " fotoğraf eklenebilir."); return; }
+        if (!/^image\/(jpeg|png|webp|gif)$/.test(f.type)) { hataGoster("Yalnızca JPG, PNG, WebP ve GIF fotoğraf eklenebilir."); return; }
+        if (f.size > RESIM_SINIR) { hataGoster("Fotoğraf en fazla 10 MB olabilir: " + f.name); return; }
+        secili.push({ dosya: f, tur: "resim", url: URL.createObjectURL(f) });
+      });
+      yenile();
+    }
+    function videoEkle(f) {
+      hataGoster("");
+      if (secili.some(function (s) { return s.tur === "resim"; })) { hataGoster("Bir yoruma fotoğraf ya da video eklenebilir, ikisi birden eklenemez."); return; }
+      if (!/^video\/(mp4|webm)$/.test(f.type)) { hataGoster("Yalnızca MP4 ve WebM video eklenebilir."); return; }
+      if (f.size > VIDEO_SINIR) { hataGoster("Video en fazla 50 MB olabilir."); return; }
+      secili = [{ dosya: f, tur: "video", url: "" }];
+      yenile();
+    }
+    /* Seçilen dosyalar kendi dizimizde tutulur; girdi hemen boşaltılır (aynı dosya yeniden seçilebilsin) ve gönderimde FormData elle kurulur */
+    if (resimGirdi) resimGirdi.addEventListener("change", function () { resimEkle(resimGirdi.files); resimGirdi.value = ""; });
+    if (videoGirdi) videoGirdi.addEventListener("change", function () { if (videoGirdi.files[0]) videoEkle(videoGirdi.files[0]); videoGirdi.value = ""; });
+
+    /* Bağlantı önizleme çipi: yalnızca bağlantı ayrıcalığı olanda (sunucu kartı zaten ona göre çizer) */
+    function cipGuncelle() {
+      if (!cip || form.getAttribute("data-baglanti") !== "1") return;
+      if (kartKapali && kartKapali.value === "1") { cip.hidden = true; return; }
+      var m = metin.value, y = YT_RE.exec(m), g = null, gm = GH_RE.exec(m);
+      if (gm && GH_ADSIZ.indexOf(gm[1].toLowerCase()) < 0) g = gm;
+      if (!y && !g) { cip.hidden = true; return; }
+      var yazi, ikon;
+      if (y && (!g || m.indexOf(y[0]) <= m.indexOf(g[0]))) { yazi = "YouTube videosu"; ikon = CIP_IKON.youtube; }
+      else { yazi = g[1] + " / " + g[2].replace(/\.git$/, ""); ikon = CIP_IKON.github; }
+      cipIkon.innerHTML = ikon; cipMetin.textContent = yazi; cip.hidden = false;
+    }
+    if (metin) { metin.addEventListener("input", cipGuncelle); cipGuncelle(); }
+    var cipKapat = bul("[data-cip-kapat]", form);
+    if (cipKapat) cipKapat.addEventListener("click", function () { if (kartKapali) kartKapali.value = "1"; cip.hidden = true; });
+
+    /* Gönderim: ek varsa XHR (kare başına yüzde); yoksa form normal gider */
+    form.addEventListener("submit", function (e) {
+      if (gonderiyor) { e.preventDefault(); return; }
+      if (!secili.length) {
+        if (!metin.value.trim()) { e.preventDefault(); hataGoster("Cevap boş olamaz."); metin.focus(); }
+        return;
+      }
+      if (!window.FormData || !window.XMLHttpRequest) return; /* eski tarayıcı: dosyalar girdide olmadığı için gönderilemez; neyse ki bu yol neredeyse yok */
+      e.preventDefault();
+      hataGoster("");
+      var fd = new FormData();
+      ["_csrf", "kart_kapali"].forEach(function (ad) { var g = bul('[name="' + ad + '"]', form); if (g) fd.append(ad, g.value); });
+      fd.append("content", metin.value);
+      var nsfw = bul('input[name="nsfw"]', form); if (nsfw && nsfw.checked) fd.append("nsfw", "1");
+      secili.forEach(function (s) { fd.append(s.tur === "video" ? "video" : "resimler", s.dosya, s.dosya.name); });
+      gonderiyor = true; form.classList.add("ek-gonderiyor");
+      var eskiYazi = gonder ? gonder.textContent : "";
+      if (gonder) { gonder.disabled = true; gonder.textContent = "Gönderiliyor…"; }
+      function bitir() { gonderiyor = false; form.classList.remove("ek-gonderiyor"); if (gonder) { gonder.disabled = false; gonder.textContent = eskiYazi; } hepsi("[data-yuzde]", form).forEach(function (y) { y.textContent = ""; }); }
+      var x = new XMLHttpRequest();
+      x.open("POST", form.getAttribute("action"));
+      x.setRequestHeader("Accept", "application/json");
+      x.upload.onprogress = function (ev) {
+        if (!ev.lengthComputable) return;
+        var yuzde = Math.min(99, Math.round(ev.loaded / ev.total * 100)) + "%"; /* %100 sunucu işini bitirince (yönlendirme) */
+        hepsi("[data-yuzde]", form).forEach(function (y) { y.textContent = yuzde; });
+      };
+      x.onload = function () {
+        var j = null; try { j = JSON.parse(x.responseText); } catch (er) { /* JSON değil */ }
+        if (x.status === 200 && j && typeof j.yonlendir === "string" && j.yonlendir.charAt(0) === "/" && j.yonlendir.charAt(1) !== "/") {
+          /* Aynı sayfa (yalnızca # farklıysa) tarayıcı yeniden yüklemez: yeni cevap görünsün diye elle yenilenir */
+          var hedef = new URL(j.yonlendir, location.href), ayni = hedef.pathname === location.pathname && hedef.search === location.search;
+          location.href = hedef.href; if (ayni) location.reload();
+          return;
+        }
+        bitir();
+        hataGoster(j && j.hata ? j.hata : "Gönderilemedi. Sayfayı yenileyip tekrar dene (yazdığın metni kopyalamayı unutma).");
+      };
+      x.onerror = function () { bitir(); hataGoster("Bağlantı koptu, gönderilemedi. İnternetini kontrol edip tekrar dene."); };
+      x.send(fd);
+    });
   });
 })();

@@ -16,6 +16,7 @@ import { rutbeSutunlari, banliSql, bildir, geriAdres, puanEkle, premiumSql } fro
 import { ayarlar } from "./ayarlar.ts";
 import { rutbeler, rutbeBul, acilanlar, oncekiRutbe, yetkiliMi } from "./rutbe.ts";
 import { okunmamisOdaVar } from "./odalar.ts";
+import { gunlukYakutVer, sonrakiHarclik, type YakutOdulu } from "./yakut.ts";
 
 // req.session içinde hangi alanların olduğunu TypeScript'e anlatıyoruz
 declare module "express-session" {
@@ -26,6 +27,8 @@ declare module "express-session" {
     girisNotu: string;
     csrf: string;
     duyuruKapatilan: string; // kapatılan duyuru şeridinin sürümü (ayarlar.ts)
+    yakutOdulleri: YakutOdulu[]; // gösterilmeyi bekleyen yakut ödül pencereleri (src/yakut.ts)
+    cevapTaslagi: { konu: number; content: string; nsfw?: boolean; kartKapali?: boolean }; // ekli cevap hata verince yazılan metin kaybolmasın (src/ekler.ts)
   }
 }
 
@@ -75,6 +78,8 @@ export const oturum = session({
 // ---------------------------------------------------------------------------
 // Çok parçalı (dosya yükleyen) POST adresleri: csrf kontrolü bunlarda multer'dan sonra yapılır (yukleme.ts)
 export const COKLU_PARCALI_ADRESLER = new Set(["/ayarlar/avatar", "/ayarlar/banner"]);
+// Yorum eki yükleyen cevap formu da çok parçalıdır; adresi konu numarası içerdiği için kalıpla tanınır (src/ekler.ts ekliCevapKatmani)
+const cokluParcaliMi = (yol: string) => COKLU_PARCALI_ADRESLER.has(yol) || /^\/konu\/\d+\/cevap$/.test(yol);
 
 // Gelen belirteç oturumdakiyle aynı mı? timingSafeEqual aynı uzunlukta olmayı ister; karşılaştırma süresi kaç karakterin tuttuğunu ele vermez.
 export function csrfEsit(req: Request, gelenHam: unknown): boolean {
@@ -104,7 +109,7 @@ export function csrfKoru(req: Request, res: Response, next: NextFunction) {
   // Bu yüzden YALNIZCA aşağıdaki sabit adresler için kontrol, multer'dan SONRA yüklemeKatmani'ndaki csrfDogrula'ya ertelenir
   // (src/yukleme.ts). Başka bir adrese multipart POST gelirse gövde boş kalır ve aşağıdaki normal kontrolde 403 olur:
   // koruma hiçbir yerde kapatılmış değildir, yalnızca doğrulama zamanı değişir.
-  if (req.is("multipart/form-data") && COKLU_PARCALI_ADRESLER.has(req.path)) return next();
+  if (req.is("multipart/form-data") && cokluParcaliMi(req.path)) return next();
 
   if (csrfEsit(req, req.body?._csrf)) return next();
 
@@ -136,7 +141,7 @@ async function menuKategorileri() {
 // Seri: dün de ziyaret edildiyse seri_gun + 1, değilse 1'den başlar. Her 7. ardışık günde ek "seri" puanı verilir.
 // Gün sınırı için JavaScript yerine veritabanının CURDATE()'i kullanılır (tek saat kaynağı).
 // ---------------------------------------------------------------------------
-async function gunlukPuan(k: any) {
+async function gunlukPuan(req: Request, k: any) {
   const [sonuc]: any = await pool.query(
     `UPDATE users
         SET seri_gun = IF(son_gunluk_puan = CURDATE() - INTERVAL 1 DAY, seri_gun + 1, 1), son_gunluk_puan = CURDATE()
@@ -153,6 +158,8 @@ async function gunlukPuan(k: any) {
   k.points = sonPuan;
   k.rutbe = rutbeBul(sonPuan)?.name ?? k.rutbe;
   k.rutbe_id = rutbeBul(sonPuan)?.id ?? k.rutbe_id;
+  // Günlük giriş yakutu ve (ay değiştiyse) aylık harçlık da aynı "günde ilk istek" garantisiyle verilir (src/yakut.ts)
+  k.yakut = await gunlukYakutVer(req, k, Number(g.seri_gun), sonPuan);
   // Günlük puanla rütbe atlandıysa kutlama aynı sayfada gösterilsin
   const [[ku]]: any = await pool.query("SELECT kutlama_rutbe_id FROM users WHERE id = ?", [k.id]);
   k.kutlama_rutbe_id = ku.kutlama_rutbe_id;
@@ -174,6 +181,24 @@ async function rutbeKutlamasi(req: Request, res: Response, k: any) {
     tur: "basari", rutbe: { renk: r.renk, simge: r.simge },
     metin: `${r.name} oldun!${acilan.length ? " Artık " + acilan.join(", ") + "." : ""}`,
     eylem: { metin: "Rütbeler", link: "/rutbeler" },
+  };
+}
+
+// Bekleyen yakut ödülü varsa sıradaki sayfada pencere olarak gösterilir (views/partials/yakut-odul.ejs) ve kuyruktan düşer.
+// Yalnızca gerçek sayfa açılışında (GET + tarayıcı "document" isteği): üye kartı gibi fetch ile gelen parçalar pencereyi
+// tüketmesin. Kuyruktan düşme sayfa ÇİZİLİRKEN olur (yönlendirme olan bir GET ödülü boşa harcamasın); server.ts'teki sarmalayıcı
+// bazen aynı sayfayı ikinci kez çizdiği için düşme bir kez yapılır.
+function yakutOdulHazirla(req: Request, res: Response, k: any) {
+  const kuyruk = req.session.yakutOdulleri;
+  const hedef = req.headers["sec-fetch-dest"];
+  if (!kuyruk?.length || req.method !== "GET" || (hedef && hedef !== "document")) return;
+  const odul = kuyruk[0];
+  res.locals.yakutOdul = { ...odul, sonraki: odul.tur === "harclik" ? sonrakiHarclik(Number(k.points)) : null };
+  const cizOrijinal = (res as any).render.bind(res);
+  let dustu = false;
+  (res as any).render = (...a: any[]) => {
+    if (!dustu) { dustu = true; req.session.yakutOdulleri = (req.session.yakutOdulleri ?? []).slice(1); }
+    return cizOrijinal(...a);
   };
 }
 
@@ -210,7 +235,7 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
     `SELECT users.id, users.username, users.points, users.tema, users.vurgu, users.menu_sagda,
             users.premium_bitis, ${premiumSql("users")} AS premium_aktif, users.profil_efekti, users.profil_renk_ana, users.profil_renk_vurgu, users.profil_renk_gecis,
             users.banner_url, users.avatar_hareketli, users.banner_hareketli,
-            users.kompakt, users.az_animasyon, users.kutlama_rutbe_id, users.last_seen_at, users.banned_at, users.deleted_at, users.oturum_surumu,
+            users.kompakt, users.az_animasyon, users.nsfw_tercih, users.kutlama_rutbe_id, users.yakut, users.seri_gun, users.last_seen_at, users.banned_at, users.deleted_at, users.oturum_surumu,
             ${banliSql("users")} AS banli,
             roles.name AS rol,
             ${rutbeSutunlari("users")}
@@ -234,8 +259,9 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
   }
 
   res.locals.kullanici = k;
-  await gunlukPuan(k);
+  await gunlukPuan(req, k);
   await rutbeKutlamasi(req, res, k);
+  yakutOdulHazirla(req, res, k);
   // "sistem": tarayıcının açık/koyu tercihine CSS karar verir (@media prefers-color-scheme),
   // sunucu bunu bilemez; bu yüzden data-tema="sistem" olarak olduğu gibi gönderiyoruz.
   res.locals.tema = ["acik", "sistem"].includes(k.tema) ? k.tema : "koyu";
@@ -243,6 +269,7 @@ export async function ortakVeriler(req: Request, res: Response, next: NextFuncti
   res.locals.menuYonu = k.menu_sagda ? "sag" : "sol";
   res.locals.kompakt = !!k.kompakt;
   res.locals.azAnimasyon = !!k.az_animasyon;
+  res.locals.nsfwTercih = k.nsfw_tercih; // +18 ekler: gizle | bulanik | goster (misafirde tanımsız → şablonlar "gizle" sayar)
 
   // Moderasyon menüsündeki "Kategoriyi değiştir" listesi (yalnızca yetkililer için sorgulanır)
   if (["admin", "moderator"].includes(k.rol)) {

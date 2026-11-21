@@ -6,9 +6,10 @@
   topic_id  hedef konunun id'si
   kategoriler  (res.locals.tumKategoriler) "Kategoriyi değiştir" açılır listesi için; konu sayfasında konu.category_id seçili gelir
   statik    true ise popover yerine açık kutu (yalnızca önizleme sayfası için)
+  satirIci  true ise kendi kutusu çizilmez: yalnızca öğeler basılır (yorumun ⋮ menüsü bunları kendi menüsüne katar, ikinci ⋮ olmaz)
   Her eylem POST /moderasyon/<eylem> olarak gider: sabitle, kilitle, kategori-degistir, sil, uzaklastir.
 %>
-<% const statik_ = !!locals.statik; const eylemler_ = [
+<% const statik_ = !!locals.statik; const satirIci_ = !!locals.satirIci; const eylemler_ = [
   { eylem: "sabitle", ad: "Konuyu sabitle", ikon: "sabitle" },
   { eylem: "kilitle", ad: "Konuyu kilitle", ikon: "kilit" },
   { eylem: "kategori-degistir", ad: "Kategoriyi değiştir", ikon: "klasor" },
@@ -16,7 +17,8 @@
   { eylem: "sil", ad: "Mesajı sil", ikon: "cop", tehlike: true },
   { eylem: "uzaklastir", ad: "Kullanıcıyı uzaklaştır", ikon: "yasak", tehlike: true }
 ]; %>
-<div class="acilir-menu moderasyon-menusu<%= statik_ ? ' katman-statik' : ' acilir-menu-konumlu' %>"<%- statik_ ? "" : ' id="moderasyon-menusu-' + (locals.post_id ?? "") + '" popover aria-label="Moderasyon işlemleri"' %>>
+<% if (!satirIci_) { %><div class="acilir-menu moderasyon-menusu<%= statik_ ? ' katman-statik' : ' acilir-menu-konumlu' %>"<%- statik_ ? "" : ' id="moderasyon-menusu-' + (locals.post_id ?? "") + '" popover aria-label="Moderasyon işlemleri"' %>>
+<% } %>
   <%# Konunun sahibi aynı zamanda yetkiliyse "Profilime sabitle" öğesi buraya eklenir (konu.ejs ayrı ⋮ çizmez) %>
   <% if (locals.sahibi) { %><%- include("profil-sabit-oge") %><hr class="acilir-ayirici"><% } %>
   <% for (const e of eylemler_) { %>
@@ -45,4 +47,12 @@
       </form>
     <% } %>
   <% } %>
-</div>
+  <%# +18 işareti: yalnızca eki olan yorumda (yorum.ejs ekVar/nsfwMi verir) %>
+  <% if (locals.ekVar) { %>
+    <form method="post" action="/moderasyon/nsfw"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+      <input type="hidden" name="post_id" value="<%= locals.post_id ?? '' %>">
+      <input type="hidden" name="topic_id" value="<%= locals.topic_id ?? '' %>">
+      <button class="acilir-oge" type="submit"><%- include("ikon", { ad: "uyari", boyut: 20 }) %><span class="acilir-ad"><%= locals.nsfwMi ? "+18 işaretini kaldır" : "+18 olarak işaretle" %></span></button>
+    </form>
+  <% } %>
+<% if (!satirIci_) { %></div><% } %>

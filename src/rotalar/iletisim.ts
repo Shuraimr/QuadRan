@@ -79,10 +79,11 @@ async function mesajlarSayfasi(req: express.Request, res: express.Response, next
     mesajlar.reverse();
     for (const m of mesajlar) { m.benim = !!m.benim; m.silindi = !!m.silindi; }
     // durum: yazı kutusu mu, engel/izin kartı mı (mesajDurumu, src/gizlilik.ts)
-    acik = { kullanici: kisi.username, rutbe: kisi.rutbe, rutbe_id: kisi.rutbe_id, yazar_rol: kisi.yazar_rol, cevrimici: !!kisi.cevrimici, durum: await mesajDurumu(ben.id, kisi.id), mesajlar };
+    // avatar_url/avatar_susu da gider: başlıkta karşı tarafın profil fotoğrafı (eskiden yalnızca baş harf çıkıyordu)
+    acik = { kullanici: kisi.username, avatar_url: kisi.avatar_url, avatar_susu: kisi.avatar_susu, rutbe: kisi.rutbe, rutbe_id: kisi.rutbe_id, yazar_rol: kisi.yazar_rol, cevrimici: !!kisi.cevrimici, durum: await mesajDurumu(ben.id, kisi.id), mesajlar };
   }
 
-  res.render("mesajlar", { q, konusmalar: await konusmalar(ben.id, q), acik, aktifMenu: "mesajlar" });
+  res.render("mesajlar", { q, konusmalar: await konusmalar(ben.id, q), acik, aktifMenu: "sohbet" });
 }
 
 // Yeni mesaj için kullanıcı ara: kendim, silinmiş hesaplar ve aramızda engel olan (iki yönde de) kişiler çıkmaz.
@@ -109,7 +110,7 @@ iletisim.get("/mesajlar/kisi-ara", girisGerekli("Mesaj göndermek için giriş y
 iletisim.get("/mesajlar/yeni", girisGerekli("Mesaj göndermek için giriş yapman gerekiyor."), async (req, res) => {
   const ben = res.locals.kullanici;
   const aramaQ = metin(req.query.q).slice(0, 32);
-  res.render("mesajlar", { q: "", konusmalar: await konusmalar(ben.id, ""), acik: null, yeni: true, aramaQ, sonuclar: await kisiAra(ben.id, aramaQ), aktifMenu: "mesajlar" });
+  res.render("mesajlar", { q: "", konusmalar: await konusmalar(ben.id, ""), acik: null, yeni: true, aramaQ, sonuclar: await kisiAra(ben.id, aramaQ), aktifMenu: "sohbet" });
 });
 
 iletisim.get("/mesajlar", girisGerekli("Mesajların için giriş yapman gerekiyor."), mesajlarSayfasi);
@@ -278,6 +279,8 @@ export async function sohbetSayfasi(req: express.Request, res: express.Response,
     hub: ben ? await hubVerisi(ben) : null,
     genelAcik: !!req.query.genel,
     aktifOda: 0, panelAcik: "", aktifMenu: "sohbet",
+    // Liste filtresi: Hepsi (genel + odalar + DM, son mesaja göre) | Odalar. DM sekmesi /mesajlar sayfasıdır.
+    sohbetFiltre: req.query.f === "oda" ? "oda" : "hepsi",
     ...ekstra,
   });
 }

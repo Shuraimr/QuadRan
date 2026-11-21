@@ -9,6 +9,7 @@ export type Rutbe = {
   id: number; name: string; min_points: number; renk: string; simge: string;
   oda_ac: boolean; baglanti: boolean; gorsel: boolean; video: boolean; imza: boolean;
   gunluk_oy: number | null; // null = sınırsız
+  aylik_yakut: number; // rütbenin aylık yakut harçlığı (sql/22)
 };
 
 // Panelde seçilebilen renk anahtarları ve simgeler (CSS: --rutbe-<anahtar>; simge: partials/ikon.ejs)
@@ -22,13 +23,13 @@ export const SIMGE_ADLARI: Record<string, string> = {
 };
 
 // Açılıp kapanan ayrıcalıklar. ad: kilit kartında "<ad> ... rütbesinde açılır"; acar: "Artık ..." cümlesi.
-// hazir: false = özellik henüz yok (görsel/video yükleme profil aşamasında gelecek). Bunlar sayfalarda soluk "yakında" diye
+// hazir: false = özellik henüz yok ("yakında" gösterilir; şu an hepsi hazır: görsel/video yorum eki sql/23). Bunlar sayfalarda soluk "yakında" diye
 // gösterilir, kutlama/bildirim cümlesine KATILMAZ: yoksa "görsel yükleyebilirsin" denir ama yükleme yerine hiçbir şey çıkmaz.
 export const AYRICALIKLAR = [
   { anahtar: "oda_ac",   ad: "Oda açma",           acar: "oda açabilirsin", hazir: true },
   { anahtar: "baglanti", ad: "Bağlantı paylaşma",  acar: "bağlantıların tıklanabilir olur", hazir: true },
-  { anahtar: "gorsel",   ad: "Görsel yükleme",     acar: "görsel yükleyebilirsin", hazir: false },
-  { anahtar: "video",    ad: "Video yükleme",      acar: "video yükleyebilirsin", hazir: false },
+  { anahtar: "gorsel",   ad: "Görsel yükleme",     acar: "görsel yükleyebilirsin", hazir: true },
+  { anahtar: "video",    ad: "Video yükleme",      acar: "video yükleyebilirsin", hazir: true },
   { anahtar: "imza",     ad: "İmza",               acar: "imza ekleyebilirsin", hazir: true },
 ] as const;
 export type AyricalikAnahtari = (typeof AYRICALIKLAR)[number]["anahtar"];
@@ -40,12 +41,13 @@ let sonListe: Rutbe[] = []; // senkron erişim için en son yüklenen liste (şa
 export async function rutbeler(): Promise<Rutbe[]> {
   if (onbellek && onbellek.bitis > Date.now()) return onbellek.liste;
   const [satirlar]: any = await pool.query(
-    `SELECT id, name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy FROM ranks ORDER BY min_points`
+    `SELECT id, name, min_points, renk, simge, oda_ac, baglanti, gorsel, video, imza, gunluk_oy, aylik_yakut FROM ranks ORDER BY min_points`
   );
   const liste: Rutbe[] = satirlar.map((s: any) => ({
     id: s.id, name: s.name, min_points: Number(s.min_points), renk: s.renk, simge: s.simge,
     oda_ac: !!s.oda_ac, baglanti: !!s.baglanti, gorsel: !!s.gorsel, video: !!s.video, imza: !!s.imza,
     gunluk_oy: s.gunluk_oy === null ? null : Number(s.gunluk_oy),
+    aylik_yakut: Number(s.aylik_yakut),
   }));
   onbellek = { liste, bitis: Date.now() + OMUR_MS };
   sonListe = liste;
@@ -153,11 +155,11 @@ export function oncekiRutbe(rutbe: Rutbe): Rutbe | undefined {
 const kacir = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const ADRES = /https?:\/\/[^\s<>"']+/gi;
 
-export function icerikHtml(metin: unknown, yazarRutbeId: number | string | null | undefined, yazarRol?: string | null): string {
-  const ham = String(metin ?? "");
-  const baglantiVar = yetkiliMi(yazarRol) || !!rutbeBulId(yazarRutbeId)?.baglanti;
-  if (!baglantiVar) return kacir(ham);
-  let cikti = "", son = 0, e: RegExpExecArray | null;
+// Metindeki http(s) adreslerini bulur: { adres (noktalaması temiz), sonek (cümle sonu noktalama), bas, bitis }.
+// icerikHtml (bağlantıya çevirme) ve baglantiKartlari (YouTube/GitHub kartı) aynı kuralı paylaşsın diye tek yerde.
+function adresleriBul(ham: string) {
+  const liste: { adres: string; sonek: string; bas: number; bitis: number }[] = [];
+  let e: RegExpExecArray | null;
   ADRES.lastIndex = 0;
   while ((e = ADRES.exec(ham))) {
     let adres = e[0];
@@ -173,16 +175,84 @@ export function icerikHtml(metin: unknown, yazarRutbeId: number | string | null 
         adres = adres.slice(0, -1);
       } else break;
     }
-    cikti += kacir(ham.slice(son, e.index));
+    liste.push({ adres, sonek, bas: e.index, bitis: e.index + e[0].length });
+  }
+  return liste;
+}
+
+// Dış bağlantı: kullanıcı içeriğindeki HER dış bağlantı önce /cikis onay sayfasına gider (JS varsa quadran.js aynı onayı pencerede gösterir).
+// href JS'siz yol, data-dis-baglanti gerçek adres; rel: arama motoru puanı aktarma, kullanıcı içeriği, referrer/opener sızdırma.
+export const cikisAdresi = (adres: string) => "/cikis?u=" + encodeURIComponent(adres);
+export function disBaglantiHtml(adres: string, gorunen?: string): string {
+  return `<a class="baglanti" href="${kacir(cikisAdresi(adres))}" data-dis-baglanti="${kacir(adres)}" rel="nofollow ugc noopener noreferrer">${kacir(gorunen ?? adres)}</a>`;
+}
+
+const baglantiYetkisi = (yazarRutbeId: number | string | null | undefined, yazarRol?: string | null) =>
+  yetkiliMi(yazarRol) || !!rutbeBulId(yazarRutbeId)?.baglanti;
+
+export function icerikHtml(metin: unknown, yazarRutbeId: number | string | null | undefined, yazarRol?: string | null): string {
+  const ham = String(metin ?? "");
+  if (!baglantiYetkisi(yazarRutbeId, yazarRol)) return kacir(ham);
+  let cikti = "", son = 0;
+  for (const b of adresleriBul(ham)) {
+    cikti += kacir(ham.slice(son, b.bas));
     try {
-      const u = new URL(adres);
+      const u = new URL(b.adres);
       if (!/^https?:$/.test(u.protocol) || !u.hostname) throw new Error("geçersiz");
-      cikti += `<a class="baglanti" href="${kacir(adres)}" rel="nofollow noopener ugc" target="_blank">${kacir(adres)}</a>`;
+      cikti += disBaglantiHtml(b.adres);
     } catch {
-      cikti += kacir(adres);
+      cikti += kacir(b.adres);
     }
-    cikti += kacir(sonek);
-    son = e.index + e[0].length;
+    cikti += kacir(b.sonek);
+    son = b.bitis;
   }
   return cikti + kacir(ham.slice(son));
+}
+
+// ---------------------------------------------------------------------------
+// Bağlantı kartları (yorum eki tasarımı): metindeki YouTube ve GitHub adresleri metnin altında kart olarak da çizilir.
+// Yalnızca bağlantı ayrıcalığı olan yazarlar (icerikHtml ile aynı kural) ve yazar kartı kapatmadıysa. En çok 2 kart, aynı adres tekrar etmez.
+// Dışarıya HİÇBİR istek gitmez: YouTube kartı oynat'a basılınca (quadran.js) iframe açar, GitHub kartı sadece bağlantıdır.
+// ---------------------------------------------------------------------------
+export type BaglantiKarti =
+  | { tur: "youtube"; id: string; adres: string }
+  | { tur: "github"; sahip: string; depo: string; adres: string };
+
+const YT_ID = /^[A-Za-z0-9_-]{11}$/;
+const GH_AD = /^[A-Za-z0-9_.-]+$/;
+
+export function kartCoz(adres: string): BaglantiKarti | null {
+  let u: URL;
+  try { u = new URL(adres); } catch { return null; }
+  if (!/^https?:$/.test(u.protocol)) return null;
+  const alan = u.hostname.toLowerCase().replace(/^www\.|^m\./, "");
+  const parcalar = u.pathname.split("/").filter(Boolean);
+  if (alan === "youtube.com") {
+    const id = parcalar[0] === "watch" ? u.searchParams.get("v") : parcalar[0] === "shorts" ? parcalar[1] : null;
+    if (id && YT_ID.test(id)) return { tur: "youtube", id, adres };
+  } else if (alan === "youtu.be") {
+    if (parcalar[0] && YT_ID.test(parcalar[0])) return { tur: "youtube", id: parcalar[0], adres };
+  } else if (alan === "github.com" && parcalar.length >= 2) {
+    const [sahip, depo] = parcalar;
+    // "github.com/features/xyz" gibi site sayfaları depo değildir; ayrılmış birkaç ad elenir
+    if (GH_AD.test(sahip) && GH_AD.test(depo) && !["features", "sponsors", "orgs", "settings", "marketplace", "topics", "about", "pricing", "login", "join"].includes(sahip.toLowerCase())) {
+      return { tur: "github", sahip, depo: depo.replace(/\.git$/, ""), adres };
+    }
+  }
+  return null;
+}
+
+export function baglantiKartlari(metin: unknown, yazarRutbeId: number | string | null | undefined, yazarRol: string | null | undefined, kartKapali: unknown): BaglantiKarti[] {
+  if (kartKapali && Number(kartKapali) === 1) return [];
+  const ham = String(metin ?? "");
+  if (!baglantiYetkisi(yazarRutbeId, yazarRol)) return [];
+  const kartlar: BaglantiKarti[] = [];
+  for (const b of adresleriBul(ham)) {
+    const k = kartCoz(b.adres);
+    const anahtar = k ? (k.tur === "youtube" ? "y" + k.id : "g" + (k as any).sahip.toLowerCase() + "/" + (k as any).depo.toLowerCase()) : null;
+    if (!k || kartlar.some((x) => (x.tur === "youtube" ? "y" + x.id : "g" + x.sahip.toLowerCase() + "/" + x.depo.toLowerCase()) === anahtar)) continue;
+    kartlar.push(k);
+    if (kartlar.length === 2) break;
+  }
+  return kartlar;
 }

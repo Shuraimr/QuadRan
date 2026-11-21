@@ -130,6 +130,41 @@ a.avatar, button.avatar { cursor: pointer; }
 .uye-karti { padding: 0; margin: 0; border: 0; background: transparent; overflow: visible; max-width: calc(100vw - 16px); }
 .uye-karti .pk { box-shadow: var(--kat-2); }
 .uye-karti-yukleniyor { padding: 24px; border-radius: 16px; background: var(--yuzey-3); border: 1px solid var(--kenar-ince); box-shadow: var(--kat-2); color: var(--yazi-2); font-size: 14px; }
+.pk-eylemler { display: flex; flex-wrap: wrap; gap: 8px; }
+.uye-karti-kapat, .uye-karti-tutamac { display: none; }
+/* Telefonda üye kartı ALTTAN AÇILAN SAYFA: ekranın altına tam genişlikte oturur, arkası kararır, dışına dokununca kapanır (popover "light dismiss").
+   Açılış translateY(100%) → 0 (--egri-cikis), kapanış aşağı kayarak (--egri-giris): transition + overlay/display allow-discrete ile popover
+   kapanırken de görünür kalır; açılışın başlangıcı @starting-style'da. Azaltılmış harekette global kural geçişi kapatır (anlık).
+   Sürükleme quadran.js'te: sürerken satır içi transform, bırakınca satır içi stil silinir ve aynı geçiş oynar. */
+@media (max-width: 800px) {
+  .uye-karti {
+    inset: auto 0 0 0; width: 100%; max-width: none; max-height: calc(100dvh - 48px); overflow-y: auto; overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom); background: var(--yuzey-1); border-radius: 24px 24px 0 0;
+    transform: translateY(100%);
+    transition: transform var(--sure-orta) var(--egri-giris), overlay var(--sure-orta) allow-discrete, display var(--sure-orta) allow-discrete;
+  }
+  .uye-karti:popover-open { transform: none; transition-timing-function: var(--egri-cikis); }
+  @starting-style { .uye-karti:popover-open { transform: translateY(100%); } }
+  .uye-karti::backdrop { background: rgb(0 0 0 / 0); transition: background-color var(--sure-orta) var(--egri-giris), overlay var(--sure-orta) allow-discrete, display var(--sure-orta) allow-discrete; }
+  .uye-karti:popover-open::backdrop { background: rgb(0 0 0 / .5); }
+  @starting-style { .uye-karti:popover-open::backdrop { background: rgb(0 0 0 / 0); } }
+  .uye-karti .pk, .uye-karti .uye-karti-yukleniyor { width: 100%; max-width: none; border-radius: 24px 24px 0 0; }
+  .uye-karti .pk .buton { height: 44px; }
+  .uye-karti-kapat {
+    position: absolute; z-index: 4; top: 8px; right: 8px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 22px;
+    background: color-mix(in srgb, var(--zemin) 65%, transparent); color: var(--yazi); border: 1px solid var(--kenar-ince);
+  }
+  /* Tutamaç: 44px yüksekliğinde görünmez sürükleme alanı, ortada küçük çizgi (görünür işaret) */
+  .uye-karti-tutamac { position: absolute; z-index: 4; display: block; top: 0; left: 50%; width: 128px; height: 44px; margin-left: -64px; touch-action: none; cursor: grab; }
+  .uye-karti-tutamac::before { content: ""; position: absolute; top: 8px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--yazi-2); opacity: .6; }
+  /* Avatar süsü sayfanın İÇİNDE kalır: süs avatarın dışına taşar (ejderha 46px), bu yüzden avatar ve metin sol kenardan >=24px + taşma kadar içeri durur */
+  .uye-karti .pk-avatar { left: 24px; }
+  .uye-karti .pk:has(.av-sus-oge) .pk-avatar { left: 48px; }
+  .uye-karti .pk:has(.av-sus-oge.don) .pk-avatar { left: 72px; }
+  .uye-karti .pk-metin { padding-left: 24px; padding-right: 24px; }
+  .uye-karti .pk:has(.av-sus-oge) .pk-metin { padding-left: 48px; }
+  .uye-karti .pk:has(.av-sus-oge.don) .pk-metin { padding-left: 72px; }
+}
 [data-uye-karti] { cursor: pointer; }
 
 /* ---------- Ayarlar › Profil görünümü ---------- */

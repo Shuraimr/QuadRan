@@ -11,5 +11,5 @@ premiumRotasi.get("/premium", girisGerekli("Premium için giriş yapman gerekiyo
   const k = res.locals.kullanici;
   const [[u]]: any = await pool.query(
     `SELECT users.username, users.bio, users.created_at, users.premium_bitis, ${rutbeSutunlari("users")}, ${profilGorunumSutunlari("users")} FROM users WHERE users.id = ?`, [k.id]);
-  res.render("premium", { u, premium: premiumMu(k), aktifMenu: "ayarlar" });
+  res.render("premium", { u, premium: premiumMu(k), aktifMenu: "ayarlar", ayarBolum: "profil-gorunumu" });
 });

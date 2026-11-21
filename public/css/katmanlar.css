@@ -29,7 +29,7 @@
 }
 .kenar-menu-fab:hover { filter: brightness(1.1); }
 .kenar-menu-liste { display: flex; flex-direction: column; gap: 12px; width: 100%; padding-top: 4px; }
-.kenar-menu-kategoriler { display: none; }
+.kenar-kategori-grubu, .kenar-ayar-bolumleri { display: none; }
 .kenar-menu-alt { margin-top: auto; width: 100%; padding-bottom: 16px; }
 
 @media (min-width: 801px) and (max-width: 1180px) {
@@ -170,6 +170,8 @@
 .sikayet-secenek:has(input:focus-visible) { outline: 2px solid var(--vurgu); outline-offset: 2px; }
 /* "Konu dışı" yalnızca konu ve sohbet mesajlarında anlamlı: kullanıcı ve özel mesaj şikâyetinde gizli (sunucu da reddeder) */
 [data-hedef="kullanici"] .sikayet-secenek[data-sadece-mesaj], [data-hedef="ozel"] .sikayet-secenek[data-sadece-mesaj] { display: none; }
+/* "Uygunsuz profil fotoğrafı/banner" yalnızca kullanıcı şikâyetinde görünür */
+.sikayet-penceresi:not([data-hedef="kullanici"]) .sikayet-secenek[data-sadece-kullanici], .sikayet-penceresi:not([data-hedef="konu"]) .sikayet-secenek[data-sadece-konu] { display: none; }
 .sikayet-not { --alan-zemin: var(--yuzey-3); margin-top: 2px; }
 .sikayet-not textarea { min-height: 88px; font-size: 14px; }
 .sikayet-engel { display: flex; align-items: center; gap: 12px; min-height: 44px; font-size: 14px; cursor: pointer; }
@@ -299,28 +301,52 @@ select.secici-yerel, .alan select.secici-yerel {
 
 /* =====================================================================
    Tekrarı önleme: bir eylem aynı ekranda iki yerde durmaz.
-   Masaüstü: üst çubuk (Konu aç, ara, zil) + kenar çubuğu (ana bölümler, Ayarlar) + hesap menüsü (Profil, Mesajlar, Yönetim, Çıkış). Tablet: kenar menü "Konu aç" (kalem) ve "Ayarlar"ı taşır.
-   Telefon: alt menü ana gezinmedir; üst çubukta yalnızca logo ve alt menüde olmayan Mesajlar kalır.
+   Masaüstü: üst çubuk (Konu aç, ara, zil) + kenar çubuğu (ana bölümler, Yakut, Ayarlar) + hesap menüsü (Profil, Yönetim, Çıkış). Tablet: kenar menü "Konu aç" (kalem), Yakut ve "Ayarlar"ı taşır.
+   Telefon: alt menü ana gezinmedir; üst çubukta yalnızca logo; Profil sayfası Yakut bölümü + Bildirimler'i taşır. DM'ler her ölçekte Sohbet › DM.
    ===================================================================== */
-.ust-mesajlar { display: none; }
 @media (min-width: 801px) and (max-width: 1180px) {
   .ust-konu-ac { display: none; }
 }
 /* Ayarlar tablette ve masaüstünde kenar menüde durur: hesap menüsünde tekrar edilmez */
 @media (min-width: 801px) { .avatar-menu-ayarlar { display: none; } }
 @media (max-width: 800px) {
-  .arama-alani { visibility: hidden; }                 /* yer tutmaya devam eder, logo solda kalır */
+  .arama-alani { visibility: hidden; min-width: 0; }   /* yer tutmaya devam eder (logo solda kalır) ama içindeki 48px'lik ara düğmesi logoyu ezmesin */
+  .arama-alani .arama { width: 0; min-width: 0; overflow: hidden; }
+  .logo { flex: none; }
   .ust-konu-ac, .avatar-ust { display: none; }
-  /* Telefonda üst çubuk: logo + zil + Mesajlar (üyeler). Zil, alt menüde yeri olmadığı için burada; hesap menüsünde yok. */
-  .ust-eylemler .ust-mesajlar, .ust-eylemler .ust-zil { display: inline-grid; } /* eski ".ust-eylemler .ikon-dugme" gizleme kuralından daha özgül */
-  .ust-eylemler .ikon-dugme { width: 48px; height: 48px; }
   /* Bildirim paneli: üst çubuğun altında, neredeyse tam genişlikte */
-  .bildirim-paneli.acilir-menu-ustte { inset: 60px 8px auto 8px; width: auto; max-width: none; }
-  .avatar-menu-mesajlar, .acilir-kisayol { display: none; } /* telefonda klavye kısayolu ipucu anlamsız */
+  /* Bildirim paneli telefonda Profil sayfasındaki Bildirimler satırından açılır: o sayfa gibi alt menünün hemen üstünde */
+  .bildirim-paneli.acilir-menu-ustte { inset: auto 8px calc(88px + env(safe-area-inset-bottom, 0px)) 8px; width: auto; max-width: none; max-height: calc(100dvh - 120px); }
+  .acilir-kisayol { display: none; } /* telefonda klavye kısayolu ipucu anlamsız */
   /* Hesap menüsü alt menüdeki Profil'den açılır: ekranın altında, menünün hemen üstünde */
-  .avatar-menusu.acilir-menu-ustte { inset: auto 8px calc(88px + env(safe-area-inset-bottom, 0px)) auto; width: min(320px, calc(100vw - 16px)); transform-origin: bottom right; }
+  /* Telefonun Profil sayfası: alt menünün üstünde tam genişlik (Yakut bölümü ve Bildirimler sığsın; 320px'te seri/harçlık satırı kesiliyordu) */
+  .avatar-menusu.acilir-menu-ustte { inset: auto 8px calc(88px + env(safe-area-inset-bottom, 0px)) 8px; width: auto; max-width: none; max-height: calc(100dvh - 120px); overflow-y: auto; transform-origin: bottom center; }
   .alt-menu button.menu-ogesi { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; }
 }
+
+/* ---------- Telefon üst çubuğu: yalnızca logo + yüzen logo levhası (revizyon 2026-11-21) ----------
+   Kullanıcı kapsüllü çubuğu "facia" buldu: çok yuvarlak (22/26px) ve kalabalıktı. Artık telefonda çubukta YALNIZCA logo var
+   (bildirim → Profil sayfası, DM → Sohbet, yakut → Profil sayfasındaki Yakut bölümü). Sayfa 64px'i geçince quadran.js <header>'a
+   data-yuzen ekler: çubuk ortada küçük bir logo levhasına döner (köşe 12px, sitenin kart diliyle aynı aile; eskisi 26px'lik haptı).
+   Levha sticky kalır ve kapladığı yer (56px = 44 + üst 8 + alt 4) değişmez: içerik zıplamaz. */
+.logo-yazi { display: inline-block; box-sizing: border-box; max-width: 140px; padding-left: 10px; overflow: hidden; white-space: nowrap; }
+@media (max-width: 800px) {
+  .ust-cubuk { top: 0; border-radius: 0; }
+  .logo { gap: 0; }
+  /* Üyede eylem alanı boş kalır (zil/avatar/Konu aç telefonda başka yerde): kaplamasın */
+  .ust-eylemler:not(:has(> .buton-cerceveli)) { display: none; }
+  .ust-cubuk[data-yuzen] {
+    top: 8px; width: fit-content; height: 44px; margin: 0 auto 4px; padding: 0 14px 0 8px; border-radius: 12px;
+    background: var(--yuzey-2); border: 1px solid var(--kenar-ince); box-shadow: var(--kat-2);
+    animation: ust-yuz var(--sure-orta) var(--egri-cikis);
+  }
+  .ust-cubuk[data-yuzen] .arama-alani, .ust-cubuk[data-yuzen] .ust-eylemler { display: none; }
+  .ust-cubuk[data-yuzen] .logo-isaret { width: 28px; height: 28px; border-radius: 8px; font-size: 15px; }
+  .ust-cubuk[data-yuzen] .logo-yazi { padding-left: 8px; font-size: 15px; }
+}
+@media (max-width: 360px) { .ust-cubuk:not([data-yuzen]) .logo-yazi { display: none; } }
+@keyframes ust-yuz { from { opacity: 0; transform: translateY(-6px); } }
+@keyframes ust-gir { from { opacity: 0; } }
 
 /* Bildirim çubuğunun yanı sıra klavyeyle odaklanan öğeler de alt çubukların altında kalmasın */
 html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
@@ -344,7 +370,10 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
   [data-menu="sag"] .kenar-menu { left: auto; right: 0; border-right: 0; border-left: 1px solid var(--kenar-ince); }
   .kenar-menu-fab { display: none; }
   .kenar-menu-liste { gap: 2px; padding-top: 0; }
-  .kenar-menu-alt { padding-bottom: 0; padding-top: 8px; }
+  /* Ayarlar en altta, ince bir çizginin altında; açıkken bölümleri alt satır olarak listeler */
+  .kenar-menu-liste { margin-bottom: 16px; }
+  .kenar-menu-alt { padding-bottom: 0; padding-top: 8px; border-top: 1px solid var(--kenar-ince); }
+  .kenar-menu .menu-ogesi[data-oge="kategoriler"] { display: none; } /* yerini aşağıdaki bölüm başlığı alır */
   .kenar-menu .menu-ogesi {
     flex-direction: row; justify-content: flex-start; gap: 12px;
     width: 100%; min-width: 0; min-height: 40px; height: 40px; padding: 0 14px; border-radius: 20px;
@@ -358,12 +387,34 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
   .kenar-menu .menu-ogesi.aktif, .kenar-menu .menu-ogesi.aktif:hover { background: var(--ton); color: var(--ton-ustu); }
   .kenar-menu .menu-ogesi.aktif .menu-hap { background: none; color: inherit; }
   .kenar-menu .menu-ogesi.aktif .menu-etiket { font-weight: 600; }
-  .kenar-menu-kategoriler { display: grid; gap: 2px; }
-  .kenar-kategori {
-    display: flex; align-items: center; height: 34px; padding: 0 14px 0 46px; border-radius: 17px;
-    font-size: 13px; color: var(--yazi-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    transition: background .15s, color .15s;
+  /* Geniş çubukta "Kategoriler" listenin bölüm başlığıdır (tıklanınca /kategoriler; "Tümü" bunu söyler).
+     /kategoriler açıkken "Tümü" ton hapına dönüşür: menüde konum işareti her sayfada görünür. */
+  .kenar-kategori-grubu { display: grid; gap: 2px; }
+  .kenar-bolum-basligi {
+    display: flex; align-items: center; justify-content: space-between; padding: 20px 14px 6px; border-radius: 8px;
+    font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--yazi-2);
+    transition: color var(--sure-hizli) var(--egri-cikis);
   }
+  .kenar-bolum-basligi:hover, .kenar-bolum-basligi.aktif { color: var(--yazi); }
+  .kenar-tumu {
+    padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--vurgu);
+    transition: background-color var(--sure-hizli) var(--egri-cikis), color var(--sure-hizli) var(--egri-cikis);
+  }
+  .kenar-bolum-basligi:hover .kenar-tumu { background: var(--yuzey-3); }
+  .kenar-bolum-basligi.aktif .kenar-tumu { background: var(--ton); color: var(--ton-ustu); font-weight: 600; }
+  /* Ayarlar sayfasındayken üst öğe dolu hap değil, açık bir başlık; dolu hap o an okunan bölümün satırındadır */
+  .kenar-menu .menu-ogesi.aktif.acik { background: none; color: var(--yazi); }
+  .kenar-menu .menu-ogesi.aktif.acik:hover { background: var(--yuzey-3); }
+  .kenar-menu-kategoriler, .kenar-ayar-bolumleri { display: grid; gap: 2px; }
+  .kenar-ayar-bolumleri { margin-top: 2px; }
+  .kenar-kategori {
+    display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 14px; border-radius: 18px;
+    font-size: 14px; color: var(--yazi-2); white-space: nowrap;
+    transition: background-color var(--sure-hizli) var(--egri-cikis), color var(--sure-hizli) var(--egri-cikis);
+  }
+  .kenar-ayar-bolumleri .kenar-kategori { padding-left: 46px; } /* üst öğenin etiketiyle aynı hizada */
+  .kenar-diyez { flex: none; width: 20px; text-align: center; font-weight: 500; }
+  .kenar-kategori-ad { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .kenar-kategori:hover { background: var(--yuzey-3); color: var(--yazi); }
   .kenar-kategori.aktif, .kenar-kategori.aktif:hover { background: var(--ton); color: var(--ton-ustu); font-weight: 600; }
 
@@ -376,8 +427,6 @@ html { scroll-padding-bottom: calc(var(--alt-yer, 0px) + 16px); }
   body:not(.sade) .cubuk-alani { padding-left: 260px; }
   [data-menu="sag"] body:not(.sade) .cubuk-alani { padding-left: 12px; padding-right: 260px; }
 }
-/* Akıştaki kategori sütunu yalnızca telefonda (yatay çipler) görünür: masaüstü ve tablette kenar menü taşır */
-@media (min-width: 801px) { .govde > .akis-kategoriler { display: none; } }
 @media (min-width: 1181px) { .govde.govde-akis { grid-template-columns: minmax(0, 720px) 312px; } }
 
 /* Rütbe kutlaması: simge rütbe renginde; hareket çarpanı 0 olunca (azaltılmış hareket) animasyon hiç görünmez */

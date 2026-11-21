@@ -4,7 +4,7 @@
 import { randomInt } from "node:crypto";
 import { pool } from "./db.ts";
 import { ayarlar } from "./ayarlar.ts";
-import { rutbeSutunlari, kisalt, likeKac } from "./yardimci.ts";
+import { rutbeSutunlari, avatarSutunlari, kisalt, likeKac } from "./yardimci.ts";
 import { rutbeler, kilitBilgisi } from "./rutbe.ts";
 import { cevrimiciSql } from "./gizlilik.ts";
 
@@ -121,8 +121,27 @@ export async function hubVerisi(kullanici: { id: number; points: number; rol: st
     `SELECT c.content, c.created_at, u.username FROM chat_messages c JOIN users u ON u.id = c.user_id
       WHERE c.deleted_at IS NULL ORDER BY c.id DESC LIMIT 1`
   );
+  // Sohbet › Hepsi/DM: özel mesaj konuşmaları da aynı listede (kullanıcı kararı 2026-11-21: DM'ler Sohbet'in içinde, ayrı menü yok).
+  // Karşı taraf başına son mesaj + bana gelen okunmamış sayısı; en yeni 30 konuşma yeter (tam liste /mesajlar'da).
+  const [dmler]: any = await pool.query(
+    `SELECT u.username AS kullanici, ${avatarSutunlari("u")},
+            IF(son.deleted_at IS NULL, son.content, 'Mesaj kaldırıldı') AS son_mesaj, son.created_at AS son_zaman,
+            son.sender_id = ? AS son_benden, k.okunmamis
+       FROM (SELECT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS karsi_id, MAX(id) AS son_id,
+                    SUM(receiver_id = ? AND read_at IS NULL) AS okunmamis
+               FROM messages WHERE sender_id = ? OR receiver_id = ? GROUP BY karsi_id) AS k
+       JOIN messages son ON son.id = k.son_id
+       JOIN users u ON u.id = k.karsi_id
+      ORDER BY son.id DESC LIMIT 30`,
+    [kullanici.id, kullanici.id, kullanici.id, kullanici.id, kullanici.id]
+  );
+  for (const d of dmler) {
+    d.okunmamis = Number(d.okunmamis); d.son_benden = !!d.son_benden;
+    d.son_mesaj = kisalt((d.son_benden ? "Sen: " : "") + d.son_mesaj, 80);
+  }
+
   return {
-    odalar: odalar as OdaSatiri[], davetler,
+    odalar: odalar as OdaSatiri[], davetler, dmler,
     genel: genel ? { metin: kisalt(`${genel.username}: ${genel.content}`, 80), zaman: genel.created_at } : null,
     olustur: await olusturmaDurumu(kullanici),
   };

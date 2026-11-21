@@ -4,6 +4,8 @@
   hub        { odalar [{ id, ad, sessiz, kapali, okunmamis, son_metin, son_zaman }], davetler [{ id, oda, davet_eden }],
                genel { metin, zaman } | null, olustur { izinli, rutbeYeter, sinirDolu, kilit { ad, rutbe, kalan }, sinir } }
   aktifOda   açık odanın numarası; 0 ise "Genel sohbet" açıktır
+  sohbetFiltre "hepsi" (varsayılan: genel + odalar + DM'ler son mesaja göre tek listede) | "oda" (yalnızca odalar).
+             Üçüncü sekme "DM" /mesajlar sayfasıdır (orada aynı sekme şeridi DM seçili çizilir: partials/sohbet-filtre.ejs).
   Davete cevap: POST /oda/davet/:id/kabul | /ret · "Oda aç": /oda/yeni (JS varsa pencere, #oda-yeni)
   Telefonda (≤960px) bu liste ile konuşma ayrı görünümlerdir: listede iken konuşma gizlenir (.mesaj-acik sınıfı sayfada).
 %>
@@ -19,6 +21,12 @@
     return new Date(d).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
   };
   const slOl_ = sl_.olustur;
+  const slFiltre_ = locals.sohbetFiltre === "oda" ? "oda" : "hepsi";
+  // Hepsi: odalar ve DM'ler son mesaj zamanına göre tek listede (mesajı olmayan oda en sona)
+  const slZamanMs_ = (d) => d ? new Date(d).getTime() : 0;
+  const slOgeler_ = slFiltre_ === "oda" ? sl_.odalar.map((o) => ({ tur: "oda", o }))
+    : [...sl_.odalar.map((o) => ({ tur: "oda", o, t: slZamanMs_(o.son_zaman) })), ...(sl_.dmler || []).map((d) => ({ tur: "dm", d, t: slZamanMs_(d.son_zaman) }))]
+        .sort((a, b) => b.t - a.t);
 %>
 <section class="kart mesaj-liste oda-liste" aria-label="Sohbetler">
   <div class="mesaj-liste-ust">
@@ -28,9 +36,10 @@
         <a class="buton buton-tonal yeni-mesaj-dugme" href="/oda/yeni" data-oda-panel="yeni"><%- include("ikon", { ad: "arti", boyut: 18 }) %> Oda aç</a>
       <% } %>
     </div>
+    <%- include("sohbet-filtre", { secili: slFiltre_ }) %>
   </div>
   <div class="oda-liste-kaydir">
-    <% if (!slOl_.izinli) { %>
+    <% if (!slOl_.izinli && slFiltre_ === "oda") { %>
       <% if (!slOl_.rutbeYeter) { %>
         <%- include("kilit", { kilit: slOl_.kilit }) %>
       <% } else { %>
@@ -60,16 +69,31 @@
         </span>
       </a>
 
-      <h2 class="oda-etiket">Odalarım</h2>
-      <% if (!sl_.odalar.length) { %>
-        <p class="oda-bos ikincil">Henüz bir odan yok. Bir odaya davet edilince ya da davet bağlantısıyla katılınca burada görünür.</p>
+      <% if (slFiltre_ === "oda") { %><h2 class="oda-etiket">Odalarım</h2><% } %>
+      <% if (!slOgeler_.length) { %>
+        <p class="oda-bos ikincil"><%= slFiltre_ === "oda" ? "Henüz bir odan yok. Bir odaya davet edilince ya da davet bağlantısıyla katılınca burada görünür." : "Henüz bir odan ya da özel mesajın yok. Bir profilden mesaj gönderebilir ya da davetle bir odaya katılabilirsin." %></p>
       <% } %>
-      <% for (const o of sl_.odalar) { const aktif = slAktif_ === o.id; %>
+      <% for (const og of slOgeler_) { %>
+        <% if (og.tur === "dm") { const d = og.d; %>
+        <a class="mesaj-satir<%= d.okunmamis > 0 ? ' okunmamis' : '' %>" href="/mesajlar/<%= encodeURIComponent(d.kullanici) %>">
+          <%- include("avatar", { ad: d.kullanici, url: d.avatar_url, sus: d.avatar_susu, sinif: "avatar-48", bos: true }) %>
+          <span class="mesaj-satir-govde">
+            <span class="mesaj-satir-ust">
+              <strong><%= d.kullanici %></strong><span class="sohbet-tur">DM</span>
+              <span class="kucuk ikincil"><%= slZaman_(d.son_zaman) %></span>
+            </span>
+            <span class="mesaj-satir-alt">
+              <span class="mesaj-onizleme ikincil"><%= d.son_mesaj %></span>
+              <% if (d.okunmamis > 0) { %><span class="mesaj-rozet" role="img" aria-label="<%= d.okunmamis %> okunmamış mesaj"><%= d.okunmamis %></span><% } %>
+            </span>
+          </span>
+        </a>
+        <% continue; } const o = og.o; const aktif = slAktif_ === o.id; %>
         <a class="mesaj-satir<%= aktif ? ' aktif' : '' %><%= o.okunmamis > 0 && !o.sessiz ? ' okunmamis' : '' %>" href="/oda/<%= o.id %>"<%- aktif ? ' aria-current="page"' : '' %>>
           <span class="oda-avatar oda-avatar-48"><%= o.ad[0].toLocaleUpperCase("tr") %></span>
           <span class="mesaj-satir-govde">
             <span class="mesaj-satir-ust">
-              <strong><%= o.ad %></strong><span class="oda-kilit-ikon" title="Özel oda"><%- include("ikon", { ad: "kilit", boyut: 14 }) %></span>
+              <strong><%= o.ad %></strong><% if (slFiltre_ === "hepsi") { %><span class="sohbet-tur">Oda</span><% } else { %><span class="oda-kilit-ikon" title="Özel oda"><%- include("ikon", { ad: "kilit", boyut: 14 }) %></span><% } %>
               <span class="kucuk ikincil"><%= slZaman_(o.son_zaman) %></span>
             </span>
             <span class="mesaj-satir-alt">

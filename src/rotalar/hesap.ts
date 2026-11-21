@@ -248,7 +248,7 @@ hesap.post("/sifre-sifirla/:token", async (req, res) => {
 // ---------------------------------------------------------------------------
 async function ayarlariOku(userId: number) {
   const [satirlar]: any = await pool.query(
-    `SELECT username, bio, konum, web_sitesi, imza, dm_izni, cevrimici_goster, email, avatar_url, banner_url, created_at, tema, vurgu, menu_sagda, kompakt, az_animasyon,
+    `SELECT username, bio, konum, web_sitesi, imza, dm_izni, cevrimici_goster, email, avatar_url, banner_url, created_at, tema, vurgu, menu_sagda, kompakt, az_animasyon, nsfw_tercih,
             premium_bitis, banner_konum, sabit_konu_id, ${premiumSql("users")} AS premium_aktif, profil_efekti, avatar_susu, profil_renk_ana, profil_renk_vurgu, profil_renk_gecis
        FROM users WHERE id = ?`,
     [userId]
@@ -359,10 +359,12 @@ hesap.post("/ayarlar/gorunum", girisGerekli(), async (req, res) => {
   // Yalnızca izin verilen değerler: başka bir şey gelirse varsayılana dön
   const tema = ["koyu", "acik", "sistem"].includes(req.body.tema) ? req.body.tema : "koyu";
   const vurgu = ["safir", "zumrut", "kehribar", "ametist", "yakut"].includes(req.body.vurgu) ? req.body.vurgu : "safir";
+  // +18 içerik görünümü (sql/23): geçersiz değer varsayılana (bulanık) döner, ENUM'a başka bir şey yazılamaz
+  const nsfw = ["gizle", "bulanik", "goster"].includes(req.body.nsfw_tercih) ? req.body.nsfw_tercih : "bulanik";
   // İşaretlenmemiş checkbox formda hiç gönderilmez; bu yüzden "var mı" diye bakıyoruz
   await pool.query(
-    "UPDATE users SET tema = ?, vurgu = ?, menu_sagda = ?, kompakt = ?, az_animasyon = ? WHERE id = ?",
-    [tema, vurgu, !!req.body.menu_sagda, !!req.body.kompakt, !!req.body.az_animasyon, res.locals.kullanici.id]
+    "UPDATE users SET tema = ?, vurgu = ?, menu_sagda = ?, kompakt = ?, az_animasyon = ?, nsfw_tercih = ? WHERE id = ?",
+    [tema, vurgu, !!req.body.menu_sagda, !!req.body.kompakt, !!req.body.az_animasyon, nsfw, res.locals.kullanici.id]
   );
   bildir(req, "basari", "Görünüm ayarların kaydedildi");
   res.redirect("/ayarlar#gorunum");
@@ -468,7 +470,7 @@ async function sifreHash(userId: number): Promise<string> {
 }
 
 hesap.get("/hesap/sifre", girisGerekli("Şifreni değiştirmek için giriş yapman gerekiyor."), (req, res) => {
-  res.render("hesap-sifre", { aktifMenu: "ayarlar" });
+  res.render("hesap-sifre", { aktifMenu: "ayarlar", ayarBolum: "hesap" });
 });
 
 hesap.post("/hesap/sifre", girisGerekli(), async (req, res) => {
@@ -484,7 +486,7 @@ hesap.post("/hesap/sifre", girisGerekli(), async (req, res) => {
   else if (yeni === mevcut) hatalar.yeni = "Yeni şifre mevcut şifreyle aynı olamaz";
   if (!hatalar.yeni && yeni !== tekrar) hatalar.tekrar = "Şifreler aynı değil";
 
-  if (Object.keys(hatalar).length) return res.status(400).render("hesap-sifre", { hatalar, aktifMenu: "ayarlar" });
+  if (Object.keys(hatalar).length) return res.status(400).render("hesap-sifre", { hatalar, aktifMenu: "ayarlar", ayarBolum: "hesap" });
 
   // Sürümü artır: başka cihazlardaki oturumlar düşer. Bu oturumu yeni sürüme taşıyıp açık tutuyoruz,
   // ve oturum kimliğini de yeniliyoruz (eski kimliği ele geçiren biri devam edemesin).
@@ -501,7 +503,7 @@ hesap.post("/hesap/sifre", girisGerekli(), async (req, res) => {
 // ---------------------------------------------------------------------------
 hesap.get("/hesap/eposta", girisGerekli("E-postanı değiştirmek için giriş yapman gerekiyor."), async (req, res) => {
   const [satirlar]: any = await pool.query("SELECT email FROM users WHERE id = ?", [res.locals.kullanici.id]);
-  res.render("hesap-eposta", { mevcutEposta: satirlar[0]?.email, aktifMenu: "ayarlar" });
+  res.render("hesap-eposta", { mevcutEposta: satirlar[0]?.email, aktifMenu: "ayarlar", ayarBolum: "hesap" });
 });
 
 hesap.post("/hesap/eposta", girisGerekli(), async (req, res) => {
@@ -520,7 +522,7 @@ hesap.post("/hesap/eposta", girisGerekli(), async (req, res) => {
   if (!(await sifreDogru(sifre, bende.password_hash))) hatalar.sifre = "Şifre yanlış";
 
   if (Object.keys(hatalar).length) {
-    return res.status(400).render("hesap-eposta", { hatalar, degerler: { email }, mevcutEposta: bende.email, aktifMenu: "ayarlar" });
+    return res.status(400).render("hesap-eposta", { hatalar, degerler: { email }, mevcutEposta: bende.email, aktifMenu: "ayarlar", ayarBolum: "hesap" });
   }
   await pool.query("UPDATE users SET email = ? WHERE id = ?", [email, k.id]);
   bildir(req, "basari", "E-posta adresin güncellendi");

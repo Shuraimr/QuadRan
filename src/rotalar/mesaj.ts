@@ -16,13 +16,14 @@ async function kendiMesajim(id: number | null, userId: number) {
   const [satirlar]: any = await pool.query(
     `SELECT posts.id, posts.content, posts.topic_id, posts.user_id,
             topics.title, topics.locked_at,
-            posts.id = (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = posts.topic_id) AS ilk_mi
+            posts.id = (SELECT MIN(p2.id) FROM posts p2 WHERE p2.topic_id = posts.topic_id) AS ilk_mi,
+            (SELECT COUNT(*) FROM ekler WHERE ekler.post_id = posts.id) AS ek_sayisi
        FROM posts JOIN topics ON topics.id = posts.topic_id
       WHERE posts.id = ? AND posts.user_id = ? AND posts.deleted_at IS NULL AND topics.deleted_at IS NULL`,
     [id, userId]
   );
   const m = satirlar[0];
-  if (m) m.ilk_mi = !!m.ilk_mi;
+  if (m) { m.ilk_mi = !!m.ilk_mi; m.ek_sayisi = Number(m.ek_sayisi); }
   return m ?? null;
 }
 
@@ -47,7 +48,8 @@ mesaj.post("/mesaj/:id/duzenle", girisGerekli("Mesajını düzenlemek için giri
   const degerler = { title: m.ilk_mi ? metin(req.body.title) : m.title, content: metin(req.body.content) };
   const hatalar: Record<string, string> = {};
   if (m.ilk_mi && (degerler.title.length < 5 || degerler.title.length > 120)) hatalar.title = "Başlık 5 ile 120 karakter arasında olmalı";
-  if (!degerler.content) hatalar.content = "İçerik boş olamaz";
+  // Yalnızca ekten oluşan cevabın metni boş olabilir (ekler şimdilik düzenlenemez, sql/23)
+  if (!degerler.content && !m.ek_sayisi) hatalar.content = "İçerik boş olamaz";
   else if (degerler.content.length > 10000) hatalar.content = "İçerik en fazla 10.000 karakter olabilir";
   // Yasaklı kelime kontrolü düzenlemede de yapılmalı; yoksa önce temiz yazıp sonra değiştirerek atlatılırdı
   const yasak = await yasakliIfade(m.ilk_mi ? degerler.title : "", degerler.content);

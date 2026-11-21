@@ -1,0 +1,23 @@
+<%#
+  Bağlantı kartları: metindeki YouTube/GitHub adresleri metnin altında kart olur (en çok 2). Beklenen: mesaj { content, rutbe_id, yazar_rol, kart_kapali }.
+  Kural src/rutbe.ts baglantiKartlari'nda (yazar bağlantı ayrıcalığına sahip + kart kapatılmamış). Sayfa yüklenirken dışarıya HİÇBİR istek gitmez:
+  YouTube kutusu oynat'a basılınca quadran.js iframe koyar (youtube-nocookie); JS'siz kutu /cikis onayı üzerinden youtube.com'a gider.
+%><% const kartlar_ = baglantiKartlari(mesaj.content, mesaj.rutbe_id, mesaj.yazar_rol, mesaj.kart_kapali);
+if (kartlar_.length) { %>
+  <div class="bag-kartlar">
+    <% for (const k_ of kartlar_) { if (k_.tur === "youtube") { %>
+      <div class="yt-kart">
+        <a class="yt-kutu" href="<%= cikisAdresi('https://www.youtube.com/watch?v=' + k_.id) %>" data-yt-oynat="<%= k_.id %>" rel="nofollow ugc noopener noreferrer" aria-label="YouTube videosunu oynat">
+          <span class="yt-oynat"><%- include("ikon", { ad: "oynat", boyut: 24 }) %></span>
+        </a>
+        <div class="yt-alt"><%- include("ikon", { ad: "youtube", boyut: 16 }) %><span><strong>YouTube videosu</strong> · Oynatınca YouTube’a bağlanırsın</span></div>
+      </div>
+    <% } else { %>
+      <a class="gh-kart" href="<%= cikisAdresi(k_.adres) %>" data-dis-baglanti="<%= k_.adres %>" rel="nofollow ugc noopener noreferrer">
+        <span class="gh-ikon"><%- include("ikon", { ad: "github", boyut: 22 }) %></span>
+        <span class="gh-metin"><strong><%= k_.sahip %> / <%= k_.depo %></strong><span>GitHub deposu · github.com</span></span>
+        <span class="gh-dis" aria-hidden="true"><%- include("ikon", { ad: "dis", boyut: 18 }) %></span>
+      </a>
+    <% } } %>
+  </div>
+<% } %>

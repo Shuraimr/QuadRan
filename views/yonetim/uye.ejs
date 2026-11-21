@@ -139,6 +139,12 @@
         <input class="yn-girdi" type="number" name="fark" step="1" required placeholder="Puan farkı (+10 / -5)" aria-label="Puan farkı">
         <input class="yn-girdi" name="sebep" minlength="3" maxlength="200" required placeholder="Sebep" aria-label="Puan sebebi">
         <button class="buton buton-cerceveli">Puanı düzelt</button></form>
+      <form class="yn-form" method="post" action="<%= yol_ %>/yakut"><%- include("csrf") %>
+        <p class="yn-premium-durum">Yakut: <%= Number(k.yakut).toLocaleString("tr-TR") %></p>
+        <input class="yn-girdi" type="number" name="miktar" step="1" required placeholder="Miktar (+100 / -50)" aria-label="Yakut miktarı">
+        <input class="yn-girdi" name="sebep" minlength="3" maxlength="200" required placeholder="Sebep" aria-label="Yakut sebebi">
+        <button class="buton buton-cerceveli">Yakut ver / al</button>
+        <small class="ikincil">Eksi değer yakut alır; bakiye sıfırın altına inmez. Sebep işlem kaydına ve üyenin hareketlerine yazılır.</small></form>
       <form class="yn-form" method="post" action="<%= yol_ %>/premium"><%- include("csrf") %>
         <p class="yn-premium-durum">Premium: <%= Number(k.premium_aktif) ? (new Date(k.premium_bitis).getFullYear() >= 3000 ? "süresiz" : new Date(k.premium_bitis).toLocaleDateString("tr-TR") + " tarihine kadar") : "yok" %></p>
         <select class="yn-girdi" name="sure" aria-label="Premium süresi">

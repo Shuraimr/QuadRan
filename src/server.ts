@@ -1,8 +1,10 @@
 import { SEBEP_LISTESI } from "./sikayet.ts";
 import { belirtme } from "./gizlilik.ts";
-import { rutbeBulId, icerikHtml, rutbeCizimiBaslat, rutbeTazele } from "./rutbe.ts";
+import { bulunmaEki } from "./yardimci.ts";
+import { rutbeBulId, icerikHtml, baglantiKartlari, disBaglantiHtml, cikisAdresi, rutbeCizimiBaslat, rutbeTazele } from "./rutbe.ts";
 import express from "express";
 import { oturum, ortakVeriler, csrfKoru } from "./oturum.ts";
+import { cikis } from "./rotalar/cikis.ts";
 import { hesap } from "./rotalar/hesap.ts";
 import { forum } from "./rotalar/forum.ts";
 import { mesaj } from "./rotalar/mesaj.ts";
@@ -14,6 +16,7 @@ import { moderasyon } from "./rotalar/moderasyon.ts";
 import { yonetim } from "./rotalar/yonetim.ts";
 import { duyuruRotasi } from "./ayarlar.ts";
 import { premiumRotasi } from "./rotalar/premium.ts";
+import { yakutRotasi } from "./rotalar/yakut.ts";
 import { EFEKTLER, SUSLER, SVG, EFEKT_ADLARI, SUS_ADLARI } from "./profil-gorunum.ts";
 import { onizleme } from "./onizleme.ts";
 import { katmanlar } from "./onizleme-katmanlar.ts";
@@ -44,6 +47,7 @@ const CSP = [
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob:",   // blob: avatar/banner kırpma önizlemesi için
   "connect-src 'self'",
+  "frame-src https://www.youtube-nocookie.com",   // yalnızca YouTube kartı oynatılınca açılan iframe (yorum eki kartları)
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -104,11 +108,13 @@ app.use((req, res, next) => {
 });
 
 // Gerçek sayfalar
+app.use(cikis);        // /cikis: dış bağlantı onay sayfası
 app.use(hesap);
 app.use(takip);        // /takip: takip et/bırak, /profil/:ad/takipciler|takip-edilenler
 app.use(forum);
 app.use(rutbeRotasi);  // /rutbeler
 app.use(premiumRotasi); // /premium
+app.use(yakutRotasi);   // /yakut: cüzdan, mağaza, unvanlar (sql/22)
 app.use(mesaj);
 app.use(iletisim);
 app.use(odalar);       // /oda: özel odalar (davetle girilen grup sohbetleri)
@@ -129,7 +135,9 @@ app.locals.sikayetSebepleri = SEBEP_LISTESI;
 app.locals.belirtme = belirtme;
 // Rütbe çipi (partials/rutbe.ejs) ve kullanıcı içeriğinde yazar rütbesine göre bağlantı (src/rutbe.ts)
 app.locals.rutbeBulId = rutbeBulId;
+app.locals.bulunmaEki = bulunmaEki;
 app.locals.icerikHtml = icerikHtml;
+app.locals.baglantiKartlari = baglantiKartlari; app.locals.disBaglantiHtml = disBaglantiHtml; app.locals.cikisAdresi = cikisAdresi;
 // Profil efektleri ve avatar süsleri (src/profil-gorunum.ts): sabit veri, şablonlar çizer
 app.locals.EFEKTLER = EFEKTLER; app.locals.SUSLER = SUSLER; app.locals.SVG = SVG;
 app.locals.EFEKT_ADLARI = EFEKT_ADLARI; app.locals.SUS_ADLARI = SUS_ADLARI;

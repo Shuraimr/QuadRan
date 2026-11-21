@@ -72,10 +72,10 @@ export function yuklemeKatmani(alan: string, geriAdres: string) {
   ];
 }
 
-// Sunucudaki bir dosyayı siler; yalnızca bizim ürettiğimiz biçimdeki adresleri (/yuklemeler/<uuid>.webp) kabul eder:
+// Sunucudaki bir dosyayı siler; yalnızca bizim ürettiğimiz biçimdeki adresleri (/yuklemeler/<uuid>.webp|mp4|webm) kabul eder:
 // veritabanındaki değer bir şekilde bozulsa bile başka bir dosya silinemez (yol gezme koruması).
 export async function dosyaSil(adres: string | null | undefined) {
-  const m = adres && /^\/yuklemeler\/([0-9a-f-]{36}\.webp)$/.exec(adres);
+  const m = adres && /^\/yuklemeler\/([0-9a-f-]{36}\.(?:webp|mp4|webm))$/.exec(adres);
   if (!m) return;
   try { await unlink(`${YUKLEME_DIZINI}/${m[1]}`); } catch { /* zaten yok */ }
 }

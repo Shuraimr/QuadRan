@@ -1,0 +1,145 @@
+<%#
+  /yakut: cüzdan paneli + mağaza (Figma 14 · Yakut, B yönü). Veriler: src/rotalar/yakut.ts
+  kat (seçili kategori), kategoriler [{id, ad}], unvanlar [{id, ad, fiyat, sahip}], seciliUnvan (id ya da null), susler/efektler/efektRenkleri (profil-gorunum.ts adları),
+  cuzdan { kazanilan, harcanan, seriGun, dongu, yarin, son [], sebepler, harclik, harclikTarih, premium, sonraki }, kazan { enAz, enCok, seriGunluk, seriYedinci, premiumAylik }
+  Düzen: masaüstünde sol sütun mağaza, sağda yapışkan cüzdan; tablet/telefonda tek sütun, cüzdan başlığın altında.
+  Süs/efekt/öne çıkarma ürünleri "Yakında": hazır olmayan özellik vaat edilmez, bu yüzden satın alma düğmesi yok.
+%>
+<%- include("partials/bas", { baslik: "Yakut" }) %>
+<%- include("partials/ust-cubuk") %>
+<% const bak_ = kullanici.yakut || 0, tr_ = (n) => Number(n).toLocaleString("tr-TR"); %>
+<main class="yakut-sayfa">
+  <header class="yakut-baslik">
+    <h1>Yakut</h1>
+    <p class="ikincil">Yakutlarını unvan, süs ve efekte harca. Aldıkların profilinde ve yorumlarında görünür.</p>
+  </header>
+
+  <nav class="yakut-kategoriler" aria-label="Mağaza kategorileri">
+    <% for (const c of kategoriler) { %><a class="yakut-kat<%= kat === c.id ? ' aktif' : '' %>" href="/yakut<%= c.id === 'tumu' ? '' : '?k=' + c.id %>"<%- kat === c.id ? ' aria-current="page"' : '' %>><%= c.ad %></a><% } %>
+  </nav>
+
+  <aside class="yakut-cuzdan" aria-label="Cüzdan">
+    <section class="kart yakut-cuzdan-kart">
+      <div class="yakut-bakiye">
+        <%- include("partials/yakut", { boyut: 72, buyuk: true }) %>
+        <div>
+          <p class="yakut-ust-etiket">BAKİYE</p>
+          <p class="yakut-bakiye-sayi"><%= tr_(bak_) %></p>
+          <p class="ikincil kucuk">bu ay +<%= tr_(cuzdan.kazanilan) %><% if (cuzdan.harcanan > 0) { %> · −<%= tr_(cuzdan.harcanan) %><% } %></p>
+        </div>
+      </div>
+      <hr class="yakut-ayirac">
+      <div class="yakut-satir">
+        <strong><%= cuzdan.seriGun %> günlük seri</strong>
+        <span class="ikincil kucuk">yarın +<%= tr_(cuzdan.yarin) %></span>
+      </div>
+      <ol class="yakut-seri-serit yakut-seri-kucuk" aria-label="7 günlük seri döngüsü">
+        <% for (let i = 1; i <= 7; i++) { %><li class="<%= i <= cuzdan.dongu ? 'dolu' : '' %><%= cuzdan.dongu && i === cuzdan.dongu ? ' bugun' : '' %>"><%- include("partials/yakut", { boyut: 20 }) %></li><% } %>
+      </ol>
+      <hr class="yakut-ayirac">
+      <div class="yakut-satir">
+        <strong>Aylık harçlık</strong>
+        <span class="ikincil kucuk">+<%= tr_(cuzdan.harclik) %> · <%= cuzdan.harclikTarih %></span>
+      </div>
+      <% if (cuzdan.sonraki) { %><p class="ikincil kucuk"><%= bulunmaEki(cuzdan.sonraki.ad) %> ayda <%= tr_(cuzdan.sonraki.aylik) %> · <%= tr_(cuzdan.sonraki.kalan) %> puan kaldı</p><% } %>
+    </section>
+
+    <section class="kart yakut-cuzdan-kart">
+      <div class="yakut-satir"><strong>Son hareketler</strong><a class="baglanti kucuk" href="/yakut/hareketler">Tümü ›</a></div>
+      <% if (!cuzdan.son.length) { %><p class="ikincil kucuk">Henüz hareket yok.</p><% } %>
+      <ul class="yakut-hareket-liste">
+        <% for (const h of cuzdan.son) { %>
+          <li>
+            <span><strong><%= cuzdan.sebepler[h.sebep] || h.sebep %></strong><small class="ikincil"><%= new Date(h.created_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long" }) %></small></span>
+            <span class="yakut-miktar<%= h.miktar > 0 ? ' artti' : '' %>"><%= h.miktar > 0 ? "+" : "−" %><%= tr_(Math.abs(h.miktar)) %> <%- include("partials/yakut", { boyut: 14 }) %></span>
+          </li>
+        <% } %>
+      </ul>
+      <a class="baglanti kucuk" href="#kazan">Nasıl kazanılır ›</a>
+    </section>
+  </aside>
+
+  <div class="yakut-magaza">
+    <% if (kat === "tumu" || kat === "unvanlar") { %>
+      <section class="yakut-bolum" aria-labelledby="yb-unvan">
+        <h2 id="yb-unvan">Eğlenceli unvanlar <span class="ikincil">· adının yanında, yorumlarında görünür</span></h2>
+        <div class="yakut-izgara">
+          <% for (const u of unvanlar) { const secili_ = seciliUnvan === u.id, otomatik_ = !seciliUnvan && kullanici.unvan === u.ad, sahip_ = !!Number(u.sahip), eksik_ = u.fiyat - bak_; %>
+            <article class="yakut-urun">
+              <div class="yakut-onizleme">
+                <div class="yakut-onizleme-kisi">
+                  <%- include("partials/avatar", { ad: kullanici.username, url: kullanici.avatar_url, sus: kullanici.avatar_susu, sinif: "avatar-36", bos: true }) %>
+                  <strong><%= kullanici.username %></strong>
+                  <% if (kullanici.rutbe) { %><%- include("partials/rutbe", { rutbeAd: kullanici.rutbe, rutbeId: kullanici.rutbe_id }) %><% } %>
+                </div>
+                <%- include("partials/unvan", { unvan: u.ad, premium: kullanici.premium }) %>
+              </div>
+              <div class="yakut-urun-ust"><strong><%= u.ad %></strong><span class="yakut-fiyat"><%- include("partials/yakut", { boyut: 16 }) %><%= tr_(u.fiyat) %></span></div>
+              <% if (sahip_ && secili_) { %>
+                <form method="post" action="/yakut/unvan/kaldir"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><button class="buton buton-tonal yakut-tam">Kullanılıyor · Kaldır</button></form>
+              <% } else if (sahip_) { %>
+                <% if (otomatik_) { %><p class="ikincil kucuk yakut-otomatik">Otomatik gösteriliyor (sahip olduğun en pahalı unvan)</p><% } %>
+                <form method="post" action="/yakut/unvan/<%= u.id %>/kullan"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><button class="buton buton-cerceveli yakut-tam"><%= otomatik_ ? "Bunu sabitle" : "Kullan" %></button></form>
+              <% } else if (eksik_ > 0) { %>
+                <div class="yakut-eksik" role="note"><%= tr_(eksik_) %> yakut eksik</div>
+              <% } else { %>
+                <form method="post" action="/yakut/unvan/<%= u.id %>/al" data-onay="<%= u.ad %> unvanını <%= tr_(u.fiyat) %> yakuta alıyorsun"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><button class="buton buton-tonal yakut-tam">Al</button></form>
+              <% } %>
+            </article>
+          <% } %>
+        </div>
+      </section>
+    <% } %>
+
+    <% if (kat === "tumu" || kat === "susler" || kat === "efektler") { %>
+      <section class="yakut-bolum" aria-labelledby="yb-sus">
+        <h2 id="yb-sus">Avatar süsleri ve efektler <span class="ikincil">· profil kartında ve yorumlarda oynar</span></h2>
+        <div class="yakut-izgara">
+          <% if (kat !== "efektler") { for (const [anahtar, ad] of Object.entries(susler)) { %>
+            <article class="yakut-urun">
+              <div class="yakut-onizleme yakut-onizleme-sus"><%- include("partials/avatar", { ad: kullanici.username, url: kullanici.avatar_url, sus: anahtar, sinif: "avatar-36", oynat: true, bos: true }) %></div>
+              <div class="yakut-urun-ust"><strong><%= ad %> süsü</strong></div>
+              <div class="yakut-yakinda" role="note">Yakında</div>
+            </article>
+          <% } } %>
+          <% if (kat !== "susler") { for (const [anahtar, ad] of Object.entries(efektler)) { const r_ = efektRenkleri[anahtar] || []; %>
+            <article class="yakut-urun">
+              <div class="yakut-onizleme yakut-onizleme-sus">
+                <span class="yakut-nokta" style="background: <%= r_[0] || 'var(--yuzey-3)' %>"></span><span class="yakut-nokta" style="background: <%= r_[1] || 'var(--yuzey-3)' %>"></span>
+              </div>
+              <div class="yakut-urun-ust"><strong><%= ad %> efekti</strong></div>
+              <div class="yakut-yakinda" role="note">Yakında</div>
+            </article>
+          <% } } %>
+        </div>
+      </section>
+    <% } %>
+
+    <% if (kat === "tumu" || kat === "one-cikarma") { %>
+      <section class="yakut-bolum" aria-labelledby="yb-one">
+        <h2 id="yb-one">Öne çıkarma <span class="ikincil">· bir defalık</span></h2>
+        <div class="yakut-izgara">
+          <% for (const [ad, aciklama] of [["Konu öne çıkarma", "Konun akışta bir süre üstte durur."], ["Süper yorum", "Yorumun öne çıkar, banner'ın da görünür."]]) { %>
+            <article class="yakut-urun">
+              <div class="yakut-onizleme yakut-onizleme-yazi"><p class="ikincil kucuk"><%= aciklama %></p></div>
+              <div class="yakut-urun-ust"><strong><%= ad %></strong></div>
+              <div class="yakut-yakinda" role="note">Yakında</div>
+            </article>
+          <% } %>
+        </div>
+      </section>
+    <% } %>
+
+    <section class="kart kutu yakut-kazan" id="kazan">
+      <h2 class="baslik-tipi">Nasıl kazanılır?</h2>
+      <ul class="puan-kaynaklar">
+        <li><span>Aylık rütbe harçlığı</span><strong><%= tr_(kazan.enAz) %>–<%= tr_(kazan.enCok) %> / ay</strong></li>
+        <li><span>Günlük giriş serisi</span><strong>+<%= tr_(kazan.seriGunluk) %> · 7. gün +<%= tr_(kazan.seriYedinci) %></strong></li>
+        <li><span>Premium üyelik</span><strong>+<%= tr_(kazan.premiumAylik) %> / ay</strong></li>
+        <li><span>Yardım ödülü</span><strong class="yakinda">yakında</strong></li>
+      </ul>
+      <p class="ikincil kucuk">Harçlık rütben yükseldikçe artar; rütbeni <a class="baglanti" href="/rutbeler">Rütbeler</a> sayfasından görebilirsin.</p>
+    </section>
+  </div>
+</main>
+<%- include("partials/son") %>

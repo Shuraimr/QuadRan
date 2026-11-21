@@ -8,7 +8,7 @@ import express from "express";
 import { pool } from "../db.ts";
 import { metin, bildir, yerelAdres, banliSql } from "../yardimci.ts";
 import { denetim } from "../denetim.ts";
-import { ayarlar, ayarYaz, ayarOnbellekTemizle, kelimeListesi, PUAN_ENFAZLA, TAVAN_ENFAZLA } from "../ayarlar.ts";
+import { ayarlar, ayarYaz, ayarOnbellekTemizle, kelimeListesi, PUAN_ENFAZLA, TAVAN_ENFAZLA, YAKUT_ENFAZLA } from "../ayarlar.ts";
 import { sadeceAdmin, onayIste } from "./yonetim-ortak.ts";
 
 export const yonetimSite = express.Router();
@@ -44,7 +44,7 @@ yonetimSite.use("/yonetim/puan", sadeceAdmin);
 
 yonetimSite.get("/yonetim/puan", async (req, res) => {
   const a = await ayarlar();
-  res.render("yonetim/puan", { baslik: "Puan ve ödüller", aktif: "puan", puan: a.puan, enfazla: PUAN_ENFAZLA, tavanEnfazla: TAVAN_ENFAZLA });
+  res.render("yonetim/puan", { baslik: "Puan ve ödüller", aktif: "puan", puan: a.puan, yakut: a.yakut, enfazla: PUAN_ENFAZLA, tavanEnfazla: TAVAN_ENFAZLA, yakutEnfazla: YAKUT_ENFAZLA });
 });
 
 yonetimSite.post("/yonetim/puan", async (req, res) => {
@@ -71,7 +71,21 @@ yonetimSite.post("/yonetim/puan", async (req, res) => {
     return res.redirect("/yonetim/puan");
   }
   yeni.gunlukTavan = tavan;
+  // Yakut kazanma kuralları (sql/22): aynı formdan gelir, kendi üst sınırı var
+  const YAKUT_ALANLARI = [["yakut_seri_gunluk", "Günlük giriş yakutu"], ["yakut_seri_yedinci", "7. gün yakutu"], ["yakut_premium_aylik", "Premium aylık yakutu"]] as const;
+  const yakutYeni: Record<string, number> = {};
+  for (const [alan, ad] of YAKUT_ALANLARI) {
+    const ham = metin(req.body[alan]);
+    const n = Number(ham);
+    if (ham === "" || !Number.isInteger(n) || n < 0 || n > YAKUT_ENFAZLA) {
+      bildir(req, "hata", `${ad} 0 ile ${YAKUT_ENFAZLA} arasında tam bir sayı olmalı.`);
+      return res.redirect("/yonetim/puan");
+    }
+    yakutYeni[alan] = n;
+  }
   const eski = (await ayarlar()).puan;
+  const eskiYakut = (await ayarlar()).yakut;
+  for (const [alan] of YAKUT_ALANLARI) await ayarYaz(alan, String(yakutYeni[alan]), k.id);
   await ayarYaz("puan_gunluk_tavan", String(tavan), k.id);
   await ayarYaz("puan_konu", String(yeni.konu), k.id);
   await ayarYaz("puan_cevap", String(yeni.cevap), k.id);
@@ -79,6 +93,9 @@ yonetimSite.post("/yonetim/puan", async (req, res) => {
   for (const [alan] of ALANLAR.slice(3)) await ayarYaz("puan_" + alan, String(yeni[alan]), k.id);
   ayarOnbellekTemizle();
   await denetim(req, res, "ayar.puan", "ayar", null, { eski, yeni });
+  // Yakut ayarları puan kaydına karışmasın: değiştiyse ayrı kayıt
+  const yakutEski: Record<string, number> = { yakut_seri_gunluk: eskiYakut.seriGunluk, yakut_seri_yedinci: eskiYakut.seriYedinci, yakut_premium_aylik: eskiYakut.premiumAylik };
+  if (YAKUT_ALANLARI.some(([alan]) => yakutEski[alan] !== yakutYeni[alan])) await denetim(req, res, "ayar.yakut", "ayar", null, { eski: yakutEski, yeni: yakutYeni });
   bildir(req, "basari", "Puan kuralları kaydedildi. Yalnızca bundan sonraki işlemler yeni değerle puan getirir; var olan puanlar değişmez.");
   res.redirect("/yonetim/puan");
 });

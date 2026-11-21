@@ -294,12 +294,17 @@ svg { flex: none; }
 .cevap-kutusu textarea { flex: 1; min-height: 72px; padding: 8px 0; border: 0; outline: 0; resize: vertical; background: none; color: inherit; font: inherit; font-size: 16px; }
 .yorum-basligi { display: flex; align-items: center; padding-top: 8px; }
 .yorum-basligi h2 { flex: 1; font-family: var(--baslik-tipi); font-size: 20px; }
-.yorum { display: flex; gap: 14px; padding: 14px 20px 8px 14px; }
-.yorum .oy .ikon-dugme { width: 32px; height: 32px; }
-.yorum .skor { font-size: 13px; }
-.yorum-icerik { flex: 1; min-width: 0; display: grid; gap: 8px; padding-top: 4px; }
+/* Yorum: üst satır (avatar + kimlik + ⋮), metin, alt satır (oy + Cevapla). Oy sütunu yok: metin tam genişlikte. */
+.yorum { display: grid; gap: 10px; padding: 14px 12px 8px 16px; }
+.yorum-ust { display: flex; align-items: flex-start; gap: 10px; }
+.yorum-kimlik { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.yorum-ad-satiri { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
+.yorum .kullanici { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.yorum .zaman { font-size: 13px; color: var(--yazi-2); }
+.yorum-menu-dugmesi { flex: none; width: 44px; height: 44px; margin: -4px -4px 0 0; }
 .yorum .metin { font-size: 15px; line-height: 1.55; }
-.yorum .eylem { padding-left: 0; }
+.yorum-alt { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.yorum .eylem { padding-left: 12px; }
 .silinmis { padding: 14px 20px; border: 1px solid var(--kenar-ince); border-radius: 16px; color: var(--yazi-2); font-size: 14px; }
 .yan-liste a { display: flex; gap: 12px; font-size: 14px; font-weight: 500; line-height: 1.45; }
 .yan-liste .sayi { width: 28px; flex: none; font-size: 13px; font-weight: 700; color: var(--yazi-2); }
@@ -392,8 +397,15 @@ svg { flex: none; }
 .ust-etiket { font-size: 12px; font-weight: 600; letter-spacing: .06em; color: var(--yazi-2); }
 
 /* ---------- Ayarlar ---------- */
-.ayarlar { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 40px; max-width: 1136px; margin: 0 auto; padding: 32px 24px 64px; align-items: start; }
-.ayarlar nav h1 { padding: 0 16px 16px; font-family: var(--baslik-tipi); font-size: 28px; }
+/* Tek sütun (720px): bölüm gezintisi masaüstünde sol kenar menüde, tablette yapışkan şeritte, telefonda üstte çiplerde.
+   Eskiden burada ikinci bir sol menü vardı: ana menüyle yan yana ~540px yer kaplıyor ve kaydırınca kayboluyordu. */
+.ayarlar { display: grid; grid-template-columns: minmax(0, 720px); justify-content: center; gap: 24px; margin: 0 auto; padding: 32px 24px 64px; align-items: start; }
+.ayar-baslik { display: grid; gap: 4px; }
+.ayar-baslik h1 { font-family: var(--baslik-tipi); font-size: 28px; }
+.ayar-baslik p { font-size: 14px; }
+.ayarlar .kategoriler { display: none; }
+.iki-alan { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.iki-alan > div { display: grid; gap: 20px; align-content: start; }
 .bolumler { display: grid; gap: 24px; }
 .bolum { display: grid; gap: 20px; padding: 24px 28px 28px; border-radius: 20px; }
 .bolum h2 { font-family: var(--baslik-tipi); font-size: 20px; }
@@ -438,7 +450,9 @@ svg { flex: none; }
   .avatar-buyuk { width: 88px; height: 88px; border-radius: 22px; font-size: 36px; outline-width: 4px; }
   .kimlik-bilgi h1 { font-size: 26px; }
   .ayarlar { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 12px 12px 40px; }
-  .ayarlar nav .kategoriler { display: flex; }
+  .ayarlar .kategoriler { display: flex; margin-top: 12px; }
+  .ayar-baslik p { display: none; }
+  .iki-alan { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .bolum, .form-karti-genis, .kutu { padding: 20px 16px; }
   .form-karti { padding: 28px 20px 24px; }
 }
@@ -493,36 +507,33 @@ svg { flex: none; }
 /* Mesaj eylem satırındaki küçük formlar (Sil) bağlantılarla aynı hizada dursun */
 .yorum .satir > form, .eylem-satiri > form { display: contents; }
 
-/* ---------- Ayarlar: tablet bölüm dock'u (801–1180px) ----------
-   Tablette soldaki bölüm menüsü içeriği sağa itiyordu. Orada menü kalkar, içerik ortalanır ve
-   bölümler altta yüzen bir dock'tan seçilir. Masaüstünde sol menü, telefonda üstteki yatay şerit kullanılır. */
-.ayar-dok { display: none; }
+/* ---------- Ayarlar: tablet yapışkan bölüm şeridi (801–1180px) ----------
+   Başlık + bölüm sekmeleri üst çubuğun hemen altına yapışır; sayfa kayarken de yerinde kalır (eskiden altta yüzen
+   bir dock vardı, toast'la aynı yerde duruyordu). Masaüstünde bölümler sol kenar menüde, telefonda üstte çiplerdir. */
 .ayarlar .bolum { scroll-margin-top: 88px; } /* yapışkan üst çubuğun altında kalmasın */
+:root { --ayar-serit: 68px; } /* tablet şeridinin yüksekliği: şeridin altına yapışan öğeler (Profil görünümü önizlemesi) bunu kullanır */
 @media (min-width: 801px) and (max-width: 1180px) {
-  .ayarlar { grid-template-columns: minmax(0, 720px); justify-content: center; padding-bottom: 128px; }
-  .ayarlar nav .kategoriler { display: none; }
-  .ayarlar nav h1 { padding: 0 0 4px; }
-  .ayar-dok {
-    display: flex; gap: 4px; position: fixed; z-index: 6; bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-    /* Kenar menü (88px) solda durduğu için içerik alanının ortası 44px sağdadır */
-    left: calc(50% + 44px); transform: translateX(-50%);
-    padding: 6px; border-radius: 999px; border: 1px solid var(--kenar);
-    background: color-mix(in srgb, var(--yuzey-2) 88%, transparent); backdrop-filter: blur(16px);
-    box-shadow: var(--kat-2);
-    animation: dok-giris var(--sure-yavas) var(--egri-cikis) backwards;
+  .ayarlar { padding-top: 0; }
+  .ayar-gezinti {
+    position: sticky; top: 64px; z-index: 4;
+    display: flex; align-items: center; gap: 16px;
+    height: var(--ayar-serit); margin: 0 -24px; padding: 0 24px; background: var(--zemin);
   }
-  [data-menu="sag"] .ayar-dok { left: calc(50% - 44px); }
-  .ayar-dok a {
-    display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px 0 16px; border-radius: 999px;
-    font-size: 14px; font-weight: 500; color: var(--yazi); white-space: nowrap;
-    transition: background-color var(--sure-orta) var(--egri-cikis), color var(--sure-orta) ease;
+  .ayar-baslik h1 { font-size: 22px; }
+  .ayar-baslik p { display: none; }
+  .ayarlar .kategoriler {
+    display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none;
+    padding: 3px; border-radius: 26px; background: var(--yuzey-1); border: 1px solid var(--kenar-ince);
   }
-  .ayar-dok a svg { color: var(--yazi-2); transition: color var(--sure-orta) ease; }
-  .ayar-dok a:hover { background: var(--yuzey-3); }
-  .ayar-dok a[aria-current="true"] { background: var(--ton); color: var(--ton-ustu); font-weight: 600; }
-  .ayar-dok a[aria-current="true"] svg { color: var(--ton-ustu); }
+  /* Tablet dokunmatik: sekmeler 44px dokunma hedefi */
+  .ayarlar .kategori-ogesi { height: 44px; padding: 0 16px; border-radius: 22px; font-size: 13px; font-weight: 500; color: var(--yazi-2); white-space: nowrap; }
+  .ayarlar .kategori-ogesi:hover { background: var(--yuzey-3); color: var(--yazi); }
+  .ayarlar .kategori-ogesi.aktif { background: var(--ton); color: var(--ton-ustu); font-weight: 600; }
+  .ayarlar .kategori-ogesi svg { display: none; }
+  .ayarlar .bolum { scroll-margin-top: calc(64px + var(--ayar-serit) + 16px); }
+  /* Profil görünümü önizlemesi de yapışkan: şeridin altında dursun, altına girmesin */
+  .ayarlar .pg-onizleme { top: calc(64px + var(--ayar-serit) + 16px); }
 }
-@keyframes dok-giris { from { opacity: 0; transform: translate(-50%, calc(16px * var(--hareket))); } }
 /* Çapa bağlantıları yumuşak kaysın (azaltılmış harekette quadran.css bunu "auto"ya çeker) */
 html { scroll-behavior: smooth; }
 [data-az-animasyon] { scroll-behavior: auto; } /* "*" seçicisi <html>in kendisini kapsamaz */
@@ -537,8 +548,6 @@ html { scroll-behavior: smooth; }
 /* Tema seçimi (Koyu/Açık/Sistem): üç etiket genişliği paylaşır, dar ekranda taşmaz */
 .ayarlar .siralama { max-width: 100%; }
 .ayarlar .siralama label { flex: 1 1 0; min-width: 0; justify-content: center; }
-/* --alt-yer için JS'ten bağımsız yedek: tablette ayar dock'u (24px boşluk + 58px dock). JS ölçünce <html>'e satır içi yazar ve bunun önüne geçer. */
-@media (min-width: 801px) and (max-width: 1180px) { :root:has(.ayar-dok) { --alt-yer: 82px; } }
 
 /* ---------- Profil meta satırı, profil ⋮ menüsü, ayarlar: gizlilik ---------- */
 .kimlik-meta { gap: 4px 16px; }
@@ -562,4 +571,24 @@ a.meta-oge:hover { color: var(--yazi); text-decoration: underline; text-underlin
     --rutbe-gri: #4B4B52; --rutbe-yesil: #0E6338; --rutbe-camgobegi: #075E7A; --rutbe-mavi: #2640A6;
     --rutbe-mor: #5B2FC4; --rutbe-amber: #744700; --rutbe-turuncu: #9A3A04; --rutbe-pembe: #AD1136;
   }
+}
+
+/* =====================================================================
+   Telefonda dokunma hedefi >= 44px (Figma onaylı telefon tasarımı)
+   Metin içi bağlantılar (.metin) bu kuralın dışındadır. Ölçüm: tarayıcıda görünür a/button/input hedeflerinin 44px altı sayısı 0 olmalı.
+   ===================================================================== */
+@media (max-width: 800px) {
+  .oy .ikon-dugme, .oy-yatay .ikon-dugme, .oy-misafir .ikon-dugme { width: 44px; height: 44px; }
+  .oy { gap: 0; }
+  .kategori-ogesi { height: 44px; }
+  .siralama a, .siralama label { height: 44px; }
+  .eylem { height: 44px; }
+  .gonderi-eylem { gap: 0; }
+  .buton { height: 44px; }
+  .baglanti:not(.metin .baglanti) { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }
+  .gonderi-meta .kullanici, .yorum .kullanici, .yazar-satiri .kullanici { display: inline-flex; align-items: center; min-width: 44px; min-height: 44px; }
+  .gonderi h2 a { display: flex; align-items: center; min-height: 44px; }
+  .logo { min-width: 44px; min-height: 44px; }
+  .yorum-ust > a.avatar { position: relative; margin-top: 4px; }
+  .yorum-ust > a.avatar::after { content: ""; position: absolute; inset: -4px; }
 }

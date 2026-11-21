@@ -1,0 +1,35 @@
+<%#
+  Yorum ekleri (sql/23, Figma 15): fotoğraf ızgarası / tek fotoğraf / video + +18 işareti. Beklenen: mesaj { id, ekler [ { tur, adres, genislik, yukseklik, nsfw } ] }.
+  +18 görünümü kişinin tercihine göre (res.locals.nsfwTercih; misafirde tanımsız = gizle):
+    gizle  → ekler hiç çizilmez (dosya adresi bile sayfada yok), yerine kutu
+    bulanik → ekler bulanık, üstte "+18 · Göster". JS'siz çalışır: gizli onay kutusu + label; işaretlenince bulanıklık kalkar (CSS :checked)
+    goster → normal, köşede küçük "+18" çipi
+  Tam ekran görüntüleyici quadran.js'te (data-ek-gor); JS yoksa fotoğraf bağlantısı dosyayı açar.
+%><% const ekler_ = locals.mesaj && mesaj.ekler ? mesaj.ekler : [];
+if (ekler_.length) {
+  const nsfw_ = !!ekler_[0].nsfw; const tercih_ = locals.nsfwTercih || "gizle";
+  const resimler_ = ekler_.filter((e) => e.tur === "resim"); const video_ = ekler_.find((e) => e.tur === "video");
+  if (nsfw_ && tercih_ === "gizle") { %>
+  <div class="ek-gizli" role="note"><%- include("ikon", { ad: "uyari", boyut: 18 }) %><span><strong>+18 içerik gizlendi</strong> · <a class="baglanti" href="/ayarlar#gorunum">Ayarlardan değiştirebilirsin</a></span></div>
+<% } else { const bulanik_ = nsfw_ && tercih_ === "bulanik"; %>
+  <div class="ekler<%= bulanik_ ? ' ek-bulanik' : '' %>">
+    <% if (bulanik_) { %>
+      <input type="checkbox" class="gorunmez ek-nsfw-onay" id="nsfw-<%= mesaj.id %>">
+      <label class="ek-nsfw-dugme" for="nsfw-<%= mesaj.id %>"><span class="ek-nsfw-cip">+18</span> Göster</label>
+    <% } %>
+    <div class="ek-medya">
+      <% if (video_) { %>
+        <div class="ek-video"><video controls preload="metadata" playsinline src="<%= video_.adres %>" aria-label="Yorum eki video"></video></div>
+      <% } else if (resimler_.length === 1) { const r_ = resimler_[0]; %>
+        <a class="ek-tek" href="<%= r_.adres %>" data-ek-gor="g<%= mesaj.id %>"><img src="<%= r_.adres %>"<%- r_.genislik ? ` width="${Number(r_.genislik)}" height="${Number(r_.yukseklik)}"` : "" %> alt="Yorum eki fotoğraf" loading="lazy" decoding="async"></a>
+      <% } else { const fazla_ = resimler_.length - 4; %>
+        <div class="ek-izgara">
+          <% resimler_.forEach((r_, i_) => { if (i_ < 4) { %>
+            <a class="ek-kare" href="<%= r_.adres %>" data-ek-gor="g<%= mesaj.id %>"><img src="<%= r_.adres %>" alt="Yorum eki fotoğraf <%= i_ + 1 %>" loading="lazy" decoding="async"><% if (i_ === 3 && fazla_ > 0) { %><span class="ek-fazla">+<%= fazla_ %></span><% } %></a>
+          <% } else { %><a hidden href="<%= r_.adres %>" data-ek-gor="g<%= mesaj.id %>"></a><% } }) %>
+        </div>
+      <% } %>
+    </div>
+    <% if (nsfw_ && tercih_ === "goster") { %><span class="ek-nsfw-cip ek-nsfw-kose">+18</span><% } %>
+  </div>
+<% } } %>

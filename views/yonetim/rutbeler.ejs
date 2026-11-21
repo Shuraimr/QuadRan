@@ -22,7 +22,7 @@
     <thead><tr>
       <th>Rütbe</th><th>Eşik</th>
       <% for (const a of ayricaliklar) { %><th><%= a.anahtar === "oda_ac" ? "Oda aç" : a.anahtar === "baglanti" ? "Bağlantı" : a.anahtar === "gorsel" ? "Görsel" : a.anahtar === "video" ? "Video" : "İmza" %></th><% } %>
-      <th>Günlük oy</th><th>Kullanıcı</th><th></th>
+      <th>Günlük oy</th><th>Aylık yakut</th><th>Kullanıcı</th><th></th>
     </tr></thead>
     <tbody>
       <% for (const r of rutbeler) { %>
@@ -40,6 +40,7 @@
             <td data-etiket="<%= a.ad %>"><input type="checkbox" name="<%= a.anahtar %>_<%= r.id %>" value="1"<%= r[a.anahtar] ? " checked" : "" %> aria-label="<%= r.name %>: <%= a.ad %>"></td>
           <% } %>
           <td data-etiket="Günlük oy"><input class="yn-girdi yn-sayi" type="number" name="gunluk_oy_<%= r.id %>" value="<%= r.gunluk_oy === null ? '' : r.gunluk_oy %>" min="0" placeholder="sınırsız" aria-label="<%= r.name %> günlük oy sınırı"></td>
+          <td data-etiket="Aylık yakut"><input class="yn-girdi yn-sayi" type="number" name="aylik_yakut_<%= r.id %>" value="<%= r.aylik_yakut %>" min="0" max="100000" required aria-label="<%= r.name %> aylık yakut harçlığı"></td>
           <td data-etiket="Kullanıcı"><span class="ikincil"><%= r.kullanici_sayisi %></span></td>
           <td><% if (r.min_points !== 0) { %><button class="buton buton-tehlikeli" type="submit" form="rutbe-sil-<%= r.id %>">Sil</button><% } %></td>
         </tr>

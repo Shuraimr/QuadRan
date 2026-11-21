@@ -1,0 +1,12 @@
+<%#
+  Sohbet merkezinin sekme şeridi: Hepsi · Odalar · DM (kullanıcı kararı 2026-11-21: DM'ler ayrı "Mesajlar" menüsü değil, Sohbet'in bir sekmesi).
+  Düz bağlantılar: JS'siz de çalışır, her sekmenin kendi adresi var (geri tuşu ve paylaşılan bağlantı doğru sekmeyi açar).
+  secili  "hepsi" | "oda" | "dm"
+  DM sekmesindeki sayı okunmamış özel mesajlardır (oturum.ts › okunmamisMesaj); başka yerde (üst çubuk, hesap menüsü) artık yok.
+%>
+<% const sfSecili_ = locals.secili || "hepsi"; const sfDm_ = locals.okunmamisMesaj || 0; %>
+<nav class="sohbet-filtre" aria-label="Sohbet türü">
+  <a href="/sohbet"<%- sfSecili_ === "hepsi" ? ' class="secili" aria-current="page"' : '' %>>Hepsi</a>
+  <a href="/sohbet?f=oda"<%- sfSecili_ === "oda" ? ' class="secili" aria-current="page"' : '' %>>Odalar</a>
+  <a href="/mesajlar"<%- sfSecili_ === "dm" ? ' class="secili" aria-current="page"' : '' %>>DM<% if (sfDm_ > 0) { %><span class="sohbet-filtre-sayi" aria-label="<%= sfDm_ %> okunmamış"><%= sfDm_ > 99 ? "99+" : sfDm_ %></span><% } %></a>
+</nav>

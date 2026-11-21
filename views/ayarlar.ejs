@@ -12,16 +12,20 @@
 <%- include("partials/ust-cubuk") %>
 <% const h = locals.hatalar || {}; %>
 <div class="ayarlar">
-  <nav aria-label="Ayarlar">
-    <h1>Ayarlar</h1>
-    <div class="kategoriler">
+  <%# Bölüm gezintisi tek yerde durur (kalıcı arayüzde tekrar yok):
+      masaüstü (>1180) sol kenar menüde Ayarlar'ın altındaki satırlar (partials/kenar-menu), buradaki liste gizli;
+      tablet (801–1180) bu nav üst çubuğun altına yapışan şerittir (başlık + bölüm sekmeleri); telefon üstte yatay çipler. %>
+  <div class="ayar-gezinti">
+    <header class="ayar-baslik"><h1>Ayarlar</h1><p class="ikincil">Profilin, görünüm ve hesabınla ilgili her şey</p></header>
+    <%# Masaüstünde bu nav gizlidir (bölümler kenar menüde); ekran okuyucu yalnızca bir "Ayarlar bölümleri" gezintisi duyar %>
+    <nav class="kategoriler" aria-label="Ayarlar bölümleri">
       <a class="kategori-ogesi aktif" href="#profil" data-bolum-bag><%- include("partials/ikon", { ad: "kisi" }) %> Profil</a>
-      <a class="kategori-ogesi" href="#profil-gorunumu" data-bolum-bag><%- include("partials/ikon", { ad: "kisi" }) %> Profil görünümü</a>
+      <a class="kategori-ogesi" href="#profil-gorunumu" data-bolum-bag><%- include("partials/ikon", { ad: "yildiz" }) %> Profil görünümü</a>
       <a class="kategori-ogesi" href="#gorunum" data-bolum-bag><%- include("partials/ikon", { ad: "palet" }) %> Görünüm</a>
       <a class="kategori-ogesi" href="#gizlilik" data-bolum-bag><%- include("partials/ikon", { ad: "kilit" }) %> Gizlilik</a>
       <a class="kategori-ogesi" href="#hesap" data-bolum-bag><%- include("partials/ikon", { ad: "kalkan" }) %> Hesap ve güvenlik</a>
-    </div>
-  </nav>
+    </nav>
+  </div>
   <div class="bolumler">
     <form class="kart bolum" id="profil" method="post" action="/ayarlar/profil"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <div><h2>Profil</h2><p class="ikincil kucuk">Herkese açık profilinde görünen bilgiler</p></div>
@@ -33,14 +37,18 @@
         <textarea name="bio" maxlength="280" style="min-height: 104px"><%= ayar.bio || '' %></textarea>
       </label>
       <div class="yardim"><span><%= h.bio || "Profilinde görünür" %></span><span>en fazla 280</span></div>
+      <%# Konum ve web sitesi kısa alanlar: geniş ekranda yan yana (telefonda alt alta) %>
+      <div class="iki-alan"><div>
       <label class="alan <%= h.konum ? 'hatali' : '' %>"><span>Konum</span>
         <input name="konum" value="<%= ayar.konum || '' %>" maxlength="60" placeholder="Şehir, ülke">
       </label>
       <div class="yardim"><span><%= h.konum || "Profilinde görünür · en fazla 60 karakter" %></span></div>
+      </div><div>
       <label class="alan <%= h.web_sitesi ? 'hatali' : '' %>"><span>Web sitesi</span>
         <input name="web_sitesi" type="url" value="<%= ayar.web_sitesi || '' %>" maxlength="200" placeholder="https://ornek.com" pattern="https?://.+">
       </label>
       <div class="yardim"><span><%= h.web_sitesi || "http:// ya da https:// ile başlamalı" %></span></div>
+      </div></div>
       <%# İmza (rütbe ayrıcalığı): açıksa alan, kapalıysa kilit kartı (hangi rütbede açılacağı ve kalan puan) %>
       <% if (locals.imzaKilit && !imzaKilit.acik) { %>
         <%- include("partials/kilit", { kilit: imzaKilit }) %>
@@ -53,7 +61,7 @@
       <div class="satir" style="justify-content: flex-end"><button class="buton buton-birincil">Kaydet</button></div>
     </form>
 
-    <%# Vitrin: profilin üstünde öne çıkan rozetler (en çok 3) ve bir konu. Kenar menüde/dock'ta ayrı öğe yok: Profil bölümünün hemen altında durur. %>
+    <%# Vitrin: profilin üstünde öne çıkan rozetler (en çok 3) ve bir konu. Bölüm gezintisinde ayrı satırı yok: Profil bölümünün hemen altında durur. %>
     <form class="kart bolum" id="vitrin" method="post" action="/ayarlar/vitrin"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
       <div><h2>Vitrin</h2><p class="ikincil kucuk">Profilinin en üstünde öne çıkanlar</p></div>
       <div class="ust-etiket">ROZETLER · EN ÇOK 3</div>
@@ -91,6 +99,13 @@
       <div class="taslar" role="radiogroup" aria-label="Vurgu rengi">
         <% for (const [deger, ad] of [["safir", "Safir"], ["zumrut", "Zümrüt"], ["kehribar", "Kehribar"], ["ametist", "Ametist"], ["yakut", "Yakut"]]) { %>
           <label data-vurgu="<%= deger %>"><input type="radio" name="vurgu" value="<%= deger %>" <%= ayar.vurgu === deger ? "checked" : "" %>><span class="tas"></span><%= ad %></label>
+        <% } %>
+      </div>
+      <div class="ust-etiket">+18 İÇERİK</div>
+      <p class="ikincil kucuk">Yazarın ya da moderatörün +18 işaretlediği fotoğraf ve videolar nasıl görünsün? Çıkış yapmışsan her zaman gizli görünür.</p>
+      <div class="nsfw-secenekler" role="radiogroup" aria-label="+18 içerik">
+        <% for (const [deger, ad, aciklama] of [["gizle", "Gizle", "Yerine kısa bir not görünür."], ["bulanik", "Bulanık", "Bulanık görünür, istersen tek dokunuşla açarsın."], ["goster", "Göster", "Normal görünür, köşede küçük +18 işareti olur."]]) { %>
+          <label class="nsfw-secenek"><input type="radio" name="nsfw_tercih" value="<%= deger %>" <%= (ayar.nsfw_tercih || "bulanik") === deger ? "checked" : "" %>><span><strong><%= ad %></strong><span class="ikincil kucuk"><%= aciklama %></span></span></label>
         <% } %>
       </div>
       <hr class="ayirici">
@@ -156,14 +171,5 @@
       </form>
     </section>
   </div>
-  <%# Tablet (801–1180px) için altta yüzen bölüm dock'u: soldaki menünün yerine geçer, içerik ortalanır.
-      Bağlantılar düz çapa (#profil...) olduğu için JS olmadan da çalışır; JS o an görünen bölümü vurgular. %>
-  <nav class="ayar-dok" aria-label="Ayarlar bölümleri" data-alt-cubuk>
-    <a href="#profil" data-bolum-bag aria-current="true"><%- include("partials/ikon", { ad: "kisi", boyut: 20 }) %><span>Profil</span></a>
-    <a href="#profil-gorunumu" data-bolum-bag><%- include("partials/ikon", { ad: "kisi", boyut: 20 }) %><span>Profil görünümü</span></a>
-    <a href="#gorunum" data-bolum-bag><%- include("partials/ikon", { ad: "palet", boyut: 20 }) %><span>Görünüm</span></a>
-    <a href="#gizlilik" data-bolum-bag><%- include("partials/ikon", { ad: "kilit", boyut: 20 }) %><span>Gizlilik</span></a>
-    <a href="#hesap" data-bolum-bag><%- include("partials/ikon", { ad: "kalkan", boyut: 20 }) %><span>Hesap ve güvenlik</span></a>
-  </nav>
 </div>
-<%- include("partials/son") %>
+<%- include("partials/son", { ayarSayfasi: true }) %>

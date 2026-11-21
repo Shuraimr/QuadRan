@@ -1,10 +1,10 @@
 <%#
   Üst çubuk. kullanici varsa üye, yoksa misafir görünümü.
   Üyeler için zil bildirim panelini, avatar hesap menüsünü açar (popover; JS gerekmez).
-  İsteğe bağlı veriler: okunmamisBildirim (0 ise zil noktası gizlenir), bildirimler, okunmamisMesaj
+  İsteğe bağlı veriler: okunmamisBildirim (0 ise zil noktası gizlenir), bildirimler
 %>
 <header class="ust-cubuk">
-  <a class="logo" href="/"><span class="logo-isaret">Q</span>QuadRan</a>
+  <a class="logo" href="/"><span class="logo-isaret">Q</span><span class="logo-yazi">QuadRan</span></a>
   <div class="arama-alani">
     <a class="arama" href="/ara" data-arama-ac aria-label="QuadRan'da ara" aria-keyshortcuts="Control+K">
       <%- include("ikon", { ad: "ara" }) %>
@@ -14,10 +14,11 @@
   </div>
   <div class="ust-eylemler">
     <% if (locals.kullanici) { %>
-      <%# Her eylemin bir ekran genişliğinde tek yeri olur (CSS): telefonda alt menü, tablette kenar menü "Konu aç"ı taşır;
-          Telefonda üst çubukta yalnızca zil ve Mesajlar durur (alt menüde yerleri yok); masaüstü/tabletteki Mesajlar hesap menüsündedir. %>
+      <%# Her eylemin bir ekran genişliğinde tek yeri olur (CSS): telefonda alt menü, tablette kenar menü "Konu aç"ı taşır.
+          Telefonda üst çubukta YALNIZCA logo durur (kullanıcı kararı 2026-11-21): bildirimler alt menüdeki Profil sayfasında,
+          DM'ler Sohbet › DM'de, yakut Profil sayfasındaki Yakut bölümünde. Zil yalnızca tablet ve masaüstünde görünür.
+          Yakut çipi kalktı: masaüstünde sol menüde, tablette rayda, telefonda Profil sayfasında ayrı bir Yakut bölümü var (partials/yakut-bolumu.ejs). %>
       <a class="buton buton-birincil ust-konu-ac" href="/konu/yeni">Konu aç</a>
-      <a class="ikon-dugme ust-mesajlar<%= (locals.okunmamisMesaj || 0) > 0 ? ' zil' : '' %>" href="/mesajlar" aria-label="Mesajlar<%= (locals.okunmamisMesaj || 0) > 0 ? ' (' + okunmamisMesaj + ' okunmamış)' : '' %>"><%- include("ikon", { ad: "mektup" }) %></a>
       <button class="ikon-dugme ust-zil<%= locals.okunmamisBildirim === 0 ? '' : ' zil' %>" type="button" popovertarget="bildirim-paneli" aria-label="Bildirimler"><%- include("ikon", { ad: "zil" }) %></button>
       <%- include("avatar", { ad: kullanici.username, url: kullanici.avatar_url, sus: kullanici.avatar_susu, sinif: "avatar-ust", etiket: "button", ek: 'popovertarget="avatar-menusu" aria-label="Hesap menüsü"', bos: true }) %>
     <% } else { %>

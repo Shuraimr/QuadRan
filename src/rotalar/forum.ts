@@ -1,7 +1,10 @@
 // Forum: akış (/), konu sayfası, konu açma, cevap, oy, profil, arama, sıralama, şikâyet.
 import express from "express";
 import { pool } from "../db.ts";
-import { cevapYazma } from "../hiz-siniri.ts";
+import { cevapYazma, ekliCevap } from "../hiz-siniri.ts";
+import { ekliCevapKatmani, ekGirdisi, ekleriIsle, taslakKaydet, type EkDosyasi } from "../ekler.ts";
+import { jsonIstiyor, dosyaSil, GorselHatasi } from "../yukleme.ts";
+import { premiumMu } from "../premium.ts";
 import { yasakliIfade, puanKurallari } from "../ayarlar.ts";
 import { SEBEPLER, sebepHatasi } from "../sikayet.ts";
 import { engelle, mesajDurumu } from "../gizlilik.ts";
@@ -10,7 +13,7 @@ import {
   girisGerekli, geriAdres, sayi, metin,
 } from "../yardimci.ts";
 import {
-  rutbeler, rutbeBul, sonrakiRutbe, acilanlar, gunlukOyHakki, sinirsizOyRutbesi, yetkiliMi,
+  rutbeler, rutbeBul, sonrakiRutbe, acilanlar, gunlukOyHakki, sinirsizOyRutbesi, yetkiliMi, izinli, kilitBilgisi,
 } from "../rutbe.ts";
 
 export const forum = express.Router();
@@ -71,10 +74,15 @@ const AKIS_SIRALAMA: Record<string, string> = {
 
 forum.get("/", async (req, res) => {
   const kategoriId = sayi(req.query.kategori);
-  const sirala = typeof req.query.sirala === "string" && AKIS_SIRALAMA[req.query.sirala] ? req.query.sirala : "yeni";
+  // Akış üstünde tek satır var: Öne çıkan (populer) · Yeni · Takip. "En iyi" akıştan kalktı (Keşfet › Sıralama'da var);
+  // eski ?sirala=eniyi adresleri kırılmasın diye öne çıkana (populer) düşer.
+  let sirala = typeof req.query.sirala === "string" && AKIS_SIRALAMA[req.query.sirala] ? req.query.sirala : "yeni";
+  if (sirala === "eniyi") sirala = "populer";
 
   // ?akis=takip: yalnızca takip ettiklerimin konuları. Giriş yoksa seçim hiç yok, parametre yok sayılır.
   const takipAkisi = req.query.akis === "takip" && !!res.locals.kullanici;
+  // Takip sekmesi "takip edilenler + yeni sırası"dır; ayrı bir sıralama seçeneği yok
+  if (takipAkisi) sirala = "yeni";
   const kosullar: string[] = [], parametreler: unknown[] = [];
   if (kategoriId) { kosullar.push("topics.category_id = ?"); parametreler.push(kategoriId); }
   if (takipAkisi) { kosullar.push("topics.user_id IN (SELECT followed_id FROM user_follows WHERE follower_id = ?)"); parametreler.push(res.locals.kullanici.id); }
@@ -86,7 +94,11 @@ forum.get("/", async (req, res) => {
     benimId: res.locals.kullanici?.id,
   });
 
-  const [kategoriler] = await pool.query("SELECT id, name FROM categories ORDER BY sort_order, id");
+  // Kategori seçicisi (alttan sayfa / açılır menü) her satırda konu sayısını gösterir; LEFT JOIN: boş kategoriler de listelenir
+  const [kategoriler] = await pool.query(
+    `SELECT categories.id, categories.name, COUNT(topics.id) AS konu_sayisi
+       FROM categories LEFT JOIN topics ON topics.category_id = categories.id AND topics.deleted_at IS NULL
+      GROUP BY categories.id ORDER BY categories.sort_order, categories.id`);
 
   const [sohbet] = await pool.query(`
     SELECT * FROM (
@@ -249,7 +261,7 @@ forum.get("/konu/:id", async (req, res, next) => {
 
   const sirala = req.query.sirala === "yeni" ? "yeni" : "eniyi";
   const [mesajlar]: any = await pool.query(
-    `SELECT posts.id, posts.content, posts.created_at, posts.updated_at, posts.deleted_at, posts.user_id,
+    `SELECT posts.id, posts.content, posts.created_at, posts.updated_at, posts.deleted_at, posts.user_id, posts.kart_kapali,
             users.username AS yazar, users.imza,
             ${rutbeSutunlari("users")},
             ${skorSql("posts")} AS skor,
@@ -260,9 +272,17 @@ forum.get("/konu/:id", async (req, res, next) => {
       ORDER BY posts.id`,
     [res.locals.kullanici?.id ?? 0, id]
   );
+  // Yorum ekleri (sql/23): silinmiş yorumun ekleri çekilmez (şablon zaten "silindi" gösterir)
+  const ekHaritasi = new Map<number, any[]>();
+  const ekIdleri = mesajlar.filter((m: any) => !m.deleted_at).map((m: any) => m.id);
+  if (ekIdleri.length) {
+    const [ekSatirlari]: any = await pool.query("SELECT id, post_id, tur, adres, genislik, yukseklik, nsfw, nsfw_kim FROM ekler WHERE post_id IN (?) ORDER BY post_id, sira, id", [ekIdleri]);
+    for (const e of ekSatirlari) { e.nsfw = !!e.nsfw; (ekHaritasi.get(e.post_id) ?? ekHaritasi.set(e.post_id, []).get(e.post_id)!).push(e); }
+  }
   for (const m of mesajlar) {
     m.skor = Number(m.skor);
     m.konu_sahibi = m.user_id === konu.user_id;
+    m.ekler = ekHaritasi.get(m.id) ?? [];
   }
 
   // İlk mesaj (konunun metni) her zaman başta kalır; cevaplar seçilen düzene göre sıralanır
@@ -298,16 +318,36 @@ forum.get("/konu/:id", async (req, res, next) => {
     [konu.category_id, id]
   );
 
-  res.render("konu", { konu, mesajlar: ilk ? [ilk, ...cevaplar] : [], benzerler, sirala });
+  // Cevap formu: hatalı ekli gönderimden kalan taslak bir kez geri dolar; ek düğmeleri yetkiye göre açık ya da kilitli kart
+  let taslak = null;
+  if (req.session.cevapTaslagi) {
+    if (req.session.cevapTaslagi.konu === id) taslak = req.session.cevapTaslagi;
+    delete req.session.cevapTaslagi;
+  }
+  const ekYetki = ben ? {
+    gorsel: kilitBilgisi(ben, "gorsel"), video: kilitBilgisi(ben, "video"),
+    baglanti: izinli(ben, "baglanti"),
+  } : null;
+
+  res.render("konu", { konu, mesajlar: ilk ? [ilk, ...cevaplar] : [], benzerler, sirala, taslak, ekYetki });
 });
 
 // ---------------------------------------------------------------------------
 // Cevap yazma
 // ---------------------------------------------------------------------------
-forum.post("/konu/:id/cevap", girisGerekli("Cevap yazmak için giriş yapman gerekiyor."), async (req, res, next) => {
+forum.post("/konu/:id/cevap", ...ekliCevapKatmani, async (req, res, next) => {
   const id = sayi(req.params.id);
   const k = res.locals.kullanici;
   const content = metin(req.body.content);
+  const girdi = ekGirdisi(req);
+  const ekVar = girdi.resimler.length > 0 || !!girdi.video;
+  // Hatada: JSON isteyen (quadran.js XHR) hata metnini alır, formu yerinde bırakır; JS'siz yolda metin oturumdaki taslaktan geri dolar
+  const hata = (ileti: string, durum = 400) => {
+    if (jsonIstiyor(req)) return res.status(durum).json({ hata: ileti });
+    taslakKaydet(req, id ?? 0);
+    bildir(req, "hata", ileti);
+    return res.redirect("/konu/" + id + "#cevap");
+  };
 
   const [konular]: any = id
     ? await pool.query("SELECT id, user_id, title, locked_at FROM topics WHERE id = ? AND deleted_at IS NULL", [id])
@@ -316,43 +356,70 @@ forum.post("/konu/:id/cevap", girisGerekli("Cevap yazmak için giriş yapman ger
   if (!konu) return next();
 
   if (konu.locked_at) {
+    if (jsonIstiyor(req)) return res.status(400).json({ hata: "Bu konu kilitli, yeni cevap yazılamaz." });
     bildir(req, "hata", "Bu konu kilitli, yeni cevap yazılamaz.");
     return res.redirect("/konu/" + id);
   }
-  if (!content || content.length > 10000) {
-    bildir(req, "hata", content ? "Cevap en fazla 10.000 karakter olabilir." : "Cevap boş olamaz.");
-    return res.redirect("/konu/" + id + "#cevap");
-  }
+  // Ek varsa metin boş olabilir (yalnızca fotoğraf paylaşmak doğal); ekle de metinle de boş cevap olmaz
+  if ((!content && !ekVar) || content.length > 10000) return hata(content ? "Cevap en fazla 10.000 karakter olabilir." : "Cevap boş olamaz.");
+  // Rütbe ayrıcalığı (admin/moderatör muaf, src/rutbe.ts izinli): arayüzde düğme kilitli ama sunucu da denetler
+  if (girdi.resimler.length && !izinli(k, "gorsel")) return hata("Fotoğraf eklemek için rütben yetmiyor.", 403);
+  if (girdi.video && !izinli(k, "video")) return hata("Video eklemek için rütben yetmiyor.", 403);
 
   // Hız sınırı: yetkililer muaf. Sayaç, içerik doğrulaması geçtikten sonra artar (hatalı denemeler hakkı yemesin).
   const yetkili = ["admin", "moderator"].includes(k.rol);
-  if (!yetkili && cevapYazma.kalanDakika("u" + k.id) > 0) {
-    bildir(req, "hata", "Çok hızlı yazıyorsun. Biraz bekleyip tekrar dene.");
-    return res.redirect("/konu/" + id + "#cevap");
-  }
+  if (!yetkili && cevapYazma.kalanDakika("u" + k.id) > 0) return hata("Çok hızlı yazıyorsun. Biraz bekleyip tekrar dene.", 429);
+  if (!yetkili && ekVar && ekliCevap.kalanDakika("u" + k.id) > 0) return hata("Çok fazla ekli cevap gönderdin. Biraz bekleyip tekrar dene.", 429);
 
   const yasak = await yasakliIfade(content);
-  if (yasak) {
-    bildir(req, "hata", `Cevabında yasaklı bir ifade var: “${yasak}”. Düzenleyip tekrar dene.`);
-    return res.redirect("/konu/" + id + "#cevap");
+  if (yasak) return hata(`Cevabında yasaklı bir ifade var: “${yasak}”. Düzenleyip tekrar dene.`);
+
+  // Ekleri işle (geçersiz dosya burada reddedilir, hiçbir şey yazılmaz)
+  let ekler: EkDosyasi[] = [];
+  if (ekVar) {
+    try { ekler = await ekleriIsle(girdi, premiumMu(k)); }
+    catch (e) {
+      if (e instanceof GorselHatasi) return hata(e.message);
+      throw e;
+    }
   }
 
   if (!yetkili) cevapYazma.say("u" + k.id);
-  const [sonuc]: any = await pool.query("INSERT INTO posts (topic_id, user_id, content) VALUES (?, ?, ?)", [id, k.id, content]);
-  const mesajId = sonuc.insertId;
+  if (!yetkili && ekVar) ekliCevap.say("u" + k.id);
+  const kartKapali = req.body.kart_kapali === "1" ? 1 : 0;
+  let mesajId: number;
+  try {
+    const [sonuc]: any = await pool.query("INSERT INTO posts (topic_id, user_id, content, kart_kapali) VALUES (?, ?, ?, ?)", [id, k.id, content, kartKapali]);
+    mesajId = sonuc.insertId;
+    // +18: yazar kutuyu işaretlediyse yorumun bütün ekleri işaretli doğar (nsfw_kim = yazar)
+    const nsfw = req.body.nsfw === "1" ? 1 : 0;
+    for (let i = 0; i < ekler.length; i++) {
+      const e = ekler[i];
+      await pool.query(
+        "INSERT INTO ekler (post_id, user_id, tur, adres, genislik, yukseklik, boyut, sira, nsfw, nsfw_kim) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [mesajId, k.id, e.tur, e.adres, e.genislik, e.yukseklik, e.boyut, i, nsfw, nsfw ? "yazar" : null]
+      );
+    }
+  } catch (e) {
+    for (const x of ekler) await dosyaSil(x.adres); // veritabanı hatasında dosyalar yetim kalmasın
+    throw e;
+  }
 
   // Kendi konusuna yazılan cevap puan getirmez: yoksa kişi kendi konusuna cevap yığıp puan kasabilirdi; üstelik konuyu silince
   // kendi cevaplarının puanı (kayıt konu mesajına bağlı olmadığı için) kalırdı. Rozet/bildirim davranışı değişmedi.
   if (konu.user_id !== k.id) await tavanliPuanEkle(k.id, (await puanKurallari()).cevap, "cevap", mesajId);
   await bildirimGonder({
     alan: konu.user_id, yapan: k.id, tur: "cevap",
-    metin: `${k.username} konuna cevap yazdı: “${kisalt(content, 50)}”`,
+    metin: `${k.username} konuna cevap yazdı: “${kisalt(content || (ekler[0]?.tur === "video" ? "Video" : "Fotoğraf"), 50)}”`,
     link: `/konu/${id}#mesaj-${mesajId}`,
   });
   if (konu.user_id !== k.id) await rozetVer(k.id, "Yardımsever");
 
+  const gidilecek = `/konu/${id}?sirala=yeni#mesaj-${mesajId}`;
   bildir(req, "basari", "Cevabın yayınlandı", { metin: "Görüntüle", link: `/konu/${id}#mesaj-${mesajId}` });
-  res.redirect(`/konu/${id}?sirala=yeni#mesaj-${mesajId}`);
+  // XHR (ilerleme çubuklu gönderim) yönlendirmeyi kendisi yapar; toast oturumda bekler ve hedef sayfada görünür
+  if (jsonIstiyor(req)) return res.json({ yonlendir: gidilecek });
+  res.redirect(gidilecek);
 });
 
 // ---------------------------------------------------------------------------
@@ -586,7 +653,7 @@ forum.get("/profil/:username/kart", async (req, res) => {
   // Kendi kartında "Mesaj gönder" yok; misafirde var (tıklayınca girişe gider, profildeki gibi)
   const durum = ben && ben.id !== u.id ? await mesajDurumu(ben.id, u.id) : null;
   res.set("Cache-Control", "no-store");
-  res.render("partials/profil-karti", { u, mesajAtabilir: !ben ? true : durum === "izinli" });
+  res.render("partials/profil-karti", { u, mesajAtabilir: !ben ? true : durum === "izinli", profiliAc: true });
 });
 
 forum.get("/profil/:username", async (req, res, next) => {
@@ -744,7 +811,7 @@ forum.get("/profil/:username", async (req, res, next) => {
     mesajAtabilir: durum === "izinli", engelledim: durum === "ben_engelledim",
     profil, rutbeler: tumRutbeler, simdiki, sonraki, acilacaklar, rozetler, konular, haftalik, sekme, yorumlar, etkinlikler, sabitKonu, vitrinRozetleri, puanGecmisi, dahaEskiVar, once, yetkiliProfil: yetkiliMi(hamRol),
     kendisi,
-    aktifMenu: res.locals.kullanici?.id === profil.id ? "profil" : undefined,
+    aktifMenu: res.locals.kullanici?.id === profil.id ? "profil" : "yok",
   });
 });
 

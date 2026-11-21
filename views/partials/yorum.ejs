@@ -1,40 +1,57 @@
+<%#
+  Yorum satırı (Figma onaylı telefon tasarımı):
+  üst: avatar + [ad · rütbe · unvan] / altında zaman, sağda ⋮ menüsü (çözüm, düzenle, sil, şikâyet, yetkili işlemleri);
+  alt: yatay oy grubu + Cevapla. Oy sütunu soldan kalktı: metin tam genişlikte okunur, dokunma hedefleri 44px olabilir.
+  Menü popover'dır; popover desteklenmezse öğeler görünür liste olarak durur (JS gerekmez).
+%>
 <% if (mesaj.deleted_at) { %>
   <div class="silinmis">Bu mesaj silindi.</div>
 <% } else { %>
+  <% const kendi_ = !!(locals.kullanici && kullanici.id === mesaj.user_id);
+     const yetkili_ = ["moderator", "admin"].includes(locals.kullanici?.rol);
+     const cozumDugmesi_ = !!(locals.konu && konu.cozumIsaretleyebilir); %>
   <article class="kart yorum<%= mesaj.cozum ? ' cozum' : '' %>" id="mesaj-<%= mesaj.id %>">
-    <div class="oy"><%- include("oy", { hedef: mesaj }) %></div>
-    <div class="yorum-icerik">
-      <div class="gonderi-meta">
-        <%- include("avatar", { ad: mesaj.yazar, url: mesaj.avatar_url, sus: mesaj.avatar_susu, etiket: "a", href: "/profil/" + encodeURIComponent(mesaj.yazar), ek: 'data-uye-karti="' + mesaj.yazar.replace(/"/g, "") + '" tabindex="-1"', bos: true }) %>
-        <a class="kullanici" href="/profil/<%= encodeURIComponent(mesaj.yazar) %>" data-uye-karti="<%= mesaj.yazar %>"><%= mesaj.yazar %></a>
-        <% if (mesaj.rutbe) { %><%- include("rutbe", { rutbeAd: mesaj.rutbe, rutbeId: mesaj.rutbe_id }) %><% } %>
-        <% if (mesaj.konu_sahibi) { %><span class="cip-cerceveli">Konu sahibi</span><% } %>
-        <% if (mesaj.cozum) { %><span class="cozum-cip"><%- include("ikon", { ad: "onay", boyut: 13 }) %>Çözüm</span><% } %>
-        <span class="zaman">· <%= zaman(mesaj.created_at) %><%= mesaj.updated_at ? " · düzenlendi" : "" %></span>
+    <div class="yorum-ust">
+      <%- include("avatar", { ad: mesaj.yazar, url: mesaj.avatar_url, sus: mesaj.avatar_susu, sinif: "avatar-36", etiket: "a", href: "/profil/" + encodeURIComponent(mesaj.yazar), ek: 'data-uye-karti="' + mesaj.yazar.replace(/"/g, "") + '" tabindex="-1"', bos: true }) %>
+      <div class="yorum-kimlik">
+        <div class="yorum-ad-satiri">
+          <a class="kullanici" href="/profil/<%= encodeURIComponent(mesaj.yazar) %>" data-uye-karti="<%= mesaj.yazar %>"><%= mesaj.yazar %></a>
+          <% if (mesaj.rutbe) { %><%- include("rutbe", { rutbeAd: mesaj.rutbe, rutbeId: mesaj.rutbe_id }) %><% } %>
+          <%- include("unvan", { unvan: mesaj.unvan, premium: mesaj.premium }) %>
+          <% if (mesaj.konu_sahibi) { %><span class="cip-cerceveli">Konu sahibi</span><% } %>
+          <% if (mesaj.cozum) { %><span class="cozum-cip"><%- include("ikon", { ad: "onay", boyut: 13 }) %>Çözüm</span><% } %>
+        </div>
+        <div class="zaman"><%= zaman(mesaj.created_at) %><%= mesaj.updated_at ? " · düzenlendi" : "" %></div>
       </div>
-      <div class="metin"><%- icerikHtml(mesaj.content, mesaj.rutbe_id, mesaj.yazar_rol) %></div>
-      <%- include("imza", { yazar: mesaj }) %>
-      <div class="satir">
-        <a class="eylem" href="#cevap"><%- include("ikon", { ad: "cevap", boyut: 18 }) %> Cevapla</a>
+      <button class="ikon-dugme yorum-menu-dugmesi" type="button" popovertarget="yorum-menusu-<%= mesaj.id %>" data-menu-ac aria-label="Yorum işlemleri"><%- include("ikon", { ad: "daha", boyut: 20 }) %></button>
+      <div class="acilir-menu acilir-menu-konumlu yorum-menusu" id="yorum-menusu-<%= mesaj.id %>" popover aria-label="Yorum işlemleri">
         <%# Çözüm işareti: yalnızca konunun sahibi (ve yetkililer) görür; tek düğme hem işaretler hem kaldırır %>
-        <% if (locals.konu && konu.cozumIsaretleyebilir) { %>
+        <% if (cozumDugmesi_) { %>
           <form method="post" action="/konu/<%= konu.id %>/cozum"><input type="hidden" name="_csrf" value="<%= locals.csrf %>"><input type="hidden" name="post_id" value="<%= mesaj.id %>">
-            <button class="eylem"><%- include("ikon", { ad: "onay", boyut: 18 }) %> <%= mesaj.cozum ? "Çözüm işaretini kaldır" : "Çözüm olarak işaretle" %></button>
+            <button class="acilir-oge" type="submit"><%- include("ikon", { ad: "onay", boyut: 20 }) %><span class="acilir-ad"><%= mesaj.cozum ? "Çözüm işaretini kaldır" : "Çözüm olarak işaretle" %></span></button>
           </form>
         <% } %>
-        <% if (locals.kullanici && kullanici.id === mesaj.user_id) { %>
-          <a class="eylem" href="/mesaj/<%= mesaj.id %>/duzenle"><%- include("ikon", { ad: "kalem", boyut: 18 }) %> Düzenle</a>
+        <% if (kendi_) { %>
+          <a class="acilir-oge" href="/mesaj/<%= mesaj.id %>/duzenle"><%- include("ikon", { ad: "kalem", boyut: 20 }) %><span class="acilir-ad">Düzenle</span></a>
           <form method="post" action="/mesaj/<%= mesaj.id %>/sil" data-onay="Mesajın silinsin mi? Bu geri alınamaz."><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
-            <button class="eylem"><%- include("ikon", { ad: "cop", boyut: 18 }) %> Sil</button>
+            <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("ikon", { ad: "cop", boyut: 20 }) %><span class="acilir-ad">Sil</span></button>
           </form>
         <% } else { %>
-        <a class="eylem" href="/sikayet?post_id=<%= mesaj.id %>" data-sikayet-ac data-post-id="<%= mesaj.id %>" data-yazar="<%= mesaj.yazar %>"><%- include("ikon", { ad: "bayrak", boyut: 18 }) %> Şikâyet et</a>
+          <a class="acilir-oge" href="/sikayet?post_id=<%= mesaj.id %>" data-sikayet-ac data-post-id="<%= mesaj.id %>" data-yazar="<%= mesaj.yazar %>"><%- include("ikon", { ad: "bayrak", boyut: 20 }) %><span class="acilir-ad">Şikâyet et</span></a>
         <% } %>
-        <% if (["moderator", "admin"].includes(locals.kullanici?.rol)) { %>
-          <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="moderasyon-menusu-<%= mesaj.id %>" data-menu-ac aria-label="Moderasyon işlemleri"><%- include("ikon", { ad: "daha", boyut: 20 }) %></button>
-          <%- include("moderasyon-menusu", { post_id: mesaj.id, topic_id: locals.konu ? konu.id : "" }) %>
+        <% if (yetkili_) { %>
+          <hr class="acilir-ayirici">
+          <%- include("moderasyon-menusu", { post_id: mesaj.id, topic_id: locals.konu ? konu.id : "", satirIci: true, ekVar: !!(mesaj.ekler && mesaj.ekler.length), nsfwMi: !!(mesaj.ekler && mesaj.ekler[0] && mesaj.ekler[0].nsfw) }) %>
         <% } %>
       </div>
+    </div>
+    <div class="metin"><%- icerikHtml(mesaj.content, mesaj.rutbe_id, mesaj.yazar_rol) %></div>
+    <%- include("ekler", { mesaj }) %>
+    <%- include("kartlar", { mesaj }) %>
+    <%- include("imza", { yazar: mesaj }) %>
+    <div class="yorum-alt">
+      <div class="oy-yatay"><%- include("oy", { hedef: mesaj }) %></div>
+      <a class="eylem" href="#cevap"><%- include("ikon", { ad: "cevap", boyut: 18 }) %> Cevapla</a>
     </div>
   </article>
 <% } %>

@@ -32,7 +32,7 @@
     <fieldset class="sikayet-sebepler">
       <legend class="arama-gizli-baslik">Şikâyet sebebi</legend>
       <% sikayetSebepleri.forEach((s, i) => { %>
-        <label class="sikayet-secenek"<%- s.sadeceMesaj ? " data-sadece-mesaj" : "" %>>
+        <label class="sikayet-secenek"<%- s.sadeceMesaj ? " data-sadece-mesaj" : "" %><%- s.sadeceKullanici ? " data-sadece-kullanici" : "" %><%- s.sadeceKonu ? " data-sadece-konu" : "" %>>
           <input type="radio" name="sebep" value="<%= s.ad %>" required>
           <span class="sikayet-secenek-metin"><strong><%= s.ad %></strong><span><%= s.aciklama %></span></span>
         </label>

@@ -1,0 +1,24 @@
+<%#
+  Yakut bölümü: bakiye + günlük seri + sonraki harçlık + "Mağaza ve cüzdan" bağlantısı. Üst çubuktaki bakiye çipinin yerine geldi
+  (kullanıcı kararı 2026-11-21: yakut ve mağazaya her ölçek için ayrı düşünülmüş bir bölüm). Bir ölçekte YALNIZCA bir kez görünür:
+    masaüstü (1181+) → sol menüde Ayarlar'ın üstünde (kenar-menu.ejs, tur "kenar")
+    tablet (801–1180) → rayda yakut simgesi + bakiye (kenar-menu.ejs içinde ayrı öğe, bu parça değil)
+    telefon (≤800)    → Profil'e dokununca açılan hesap sayfasında (avatar-menusu.ejs, tur "hesap")
+  Beklenen veri: kullanici { yakut, seri_gun }; tur "kenar" | "hesap"
+%>
+<% const yb_ = locals.kullanici; if (yb_) {
+     const ybBakiye_ = Number(yb_.yakut || 0), ybSeri_ = Number(yb_.seri_gun || 0);
+     const ybBugun_ = new Date(), ybAy_ = new Date(ybBugun_.getFullYear(), ybBugun_.getMonth() + 1, 1);
+     const ybHarclik_ = ybAy_.toLocaleDateString("tr-TR", { day: "numeric", month: "long" }); %>
+<a class="yakut-bolumu yakut-bolumu-<%= locals.tur || 'kenar' %>" href="/yakut" aria-label="Yakut: <%= ybBakiye_.toLocaleString('tr-TR') %>. Mağaza ve cüzdan">
+  <span class="yb-ust">
+    <%- include("yakut", { boyut: locals.tur === "hesap" ? 36 : 28 }) %>
+    <span class="yb-bilgi">
+      <span class="yb-bakiye"><strong><%= ybBakiye_.toLocaleString("tr-TR") %></strong> <span>yakut</span></span>
+      <span class="yb-alt"><%= ybSeri_ > 0 ? ybSeri_ + " günlük seri" : "Seri yok" %><% if (locals.tur === "hesap") { %> · harçlık <%= ybHarclik_ %><% } %></span>
+    </span>
+    <% if (locals.tur === "hesap") { %><span class="yb-magaza">Mağaza<%- include("ikon", { ad: "sag", boyut: 18 }) %></span><% } %>
+  </span>
+  <% if (locals.tur !== "hesap") { %><span class="yb-magaza">Mağaza ve cüzdan<%- include("ikon", { ad: "sag", boyut: 16 }) %></span><% } %>
+</a>
+<% } %>
