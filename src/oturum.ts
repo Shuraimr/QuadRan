@@ -53,7 +53,9 @@ export const oturum = session({
   cookie: {
     httpOnly: true,  // JavaScript (document.cookie) çereze erişemez: XSS ile çalınamaz
     sameSite: "lax", // başka sitelerden gelen POST isteklerine çerez eklenmez: CSRF'e karşı temel koruma
-    secure: false,   // HTTPS'e geçince true yapılmalı
+    // "auto": istek HTTPS ise çerez Secure olur (yalnızca şifreli bağlantıda gönderilir), yerel HTTP'de çalışmaya devam eder.
+    // Ters vekil arkasında HTTPS'i tanıması için TRUST_PROXY ayarlanmalı (server.ts).
+    secure: "auto",
     // maxAge burada yok: "Beni hatırla" seçilirse girişte 30 gün olarak ayarlanır,
     // seçilmezse tarayıcı kapanınca çerez silinir.
   },

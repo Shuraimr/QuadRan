@@ -20,7 +20,7 @@
     </form>
     <span class="ikincil kucuk"><%= r.sahip_sayisi %> sahip<%= korunuyor ? " · kodda kullanılıyor" : "" %></span>
     <% if (!korunuyor) { %>
-      <form method="post" action="/yonetim/puan/rozetler/<%= r.id %>/sil"><%- include("csrf") %><button class="buton buton-tehlikeli" onclick="return confirm('Rozet ve bütün sahiplikleri silinsin mi?')">Sil</button></form>
+      <form method="post" action="/yonetim/puan/rozetler/<%= r.id %>/sil" data-onay="Rozet ve bütün sahiplikleri silinsin mi?"><%- include("csrf") %><button class="buton buton-tehlikeli">Sil</button></form>
     <% } %>
   </div>
 <% } %>

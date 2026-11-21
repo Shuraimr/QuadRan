@@ -309,6 +309,15 @@ Telefonda alt menü ve üst çubuğun CSS ile gizlenen parçaları "Tekrarı ön
 - Kendi mesajını düzenleme/silme: `GET/POST /mesaj/:id/duzenle`, `POST /mesaj/:id/sil` (`src/rotalar/mesaj.ts`). İlk mesaj düzenlenince
   başlık da düzenlenir, silinince konu silinir. Silmede yazarken kazanılan puan (+5 / +2) geri alınır. Kilitli konuda düzenleme yok.
 
+- Güvenlik başlıkları (`src/server.ts`, 1.0 öncesi sızma testinden sonra, 2026-11-21): CSP (`script-src 'self'`: satır içi betik ve
+  `onclick`/`onsubmit` YASAK — onay için formda `data-onay="..."`, davranış `public/js/quadran.js`'te), `frame-ancestors 'none'` +
+  `X-Frame-Options: DENY` (clickjacking), `nosniff`, `Referrer-Policy`, `Permissions-Policy`; `x-powered-by` kapalı. Yeni dış kaynak
+  (yazı tipi, görsel, betik) eklenirse CSP listesine de yazılmalı.
+- Yayına alırken: ters vekil (nginx/Caddy) arkasındaysa `.env`'e `TRUST_PROXY=1` (gerçek IP ile hız sınırı, HTTPS'i tanıma);
+  oturum çerezi `secure: "auto"` olduğundan HTTPS'te kendiliğinden Secure olur. Vekil yokken X-Forwarded-For'a güvenilmez.
+- Sızma testi (2026-11-21, kod + canlı istek): SQLi, XSS, CSRF, IDOR/yetki, oturum sabitleme, dosya yükleme, açık yönlendirme,
+  puan/oy hileleri denendi, açık bulunmadı; `npm audit --omit=dev` 0 zafiyet. Bulunanlar yalnızca yukarıdaki başlık eksikleriydi.
+
 Çevrimiçi listesi eksik değil: sohbetteki liste `users.last_seen_at` (her istekte en fazla dakikada bir güncellenir) ile çalışıyor.
 
 ## Dosyalar

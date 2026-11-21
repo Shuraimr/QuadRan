@@ -38,6 +38,7 @@ sql/01..21           sırayla uygulanan şema + seed + değişiklikler (Docker i
 
 - Kod yorumları **Türkçe** ve "neden"i anlatır: proje sahibi öğrenci, kodu okuyup öğreniyor.
 - Kullanıcıdan gelen her değer SQL'e **`?` yer tutucusuyla**; metin birleştirme yalnızca koddaki sabit parçalar için.
+- Şablonlarda satır içi `<script>` ve `onclick`/`onsubmit` YOK (CSP engeller): davranış `quadran.js`'te, onay sorusu formda `data-onay`.
 - Her POST formunda `<input type="hidden" name="_csrf" value="<%= locals.csrf %>">`. Kullanıcı içeriği `<%= %>` ile basılır.
 - Yeni tablo/sütun → yeni numaralı `sql/NN_ad.sql` (canlı DB'ye de uygula, AKTARIM.md'ye yaz). Eski SQL dosyalarını değiştirme.
 - **Yeni npm paketi eklemeden önce kullanıcıya sor.**

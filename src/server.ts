@@ -23,6 +23,41 @@ const app = express();
 // PORT ortam değişkeniyle değiştirilebilir (aynı anda ikinci bir kopya denemek için); verilmezse 3000
 const PORT = Number(process.env.PORT) || 3000;
 
+// "X-Powered-By: Express" başlığı saldırgana hangi yazılımı hedefleyeceğini söyler; gereksiz bilgi, kapatılır.
+app.disable("x-powered-by");
+// Site bir ters vekilin (nginx, Caddy, Cloudflare) arkasına konursa TRUST_PROXY=1 verilir: o zaman req.ip gerçek ziyaretçi
+// IP'si olur (hız sınırı herkesi tek kovaya atmaz) ve req.secure HTTPS'i tanır (çerez Secure olur). Vekil yokken
+// X-Forwarded-For'a GÜVENİLMEZ, çünkü saldırgan bu başlığı uydurup hız sınırını atlatabilir.
+if (process.env.TRUST_PROXY) app.set("trust proxy", Number(process.env.TRUST_PROXY) || 1);
+
+// Güvenlik başlıkları (paket yerine elle; her birinin ne işe yaradığı görülsün diye):
+// - CSP: tarayıcıya yalnızca kendi sitemizden betik çalıştırmasını söyler. İleride bir şablonda kaçırma unutulsa bile
+//   araya sokulan <script> ya da onclick="..." ÇALIŞMAZ (XSS'e ikinci savunma hattı). Bu yüzden şablonlarda satır içi
+//   betik/olay özniteliği yok; onaylar data-onay ile quadran.js'te. Satır içi stil (style="--x:..") serbest: efektler kullanıyor.
+// - frame-ancestors 'none' + X-Frame-Options: site başka bir sitenin iframe'ine konamaz (görünmez çerçeveyle tıklatma, clickjacking).
+// - nosniff: tarayıcı dosya türünü tahmin etmez (yüklenen bir görsel betik gibi yorumlanamaz).
+// - Referrer-Policy: başka siteye giden bağlantıda adresimizin yalnızca alan adı gider (oda davet kodu gibi yollar sızmaz).
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: blob:",   // blob: avatar/banner kırpma önizlemesi için
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", CSP);
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
+
 app.set("view engine", "ejs");
 app.set("views", "views");
 

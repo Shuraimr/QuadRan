@@ -24,7 +24,7 @@
         <% } %>
         <% if (locals.kullanici && kullanici.id === mesaj.user_id) { %>
           <a class="eylem" href="/mesaj/<%= mesaj.id %>/duzenle"><%- include("ikon", { ad: "kalem", boyut: 18 }) %> Düzenle</a>
-          <form method="post" action="/mesaj/<%= mesaj.id %>/sil" onsubmit="return confirm('Mesajın silinsin mi? Bu geri alınamaz.')"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+          <form method="post" action="/mesaj/<%= mesaj.id %>/sil" data-onay="Mesajın silinsin mi? Bu geri alınamaz."><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
             <button class="eylem"><%- include("ikon", { ad: "cop", boyut: 18 }) %> Sil</button>
           </form>
         <% } else { %>

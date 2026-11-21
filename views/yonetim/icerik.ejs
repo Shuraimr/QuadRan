@@ -80,10 +80,4 @@
   </div>
 </form>
 <%- include("sayfalama") %>
-<script>
-  /* "Hepsini seç" kutusu: görünen sayfadaki bütün onay kutularını işaretler (JS yoksa tek tek seçilir) */
-  document.querySelector("[data-hepsini-sec]").addEventListener("change", function (e) {
-    document.querySelectorAll('#toplu-form input[name="id"]').forEach(function (k) { k.checked = e.target.checked; });
-  });
-</script>
 <%- include("duzen-alt") %>

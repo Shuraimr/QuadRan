@@ -18,14 +18,14 @@
     <div class="yn-satir yn-alt">
       <span class="ikincil kucuk"><%= c.konu_sayisi %> konu (silinmişler dahil)</span>
       <% if (Number(c.konu_sayisi) > 0) { %>
-        <form class="yn-satir" method="post" action="/yonetim/forum/kategoriler/<%= c.id %>/tasi"><%- include("csrf") %>
+        <form class="yn-satir" method="post" action="/yonetim/forum/kategoriler/<%= c.id %>/tasi" data-onay="Bu kategorideki bütün konular taşınsın mı?"><%- include("csrf") %>
           <select class="yn-girdi" name="hedef" aria-label="Konuları taşı" required><option value="">Konuları şuraya taşı…</option>
             <% for (const d of kategoriler) { if (d.id !== c.id) { %><option value="<%= d.id %>"><%= d.name %></option><% } } %></select>
-          <button class="buton buton-cerceveli" onclick="return confirm('Bu kategorideki bütün konular taşınsın mı?')">Taşı</button>
+          <button class="buton buton-cerceveli">Taşı</button>
         </form>
       <% } %>
-      <form method="post" action="/yonetim/forum/kategoriler/<%= c.id %>/sil" class="yn-sag"><%- include("csrf") %>
-        <button class="buton buton-tehlikeli" onclick="return confirm('Kategori silinsin mi?')">Sil</button></form>
+      <form method="post" action="/yonetim/forum/kategoriler/<%= c.id %>/sil" class="yn-sag" data-onay="Kategori silinsin mi?"><%- include("csrf") %>
+        <button class="buton buton-tehlikeli">Sil</button></form>
     </div>
   </div>
 <% } %>

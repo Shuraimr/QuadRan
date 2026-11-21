@@ -157,7 +157,7 @@
     </div>
     <div class="yn-islem-grup">
       <p class="yn-grup-ad">Güvenlik · yalnızca admin</p>
-      <form class="yn-form" method="post" action="<%= yol_ %>/sifre-sifirla" onsubmit="return confirm('Rastgele bir geçici şifre üretilsin mi? Eski şifre geçersiz olur.')"><%- include("csrf") %>
+      <form class="yn-form" method="post" action="<%= yol_ %>/sifre-sifirla" data-onay="Rastgele bir geçici şifre üretilsin mi? Eski şifre geçersiz olur."><%- include("csrf") %>
         <button class="buton buton-cerceveli">Geçici şifre üret</button></form>
       <form class="yn-form" method="post" action="<%= yol_ %>/oturumlari-kapat"><%- include("csrf") %>
         <input class="yn-girdi" name="sebep" minlength="3" maxlength="200" required placeholder="Sebep" aria-label="Oturumları kapatma sebebi">

@@ -32,7 +32,7 @@
           <span class="bosluk"></span>
           <% if (locals.kullanici && kullanici.id === ilk.user_id) { %>
             <a class="eylem" href="/mesaj/<%= ilk.id %>/duzenle"><%- include("partials/ikon", { ad: "kalem", boyut: 18 }) %> Düzenle</a>
-            <form method="post" action="/mesaj/<%= ilk.id %>/sil" onsubmit="return confirm('Konu ve bütün cevapları silinsin mi? Bu geri alınamaz.')"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+            <form method="post" action="/mesaj/<%= ilk.id %>/sil" data-onay="Konu ve bütün cevapları silinsin mi? Bu geri alınamaz."><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
               <button class="eylem"><%- include("partials/ikon", { ad: "cop", boyut: 18 }) %> Sil</button>
             </form>
           <% } else { %>

@@ -158,7 +158,7 @@
                         <%# Kopyala yalnızca JS'le çalışır; JS yokken CSS gizler (.js sınıfı yoksa görünmez) %>
                         <button class="acilir-oge mesaj-kopyala" type="button" data-kopyala="#mt-<%= m.id %>"><%- include("partials/ikon", { ad: "kopyala", boyut: 20 }) %><span class="acilir-ad">Kopyala</span></button>
                         <% if (o.benim) { %>
-                          <form method="post" action="/mesajlar/mesaj/<%= m.id %>/sil" onsubmit="return confirm('Bu mesaj silinsin mi?')"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
+                          <form method="post" action="/mesajlar/mesaj/<%= m.id %>/sil" data-onay="Bu mesaj silinsin mi?"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
                             <button class="acilir-oge acilir-oge-tehlikeli" type="submit"><%- include("partials/ikon", { ad: "cop", boyut: 20 }) %><span class="acilir-ad">Sil</span></button>
                           </form>
                         <% } else { %>

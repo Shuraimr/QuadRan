@@ -722,6 +722,13 @@
     var soru = f && f.getAttribute ? f.getAttribute("data-onay") : null;
     if (soru && !window.confirm(soru)) e.preventDefault();
   });
+  /* Yönetim › İçerik "Hepsini seç" kutusu: görünen sayfadaki bütün onay kutularını işaretler (JS yoksa tek tek seçilir).
+     Eskiden şablonda satır içi <script> idi; CSP satır içi betiği yasakladığı için buraya taşındı. */
+  hepsi("[data-hepsini-sec]").forEach(function (k) {
+    k.addEventListener("change", function () {
+      hepsi('#toplu-form input[name="id"]').forEach(function (x) { x.checked = k.checked; });
+    });
+  });
   /* Davet için kişi ara: yazdıkça /oda/:id/kisi-ara'dan en çok 8 kişi gelir; her satırda kendi "Davet et" formu (CSRF belirteci listeden okunur) */
   hepsi("[data-oda-kisi-ara]").forEach(function (girdi) {
     var odaId = girdi.getAttribute("data-oda-kisi-ara");
