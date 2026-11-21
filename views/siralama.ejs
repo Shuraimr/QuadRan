@@ -27,6 +27,7 @@
   const srPuanEtiketi = srDonem === "tum" ? "Puan" : "Dönem puanı";
 %>
 <main class="siralama-sayfa">
+  <%- include("partials/geri-baslik", { href: "/kesfet", etiket: "Keşfet" }) %>
   <div class="siralama-ana">
     <div class="siralama-ust">
       <div class="siralama-baslik"><h1>Sıralama</h1><a class="baglanti kucuk" href="/rutbeler">Rütbeler →</a></div>

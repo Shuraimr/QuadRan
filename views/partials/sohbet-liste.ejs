@@ -71,7 +71,9 @@
 
       <% if (slFiltre_ === "oda") { %><h2 class="oda-etiket">Odalarım</h2><% } %>
       <% if (!slOgeler_.length) { %>
-        <p class="oda-bos ikincil"><%= slFiltre_ === "oda" ? "Henüz bir odan yok. Bir odaya davet edilince ya da davet bağlantısıyla katılınca burada görünür." : "Henüz bir odan ya da özel mesajın yok. Bir profilden mesaj gönderebilir ya da davetle bir odaya katılabilirsin." %></p>
+        <%- include("bos-durum", slFiltre_ === "oda"
+          ? { ikon: "kisiler", baslik: "Henüz bir odan yok", metin: "Bir odaya davet edilince ya da davet bağlantısıyla katılınca burada görünür.", dar: true }
+          : { ikon: "sohbet", baslik: "Henüz bir odan ya da özel mesajın yok", metin: "Bir profilden mesaj gönderebilir ya da davetle bir odaya katılabilirsin.", dar: true }) %>
       <% } %>
       <% for (const og of slOgeler_) { %>
         <% if (og.tur === "dm") { const d = og.d; %>

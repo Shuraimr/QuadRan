@@ -7,7 +7,10 @@
   kategoriler  (res.locals.tumKategoriler) "Kategoriyi değiştir" açılır listesi için; konu sayfasında konu.category_id seçili gelir
   statik    true ise popover yerine açık kutu (yalnızca önizleme sayfası için)
   satirIci  true ise kendi kutusu çizilmez: yalnızca öğeler basılır (yorumun ⋮ menüsü bunları kendi menüsüne katar, ikinci ⋮ olmaz)
-  Her eylem POST /moderasyon/<eylem> olarak gider: sabitle, kilitle, kategori-degistir, sil, uzaklastir.
+  yazar_id  mesajın yazarı; "Uzaklaştır…" onun yönetim kartının Yaptırımlar sekmesine gider
+  Her eylem POST /moderasyon/<eylem> olarak gider: sabitle, kilitle, kategori-degistir, sil.
+  Uzaklaştırma burada tek tıkla YAPILMAZ: süre, sebep, kaldırma ve yaptırım geçmişi üye kartında bir arada
+  (eskiden bu menü sebepsiz ve kalıcı uzaklaştırıyordu, geri alma yolu da görünmüyordu).
 %>
 <% const statik_ = !!locals.statik; const satirIci_ = !!locals.satirIci; const eylemler_ = [
   { eylem: "sabitle", ad: "Konuyu sabitle", ikon: "sabitle" },
@@ -15,7 +18,7 @@
   { eylem: "kategori-degistir", ad: "Kategoriyi değiştir", ikon: "klasor" },
   null,
   { eylem: "sil", ad: "Mesajı sil", ikon: "cop", tehlike: true },
-  { eylem: "uzaklastir", ad: "Kullanıcıyı uzaklaştır", ikon: "yasak", tehlike: true }
+  { eylem: "uzaklastir", ad: "Uzaklaştır…", ikon: "yasak", tehlike: true }
 ]; %>
 <% if (!satirIci_) { %><div class="acilir-menu moderasyon-menusu<%= statik_ ? ' katman-statik' : ' acilir-menu-konumlu' %>"<%- statik_ ? "" : ' id="moderasyon-menusu-' + (locals.post_id ?? "") + '" popover aria-label="Moderasyon işlemleri"' %>>
 <% } %>
@@ -39,6 +42,10 @@
         </label>
         <button class="buton buton-tonal kategori-degistir-dugme" type="submit">Taşı</button>
       </form>
+    <% } else if (e.eylem === "uzaklastir") { %>
+      <% if (locals.yazar_id) { %>
+        <a class="acilir-oge acilir-oge-tehlikeli" href="/yonetim/uyeler/<%= yazar_id %>?sekme=yaptirim"><%- include("ikon", { ad: e.ikon, boyut: 20 }) %><span class="acilir-ad"><%= e.ad %></span></a>
+      <% } %>
     <% } else { %>
       <form method="post" action="/moderasyon/<%= e.eylem %>"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
         <input type="hidden" name="post_id" value="<%= locals.post_id ?? '' %>">

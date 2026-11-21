@@ -9,6 +9,7 @@
 <%- include("partials/ust-cubuk") %>
 <% const h = locals.hatalar || {}; const d = locals.degerler || {}; %>
 <div class="govde-iki">
+  <%- include("partials/geri-baslik", { href: "/konu/" + m.topic_id, etiket: "Konu" }) %>
   <form class="kart form-karti-genis form" method="post" action="/mesaj/<%= m.id %>/duzenle"><input type="hidden" name="_csrf" value="<%= locals.csrf %>">
     <h1><%= m.ilk_mi ? "Konuyu düzenle" : "Mesajı düzenle" %></h1>
     <% if (m.ilk_mi) { %>

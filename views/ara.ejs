@@ -43,6 +43,7 @@
   const arOnerilenAramalar = ["linux", "docker", "ekran kartı", "ödev"];
 %>
 <main class="ara-sayfa">
+  <%- include("partials/geri-baslik", { href: "/kesfet", etiket: "Keşfet" }) %>
   <form class="ara-form" method="get" action="/ara" role="search">
     <label class="alan"><span>Ara</span>
       <input type="search" name="q" value="<%= arQ %>" placeholder="Konu, kullanıcı ya da kategori ara" autocomplete="off">
@@ -60,13 +61,8 @@
       </div>
     </div>
   <% } else if (arToplam === 0) { %>
-    <div class="kart ara-bos">
-      <%- include("partials/ikon", { ad: "ara", boyut: 32 }) %>
-      <h2>“<%= arQ %>” için sonuç bulunamadı</h2>
-      <ul class="ara-oneriler">
-        <% for (const o of arOneriler) { %><li><%= o %></li><% } %>
-      </ul>
-      <a class="buton buton-tonal" href="/konu/yeni">Bu konuyu sen aç</a>
+    <div class="kart">
+      <%- include("partials/bos-durum", { ikon: "ara", baslik: "“" + arQ + "” için sonuç bulunamadı", metin: arOneriler.join(". ") + ".", eylem: { href: "/konu/yeni", etiket: "Bu konuyu sen aç" } }) %>
     </div>
   <% } else { %>
     <p class="ara-ozet"><strong>“<%= arQ %>”</strong> için <strong><%= arToplam %></strong> sonuç bulundu.</p>
@@ -80,7 +76,7 @@
     </nav>
 
     <% if (arSayilar[arSekme] === 0) { %>
-      <div class="kart bos">“<%= arQ %>” için bu sekmede sonuç yok. Diğer sekmelere bakabilirsin.</div>
+      <div class="kart"><%- include("partials/bos-durum", { ikon: "ara", baslik: "Bu sekmede sonuç yok", metin: "“" + arQ + "” için diğer sekmelere bakabilirsin." }) %></div>
     <% } else if (arSekme === "konular") { %>
       <div class="ara-liste">
         <% for (const k of arKonular) { %>

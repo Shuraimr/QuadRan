@@ -3,6 +3,13 @@
   Beklenen veri: locals.duyuru { metin, tur: "info" | "uyari" } (oturum.ts doldurur; yoksa ya da kapatılmışsa null)
   "Kapat" düğmesi oturumda bu duyuru sürümünü saklar (POST /duyuru/kapat); duyuru değişince şerit yeniden çıkar.
 %>
+<%# Bakım modu açıkken yalnızca yetkililer siteyi görür (server.ts bakimSeridi'ni koyar): onlara hatırlatma %>
+<% if (locals.bakimSeridi) { %>
+  <div class="duyuru duyuru-bakim" role="status">
+    <%- include("ikon", { ad: "anahtar", boyut: 18 }) %>
+    <span class="duyuru-metin">Bakım modu açık: yetkililer dışındakiler siteyi göremiyor.<% if (locals.kullanici && kullanici.rol === "admin") { %> <a href="/yonetim/kayit-erisim">Kapat</a><% } %></span>
+  </div>
+<% } %>
 <% if (locals.duyuru) { %>
   <div class="duyuru duyuru-<%= duyuru.tur %>" role="status">
     <%- include("ikon", { ad: duyuru.tur === "uyari" ? "uyari" : "bilgi", boyut: 18 }) %>

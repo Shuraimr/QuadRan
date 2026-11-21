@@ -49,14 +49,20 @@
       </div>
 
       <% if (konular.length === 0 && locals.takipAkisi) { %>
-        <div class="kart bos">
-          Takip ettiğin kimse yok ya da henüz konu açmadılar.
-          <a class="baglanti" href="/siralama">Kimleri takip edebileceğine bak</a>
+        <div class="kart">
+          <% if (!locals.takipEdilen) { %>
+            <%- include("partials/bos-durum", { ikon: "kisiler", baslik: "Henüz kimseyi takip etmiyorsun", metin: "Takip ettiğin kişilerin açtığı konular burada görünür. Keşfet'ten ilginç kişiler bulabilirsin.", eylem: { href: "/kesfet", etiket: "Keşfet'e git" } }) %>
+          <% } else { %>
+            <%- include("partials/bos-durum", { ikon: "kutu", baslik: "Takip ettiklerin henüz konu açmamış", metin: "Yeni bir konu açtıklarında burada görürsün." }) %>
+          <% } %>
         </div>
       <% } else if (konular.length === 0) { %>
-        <div class="kart bos">
-          <%= locals.kategoriId ? "Bu kategoride henüz konu yok." : "Henüz konu yok." %>
-          <a class="baglanti" href="/konu/yeni<%= locals.kategoriId ? '?kategori=' + kategoriId : '' %>">İlk konuyu sen aç.</a>
+        <div class="kart">
+          <% if (locals.kategoriId) { %>
+            <%- include("partials/bos-durum", { ikon: "klasor", baslik: "Bu kategoride henüz konu yok", metin: "İlk konuyu açan sen olabilirsin.", eylem: locals.kullanici ? { href: "/konu/yeni?kategori=" + kategoriId, etiket: "Konu aç" } : null }) %>
+          <% } else { %>
+            <%- include("partials/bos-durum", { ikon: "klasor", baslik: "Henüz konu yok", metin: "İlk konuyu açan sen olabilirsin.", eylem: locals.kullanici ? { href: "/konu/yeni", etiket: "Konu aç" } : null }) %>
+          <% } %>
         </div>
       <% } %>
       <% for (const konu of konular) { %>

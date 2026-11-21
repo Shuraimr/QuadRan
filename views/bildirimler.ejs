@@ -28,6 +28,7 @@
   const bdIkonlar = { cevap: "cevap", oy: "yukari", rozet: "kupa", mesaj: "mektup", moderasyon: "kalkan", duyuru: "zil", oda: "kisiler", rutbe: "yildiz", takip: "kisiler" };
 %>
 <main class="bildirimler-sayfa">
+  <%- include("partials/geri-baslik", { href: "/", etiket: "Akış" }) %>
   <div class="bildirimler-ust">
     <h1>Bildirimler</h1>
   </div>
@@ -43,9 +44,10 @@
   </div>
 
   <% if (bdGruplar.length === 0) { %>
-    <div class="kart bos">
-      <%- include("partials/ikon", { ad: "zil", boyut: 28 }) %>
-      <p><%= bdFiltre === "okunmamis" ? "Okunmamış bildirimin yok." : "Henüz bildirimin yok. Biri konularına cevap yazdığında ya da oy verdiğinde burada görünür." %></p>
+    <div class="kart">
+      <%- include("partials/bos-durum", bdFiltre === "okunmamis"
+        ? { ikon: "zil", baslik: "Okunmamış bildirimin yok", metin: "Hepsini okudun." }
+        : { ikon: "zil", baslik: "Bildirimin yok", metin: "Biri sana cevap verince ya da seni takip edince burada görürsün." }) %>
     </div>
   <% } %>
 

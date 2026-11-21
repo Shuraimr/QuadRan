@@ -21,6 +21,142 @@
 .ek-video { aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--yuzey-3); }
 .ek-video video { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--yuzey-3); }
 
+/* ---------- Özel video oynatıcı (quadran.js videoOynatici) ----------
+   JS yoksa bu sınıflar hiç eklenmez, yerel controls çalışır. Renk/süre yalnızca değişkenlerden; "Animasyonları azalt"
+   süreleri sıfırlar, dönen halka ve dalga animasyonları aşağıda ayrıca kapatılır. */
+.ek-video.oy { position: relative; isolation: isolate; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+.ek-video.oy:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 2px; }
+.ek-video.oy video { cursor: pointer; }
+.ek-video.oy.oy-gizli { cursor: none; }
+.ek-video.oy.oy-gizli video { cursor: none; }
+.ek-video.oy.oy-tam { aspect-ratio: auto; width: 100%; height: 100%; border-radius: 0; }
+.ek-video.oy:fullscreen { aspect-ratio: auto; border-radius: 0; }
+.ek-video.oy:-webkit-full-screen { aspect-ratio: auto; border-radius: 0; }
+
+/* :where → sıfırlamanın belirginliği 0: .oy-buyuk gibi sınıfların arka planını ezmesin */
+:where(.oy) button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.oy button:focus-visible, .oy-ilerleme:focus-visible, .oy-ses-kay:focus-visible, .oy-indir:focus-visible { outline: 2px solid var(--vurgu); outline-offset: 2px; }
+
+/* Ortadaki düğmeler: başlangıçta büyük oynat; dokunmatikte her zaman (kontroller açıkken) */
+.oy-orta {
+  position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 28px;
+  pointer-events: none; visibility: hidden; opacity: 0; transition: opacity var(--sure-orta) var(--egri-cikis), visibility var(--sure-orta);
+}
+.oy-orta > * { pointer-events: auto; }
+.oy-ilk .oy-orta { visibility: visible; opacity: 1; }
+.oy-buyuk {
+  display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px;
+  background: var(--vurgu); color: var(--vurgu-ustu); box-shadow: var(--kat-2);
+  transition: transform var(--sure-hizli) var(--egri-cikis);
+}
+.oy-buyuk svg { width: 28px; height: 28px; }
+.oy-buyuk:hover { transform: scale(1.05); }
+.oy-atla { display: none; position: relative; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: color-mix(in srgb, var(--yuzey-1) 80%, transparent); color: var(--yazi); }
+.oy-atla svg { width: 24px; height: 24px; }
+.oy-atla span { position: absolute; font-size: 9px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; margin-top: 2px; }
+.oy-sure-cip {
+  position: absolute; right: 8px; bottom: 8px; z-index: 2; display: none; align-items: center; height: 24px; padding: 0 8px; border-radius: 8px;
+  background: color-mix(in srgb, var(--yuzey-1) 90%, transparent); color: var(--yazi); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.oy-ilk .oy-sure-cip { display: inline-flex; }
+
+/* Kontrol çubuğu */
+.oy-cubuk {
+  position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 3; display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 4px;
+  border-radius: 12px; background: color-mix(in srgb, var(--yuzey-1) 90%, transparent); color: var(--yazi); box-shadow: var(--kat-1);
+  transition: opacity var(--sure-orta) var(--egri-cikis), transform var(--sure-orta) var(--egri-cikis);
+}
+.oy-ilk .oy-cubuk { display: none; }
+.oy-gizli .oy-cubuk { opacity: 0; transform: translateY(6px); pointer-events: none; }
+.oy-dugme { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 8px; }
+.oy-dugme:hover, .oy-hiz:hover { background: color-mix(in srgb, var(--yazi) 12%, transparent); }
+.oy-zaman { flex: none; padding: 0 6px; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--yazi-2); }
+.oy-hiz { flex: none; min-width: 36px; height: 36px; padding: 0 8px; border-radius: 8px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* İlerleme: iz yazı rengi %25, yüklenen %45, oynanan vurgu */
+.oy-ilerleme { position: relative; flex: 1 1 auto; min-width: 36px; height: 44px; margin: 0 8px; cursor: pointer; touch-action: none; border-radius: 6px; }
+.oy-iz { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: color-mix(in srgb, var(--yazi) 25%, transparent); }
+.oy-yuk, .oy-oyn { position: absolute; left: 0; top: 0; height: 100%; border-radius: 2px; }
+.oy-yuk { width: var(--yuk, 0%); background: color-mix(in srgb, var(--yazi) 45%, transparent); }
+.oy-oyn { width: var(--oyn, 0%); background: var(--vurgu); }
+.oy-tut { position: absolute; top: 50%; left: var(--oyn, 0%); width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--vurgu); box-shadow: var(--kat-1); pointer-events: none; transition: transform var(--sure-hizli) var(--egri-cikis); }
+.oy-ilerleme:hover .oy-tut, .oy-suruk .oy-tut { transform: scale(1.2); }
+.oy-ipucu {
+  position: absolute; bottom: 100%; left: 0; display: none; transform: translateX(-50%); margin-bottom: 2px; padding: 3px 8px; border-radius: 6px;
+  background: var(--yuzey-3); color: var(--yazi); border: 1px solid var(--kenar); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none;
+}
+@media (hover: hover) { .oy-ilerleme:hover .oy-ipucu { display: block; } }
+.oy-suruk .oy-ipucu { display: block; }
+
+/* Ses: masaüstünde simge + üzerine gelince açılan kısa kaydırıcı */
+.oy-ses { display: flex; align-items: center; flex: none; }
+.oy-ses-kay { width: 0; opacity: 0; margin: 0; padding: 0; accent-color: var(--vurgu); cursor: pointer; transition: width var(--sure-orta) var(--egri-cikis), opacity var(--sure-orta) var(--egri-cikis), margin var(--sure-orta) var(--egri-cikis); }
+.oy-ses:hover .oy-ses-kay, .oy-ses:focus-within .oy-ses-kay { width: 72px; opacity: 1; margin: 0 8px 0 2px; }
+
+/* Hız menüsü: kutunun içinde kalır, uzunsa kayar */
+.oy-menu {
+  position: absolute; right: 8px; bottom: 60px; z-index: 4; display: grid; min-width: 112px; max-height: calc(100% - 68px); overflow-y: auto; padding: 4px;
+  border-radius: 12px; background: var(--yuzey-3); color: var(--yazi); border: 1px solid var(--kenar); box-shadow: var(--kat-2);
+}
+.oy-menu[hidden] { display: none; }
+.oy-menu-oge { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 6px; border-radius: 8px; font-size: 14px; text-align: left; }
+.oy-menu-oge:hover { background: color-mix(in srgb, var(--yazi) 12%, transparent); }
+.oy-menu-oge[aria-checked="true"] { color: var(--vurgu); font-weight: 700; }
+.oy-onay { display: grid; place-items: center; width: 20px; height: 20px; }
+.oy-onay svg { width: 16px; height: 16px; }
+
+/* Yükleniyor halkası */
+.oy-bekle {
+  position: absolute; left: 50%; top: 50%; z-index: 2; display: none; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--yazi) 25%, transparent); border-top-color: var(--vurgu); pointer-events: none;
+  animation: oy-don 800ms linear infinite;
+}
+.oy-bekliyor .oy-bekle { display: block; }
+.oy-bekliyor .oy-orta { visibility: hidden; opacity: 0; }
+@keyframes oy-don { to { transform: rotate(360deg); } }
+
+/* Hata: video açılamadı */
+.oy-hata { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; background: var(--yuzey-3); color: var(--yazi-2); text-align: center; }
+.oy-hata[hidden] { display: none; }
+.oy-hata p { margin: 0; font-size: 14px; color: var(--yazi); }
+.oy-hata svg { width: 28px; height: 28px; }
+.oy-indir { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border-radius: 12px; background: var(--yuzey-2); color: var(--yazi); border: 1px solid var(--kenar); font-size: 14px; font-weight: 600; text-decoration: none; }
+.oy-indir:hover { background: var(--yuzey-1); }
+.oy-hata-durum .oy-orta, .oy-hata-durum .oy-cubuk, .oy-hata-durum .oy-sure-cip, .oy-hata-durum .oy-ince, .oy-hata-durum .oy-bekle { display: none; }
+
+/* Çift dokunma dalgası */
+.oy-dalga {
+  position: absolute; z-index: 4; display: grid; place-items: center; width: 96px; height: 96px; margin: -48px 0 0 -48px; border-radius: 50%;
+  background: color-mix(in srgb, var(--yuzey-1) 70%, transparent); color: var(--yazi); font-size: 14px; font-weight: 700; pointer-events: none;
+}
+.oy-dalga[hidden] { display: none; }
+.oy-dalga-ac { animation: oy-dalga 600ms var(--egri-cikis) both; }
+@keyframes oy-dalga { from { transform: scale(.5); opacity: 1; } to { transform: scale(1.25); opacity: 0; } }
+
+/* Dokunmatik: kontroller gizliyken altta 3px ince ilerleme çizgisi */
+.oy-ince { display: none; position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; height: 3px; background: color-mix(in srgb, var(--yazi) 25%, transparent); pointer-events: none; }
+.oy-ince span { display: block; width: var(--oyn, 0%); height: 100%; background: var(--vurgu); }
+
+@media (pointer: coarse) {
+  .oy-orta { visibility: visible; opacity: 1; }
+  .oy-gizli:not(.oy-ilk) .oy-orta { visibility: hidden; opacity: 0; }
+  .oy-ilk .oy-atla { display: none; }
+  .oy-atla { display: grid; }
+  .oy-buyuk { width: 60px; height: 60px; }
+  .oy-cubuk .oy-oynat, .oy-ses-kay, .oy-pip { display: none; } /* oynat ortada; ses kaydırıcısı yok; PiP telefonda yer yer */
+  .oy-dugme, .oy-hiz { min-width: 44px; height: 44px; }
+  .oy-zaman { font-size: 12px; padding: 0 4px; }
+  .oy-ilerleme { margin: 0 6px; }
+  .oy-gizli:not(.oy-ilk) .oy-ince { display: block; }
+  .oy-menu-oge { height: 44px; }
+}
+
+/* Azaltılmış hareket: halka dönmez (sabit yay kalır), dalga animasyonsuz görünüp zamanlayıcıyla kalkar */
+@media (prefers-reduced-motion: reduce) {
+  .oy-bekle, .oy-dalga-ac { animation: none; }
+}
+[data-az-animasyon] .oy-bekle, [data-az-animasyon] .oy-dalga-ac { animation: none; }
+
 /* ---------- +18: gizli kutu, bulanık görünüm, köşe çipi ---------- */
 .ek-gizli {
   display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 12px 14px;

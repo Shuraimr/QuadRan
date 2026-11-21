@@ -7,7 +7,7 @@
 <%- include("partials/ust-cubuk") %>
 <main class="rutbeler-sayfa">
   <%# Telefonda üst çubukta geri yolu yok; kendi profiline dönüş. Tablet/masaüstünde gizli (sol menü/rayda Profil zaten var). Misafirde yok. %>
-  <% if (locals.kullanici) { %><a class="rutbeler-geri" href="/profil/<%= encodeURIComponent(kullanici.username) %>">← Profil</a><% } %>
+  <% if (locals.kullanici) { %><%- include("partials/geri-baslik", { href: "/profil/" + encodeURIComponent(kullanici.username), etiket: "Profil" }) %><% } %>
   <header class="rutbeler-baslik">
     <h1>Rütbeler</h1>
     <p class="ikincil">Puan topladıkça rütben yükselir ve yeni şeyler açılır.</p>

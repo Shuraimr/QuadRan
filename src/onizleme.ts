@@ -65,4 +65,4 @@ onizleme.get("/ayarlar", (req, res) => {
   res.render("ayarlar", { ayar: { username: "shurai", bio: "Bilgisayar programcılığı öğrencisi.", email: "shurai@ornek.com", avatar_url: null, tema: res.locals.tema, vurgu: res.locals.vurgu, menu_sagda: false, kompakt: false, az_animasyon: true }, imzaKilit: kilitBilgisi(res.locals.kullanici, "imza") });
 });
 
-onizleme.get("/404", (req, res) => res.status(404).render("404"));
+onizleme.get("/404", (req, res) => res.status(404).render("durum", { kod: 404 }));

@@ -42,6 +42,17 @@ npm install
 npm run dev                   # http://localhost:3000
 ```
 
+### Nix ile (isteğe bağlı)
+
+`flake.nix` projeye özel bir geliştirme kabuğu tanımlar: Node 22, MySQL istemcisi, ffmpeg, gh, jq. Sistemdeki araçlara dokunmaz; veritabanı yine Docker'da çalışır.
+
+```sh
+nix develop                   # fish için: nix develop -c fish
+nix develop -c npm run dev    # kabuğa girmeden tek komut
+```
+
+[direnv](https://direnv.net) kuruluysa `direnv allow` bir kez çalıştırılır; sonra klasöre girince kabuk kendiliğinden açılır (`.envrc`).
+
 `SESSION_SECRET` için uzun, rastgele bir değer üret:
 
 ```sh

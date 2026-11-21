@@ -15,7 +15,7 @@
   const tkSekmeler = [{ ad: "takipciler", etiket: "Takipçiler", sayi: takipciSayisi }, { ad: "takip-edilenler", etiket: "Takip edilenler", sayi: takipSayisi }];
 %>
 <main class="ara-sayfa">
-  <a class="baglanti" href="<%= tkAdres %>">← <%= profil.username %></a>
+  <%- include("partials/geri-baslik", { href: tkAdres, etiket: "Profil" }) %>
   <nav class="ara-sekmeler" aria-label="Takip listesi">
     <div class="siralama">
       <% for (const s of tkSekmeler) { %>
@@ -25,7 +25,7 @@
   </nav>
 
   <% if (kisiler.length === 0) { %>
-    <div class="kart bos"><%= tur === "takipciler" ? "Henüz takipçisi yok." : "Henüz kimseyi takip etmiyor." %></div>
+    <div class="kart"><%- include("partials/bos-durum", { ikon: "kisiler", baslik: tur === "takipciler" ? "Henüz takipçisi yok" : "Henüz kimseyi takip etmiyor" }) %></div>
   <% } else { %>
     <div class="ara-liste">
       <% for (const u of kisiler) { %>

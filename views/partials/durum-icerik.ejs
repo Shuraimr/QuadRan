@@ -1,0 +1,30 @@
+<%#
+  Durum sayfası gövdesi (404, 403, 429, 500, 503 ve çevrimdışı): ikon kutusu, başlık, açıklama, eylemler.
+  views/durum.ejs ve public/cevrimdisi.html aynı görsel dili kullanır; boş durumlar (partials/bos-durum.ejs) bunun küçük kardeşi.
+  Beklenen veriler:
+  ikon     ikon.ejs adı
+  baslik   başlık
+  metin    açıklama
+  arama    true ise açıklamanın altında arama kutusu (GET /ara, alan q)
+  saniye   429: sunucudan gelen kalan süre; quadran.js data-geri-sayim ile geriye sayar, JS yoksa düz metin kalır
+  eylemler [ { href, etiket, tur: "tonal" | "cerceveli" | "birincil" } ]
+%>
+<section class="durum-govde" aria-labelledby="durum-baslik">
+  <span class="durum-ikon"><%- include("ikon", { ad: ikon, boyut: 24 }) %></span>
+  <h1 class="durum-baslik" id="durum-baslik"><%= baslik %></h1>
+  <p class="durum-metin"><%= metin %></p>
+  <% if (locals.saniye) { %>
+    <%# Geri sayım: sunucu ilk değeri yazar (JS yoksa bu düz metin kalır); quadran.js her saniye günceller ve sıfırda "Yenile" bağlantısını gösterir %>
+    <p class="durum-sayim" data-geri-sayim="<%= saniye %>" role="timer">Tekrar deneyebilmene <strong data-geri-sayim-deger><%= Math.floor(saniye / 60) %>:<%= String(saniye % 60).padStart(2, "0") %></strong> kaldı</p>
+  <% } %>
+  <% if (locals.arama) { %>
+    <form class="durum-arama" method="get" action="/ara" role="search">
+      <label class="alan"><span>Ara</span><input type="search" name="q" placeholder="Konu, kullanıcı ya da kategori ara" autocomplete="off"></label>
+    </form>
+  <% } %>
+  <% if (locals.eylemler && eylemler.length) { %>
+    <div class="durum-eylemler">
+      <% for (const e of eylemler) { %><a class="buton buton-<%= e.tur || 'tonal' %>"<%- e.geriSayimBitti ? " data-geri-sayim-bitti" : "" %> href="<%= e.href %>"><%= e.etiket %></a><% } %>
+    </div>
+  <% } %>
+</section>

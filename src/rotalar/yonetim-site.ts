@@ -164,7 +164,7 @@ yonetimSite.post("/yonetim/duyurular/bildirim", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Kayıt ve erişim (admin): kayıtlar açık mı
+// Kayıt ve erişim (admin): kayıtlar açık mı + bakım modu (sql/24)
 // ---------------------------------------------------------------------------
 yonetimSite.use("/yonetim/kayit-erisim", sadeceAdmin);
 
@@ -176,9 +176,17 @@ yonetimSite.get("/yonetim/kayit-erisim", async (req, res) => {
 yonetimSite.post("/yonetim/kayit-erisim", async (req, res) => {
   const eski = await ayarlar();
   const kayitAcik = !!req.body.kayit_acik; // işaretsiz checkbox hiç gönderilmez
+  // Bakım modu: aynı formdan gelir. Metin kısa tutulur (bakım sayfasında tek satır olarak görünür).
+  const bakimModu = !!req.body.bakim_modu;
+  const bakimMetni = metin(req.body.bakim_metni);
+  if (bakimMetni.length > 200) { bildir(req, "hata", "Bakım metni en fazla 200 karakter olabilir."); return res.redirect("/yonetim/kayit-erisim"); }
   await ayarYaz("kayit_acik", kayitAcik ? "1" : "0", res.locals.kullanici.id);
+  await ayarYaz("bakim_modu", bakimModu ? "1" : "0", res.locals.kullanici.id);
+  await ayarYaz("bakim_metni", bakimMetni, res.locals.kullanici.id);
   ayarOnbellekTemizle();
-  await denetim(req, res, "ayar.kayit", "ayar", null, { kayit_acik: [eski.kayitAcik, kayitAcik] });
-  bildir(req, "basari", kayitAcik ? "Yeni kayıtlara açıldı." : "Yeni kayıtlar kapatıldı.");
+  // Her değişen ayar kendi denetim kaydını alır (bakım modu kritik: kim ne zaman açtı/kapattı görünsün)
+  if (eski.kayitAcik !== kayitAcik) await denetim(req, res, "ayar.kayit", "ayar", null, { kayit_acik: [eski.kayitAcik, kayitAcik] });
+  if (eski.bakimModu !== bakimModu || eski.bakimMetni !== bakimMetni) await denetim(req, res, "ayar.bakim", "ayar", null, { bakim_modu: [eski.bakimModu, bakimModu], metin: bakimMetni });
+  bildir(req, "basari", bakimModu && !eski.bakimModu ? "Bakım modu açıldı: yetkililer dışındakiler 503 bakım sayfasını görüyor." : "Ayarlar kaydedildi.");
   res.redirect("/yonetim/kayit-erisim");
 });

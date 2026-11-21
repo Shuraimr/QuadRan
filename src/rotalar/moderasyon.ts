@@ -7,7 +7,7 @@ import express from "express";
 import { pool } from "../db.ts";
 import { bildir, girisGerekli, yetkiliGerekli, geriAdres, sayi } from "../yardimci.ts";
 import { denetim } from "../denetim.ts";
-import { mesajiSil, banla } from "../islemler.ts";
+import { mesajiSil } from "../islemler.ts";
 import { hedefOnizleme, sikayetIslemi } from "../sikayet.ts";
 
 export const moderasyon = express.Router();
@@ -183,15 +183,5 @@ moderasyon.post("/moderasyon/sil", async (req, res) => {
   res.redirect(silinen.ilk_mi ? "/" : geriAdres(req, `/konu/${silinen.topic_id}`));
 });
 
-// Mesaj menüsünden: post_id'nin yazarı uzaklaştırılır (kalıcı). Süreli ban için yönetim panelindeki kullanıcı sayfası var.
-moderasyon.post("/moderasyon/uzaklastir", async (req, res) => {
-  const { postId } = await hedefiBul(req);
-  const geri = geriAdres(req, "/");
-  const [satirlar]: any = postId ? await pool.query("SELECT user_id FROM posts WHERE id = ?", [postId]) : [[]];
-  if (!satirlar[0]) { bildir(req, "hata", "Mesaj bulunamadı."); return res.redirect(geri); }
-  const sebep = "Moderasyon menüsünden uzaklaştırıldı";
-  const sonuc = await banla(res.locals.kullanici, satirlar[0].user_id, "kalici", sebep);
-  if (!sonuc.hata) await denetim(req, res, "kullanici.ban", "kullanici", satirlar[0].user_id, { sure: sonuc.etiket, sebep, kaynak: "moderasyon menüsü", mesaj: postId });
-  bildir(req, sonuc.hata ? "hata" : "basari", sonuc.hata ?? `${sonuc.hedef!.username} uzaklaştırıldı.`);
-  res.redirect(geri);
-});
+// Mesaj menüsündeki "Uzaklaştır…" artık bir form değil: üye kartının Yaptırımlar sekmesine gider
+// (/yonetim/uyeler/:id?sekme=yaptirim). Orada süre + zorunlu sebep sorulur, kaldırma ve geçmiş de aynı yerde.

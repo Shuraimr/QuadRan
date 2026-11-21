@@ -50,7 +50,7 @@
           <% } %>
           <% if (yetkili_) { %>
             <button class="ikon-dugme moderasyon-dugmesi" type="button" popovertarget="moderasyon-menusu-<%= ilk.id %>" data-menu-ac aria-label="Moderasyon işlemleri"><%- include("partials/ikon", { ad: "daha", boyut: 20 }) %></button>
-            <%- include("partials/moderasyon-menusu", { post_id: ilk.id, topic_id: konu.id, sahibi: sahibi_ }) %>
+            <%- include("partials/moderasyon-menusu", { post_id: ilk.id, yazar_id: ilk.user_id, topic_id: konu.id, sahibi: sahibi_ }) %>
           <% } %>
         </div>
       <% } %>

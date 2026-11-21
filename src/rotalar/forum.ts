@@ -1,7 +1,7 @@
 // Forum: akış (/), konu sayfası, konu açma, cevap, oy, profil, arama, sıralama, şikâyet.
 import express from "express";
 import { pool } from "../db.ts";
-import { cevapYazma, ekliCevap } from "../hiz-siniri.ts";
+import { cevapYazma, ekliCevap, aramaHizi } from "../hiz-siniri.ts";
 import { ekliCevapKatmani, ekGirdisi, ekleriIsle, taslakKaydet, type EkDosyasi } from "../ekler.ts";
 import { jsonIstiyor, dosyaSil, GorselHatasi } from "../yukleme.ts";
 import { premiumMu } from "../premium.ts";
@@ -10,7 +10,7 @@ import { SEBEPLER, sebepHatasi } from "../sikayet.ts";
 import { engelle, mesajDurumu } from "../gizlilik.ts";
 import {
   rutbeSutunlari, avatarSutunlari, profilGorunumSutunlari, skorSql, puanEkle, tavanliPuanEkle, cozumPuaniGeriAl, rutbeKontrol, bildirimGonder, rozetVer, bildir, kisalt,
-  girisGerekli, geriAdres, sayi, metin,
+  girisGerekli, geriAdres, sayi, metin, durumSayfasi,
 } from "../yardimci.ts";
 import {
   rutbeler, rutbeBul, sonrakiRutbe, acilanlar, gunlukOyHakki, sinirsizOyRutbesi, yetkiliMi, izinli, kilitBilgisi,
@@ -113,7 +113,13 @@ forum.get("/", async (req, res) => {
       FROM users WHERE users.deleted_at IS NULL
      ORDER BY users.points DESC, users.username LIMIT 3`);
 
-  res.render("konular", { konular, kategoriler, sohbet, liderler, kategoriId, sirala, takipAkisi, aktifMenu: "akis" });
+  // Takip akışı boşsa iki ayrı durum var: hiç kimseyi takip etmiyor (Keşfet'e yönlendir) ya da takip ettikleri henüz konu açmamış
+  let takipEdilen = 0;
+  if (takipAkisi && konular.length === 0) {
+    const [[t]]: any = await pool.query("SELECT COUNT(*) AS n FROM user_follows WHERE follower_id = ?", [res.locals.kullanici.id]);
+    takipEdilen = Number(t.n);
+  }
+  res.render("konular", { konular, kategoriler, sohbet, liderler, kategoriId, sirala, takipAkisi, takipEdilen, aktifMenu: "akis" });
 });
 
 // ---------------------------------------------------------------------------
@@ -222,7 +228,7 @@ async function profilSabitle(req: express.Request, res: express.Response, next: 
   const k = res.locals.kullanici;
   const [[konu]]: any = await pool.query("SELECT id, user_id FROM topics WHERE id = ? AND deleted_at IS NULL", [id]);
   if (!konu) return next();
-  if (konu.user_id !== k.id) return res.status(403).send("Bu konu senin değil.");
+  if (konu.user_id !== k.id) return durumSayfasi(req, res, 403, { metin: "Bu konu sana ait değil, o yüzden profiline sabitleyemezsin." });
   if (sabitle) {
     await pool.query("UPDATE users SET sabit_konu_id = ? WHERE id = ?", [id, k.id]);
     bildir(req, "basari", "Konu profiline sabitlendi");
@@ -826,6 +832,11 @@ forum.get("/ara", async (req, res) => {
   const q = metin(req.query.q).slice(0, 100);
   const sekme = ["konular", "kullanicilar", "kategoriler"].includes(req.query.sekme as string) ? (req.query.sekme as string) : "konular";
   if (!q) return res.render("ara", { q, sekme, aktifMenu: "ara" });
+  // Hız sınırı yalnızca gerçek aramada (q dolu): boş /ara sayfası bedava. Giriş yapmışta kullanıcıya, misafirde IP'ye bakılır.
+  const aramaAnahtari = res.locals.kullanici ? "u" + res.locals.kullanici.id : "ip" + req.ip;
+  const bekleme = aramaHizi.kalanSaniye(aramaAnahtari);
+  if (bekleme) return durumSayfasi(req, res, 429, { saniye: bekleme });
+  aramaHizi.say(aramaAnahtari);
 
   const desen = likeKac(q);
   const konuKosulu = `topics.title LIKE ? OR EXISTS (

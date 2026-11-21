@@ -3,7 +3,7 @@
 <%- include("partials/ust-cubuk") %>
 <main class="yakut-sayfa yakut-tek">
   <header class="yakut-baslik">
-    <a class="rutbeler-geri yakut-geri" href="/yakut">← Yakut</a>
+    <%- include("partials/geri-baslik", { href: "/yakut", etiket: "Yakut" }) %>
     <h1>Hareketler</h1>
     <p class="ikincil">Yakut bakiyendeki her artış ve azalış burada durur. Toplam <%= yakutYaz(toplam) %> hareket.</p>
   </header>
@@ -12,7 +12,9 @@
   </nav>
   <section class="kart yakut-hareket-tam">
     <% if (!hareketler.length) { %>
-      <p class="ikincil yakut-bos"><%= f === "tumu" ? "Henüz yakut hareketin yok. Her gün giriş yaparak ve rütbe harçlığınla bakiye birikir." : f === "kazanilan" ? "Henüz kazandığın yakut yok." : "Henüz yakut harcamadın." %></p>
+      <%- include("partials/bos-durum", f === "tumu"
+        ? { ikon: "elmas", baslik: "Henüz yakut hareketin yok", metin: "Her gün giriş yaparak ve rütbe harçlığınla bakiye birikir." }
+        : f === "kazanilan" ? { ikon: "elmas", baslik: "Henüz kazandığın yakut yok" } : { ikon: "elmas", baslik: "Henüz yakut harcamadın" }) %>
     <% } %>
     <ul class="yakut-hareket-liste">
       <% for (const h of hareketler) { %>

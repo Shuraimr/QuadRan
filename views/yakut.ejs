@@ -10,6 +10,8 @@
 <% const bak_ = kullanici.yakut || 0, tr_ = (n) => Number(n).toLocaleString("tr-TR"); %>
 <main class="yakut-sayfa">
   <header class="yakut-baslik">
+    <%# Yakut'a Profil sayfasından gelinir; hesap menüsü popover olduğu için geri = kişinin kendi profili %>
+    <%- include("partials/geri-baslik", { href: "/profil/" + encodeURIComponent(kullanici.username), etiket: "Profil" }) %>
     <h1>Yakut</h1>
     <p class="ikincil">Yakutlarını unvan, süs ve efekte harca. Aldıkların profilinde ve yorumlarında görünür.</p>
   </header>

@@ -99,7 +99,7 @@
                 <% if (s.tur === "sohbet_mesaji") { %><span class="cip-cerceveli">Genel sohbet</span><% } %>
                 <% if (s.tur === "ozel_mesaj") { %><span class="cip-cerceveli">Özel mesaj → <%= h.alici %></span><% } %>
                 <% if (s.tur === "oda_mesaji") { %><span class="cip-cerceveli">Oda: <%= h.oda %></span><% } %>
-                <span class="zaman">· <%= zaman(h.tarih) %></span>
+                <%# Zaman ayraçsız (gonderi-karti.ejs ile aynı neden): satır kırılınca başta tek "·" kalmasın %><span class="zaman"><%= zaman(h.tarih) %></span>
               </div>
               <% if (s.tur === "ozel_mesaj" || s.tur === "oda_mesaji") { %>
                 <%# GİZLİLİK: özel mesajın yalnızca şikâyet edilen kısmı ve çevresindeki birkaç mesaj gösterilir, konuşmanın tamamı değil %>

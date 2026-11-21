@@ -1,9 +1,15 @@
-<%# Kayıt ve erişim (admin): a { kayitAcik }. POST /yonetim/kayit-erisim alan: kayit_acik %>
+<%# Kayıt ve erişim (admin): a { kayitAcik, bakimModu, bakimMetni }. POST /yonetim/kayit-erisim alanlar: kayit_acik, bakim_modu, bakim_metni %>
 <%- include("duzen-ust", { baslik: "Kayıt ve erişim", aktif: "kayit-erisim" }) %>
 <form class="kart yn-kart yn-form" method="post" action="/yonetim/kayit-erisim"><%- include("csrf") %>
   <h3>Kayıt</h3>
   <label class="onay"><input type="checkbox" name="kayit_acik" value="1"<%= a.kayitAcik ? " checked" : "" %>> Yeni kayıtlara açık</label>
   <p class="ikincil kucuk">Kapalıyken /kayit sayfası “kayıtlar kapalı” der ve doğrudan gönderilen formlar da reddedilir. Mevcut üyelerin girişi etkilenmez.</p>
+  <h3>Bakım modu</h3>
+  <label class="onay"><input type="checkbox" name="bakim_modu" value="1"<%= a.bakimModu ? " checked" : "" %>> Bakım modunu aç</label>
+  <label class="yn-etiketli">Bakım sayfasındaki not
+    <input class="yn-girdi" type="text" name="bakim_metni" maxlength="200" value="<%= a.bakimMetni %>" placeholder="Tahmini bitiş: 14:30">
+  </label>
+  <p class="ikincil kucuk">Açıkken yönetici ve moderatörler siteyi normal kullanır (üstte “Bakım modu açık” şeridi görürler); diğer herkes ve misafirler “Kısa bir bakımdayız” sayfasını görür. Giriş sayfası açık kalır, böylece yetkililer oturum açabilir.</p>
   <button class="buton buton-birincil">Kaydet</button>
 </form>
 <%- include("duzen-alt") %>

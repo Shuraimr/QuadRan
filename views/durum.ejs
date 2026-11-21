@@ -1,0 +1,36 @@
+<%#
+  Ortak durum sayfası: 403, 404, 429, 500, 503 (Figma "09 · Hata ve durum sayfaları"). Çizen: durumSayfasi() (src/yardimci.ts), server.ts 404/hata işleyicileri.
+  Beklenen veriler:
+  kod     403 | 404 | 429 | 500 | 503
+  metin   (isteğe bağlı) varsayılan açıklamanın yerine geçer; 503'te bakım notu da buradan gelir
+  saniye  (yalnızca 429) kalan süre
+  sade    (isteğe bağlı) true ise menüsüz çizilir; 503 her zaman menüsüz, 500'de ortak veriler hazırlanamadıysa (veritabanı hatası) da menüsüz
+  Normal sayfalar site düzeniyle (üst çubuk + menüler) çizilir ki kişi kaybolmasın; bakım sayfasında menü anlamsız (giremezsin), sade kalır.
+%>
+<%
+  const AKISA = { href: "/", etiket: "Akışa dön", tur: "tonal" };
+  const DURUMLAR = {
+    404: { ikon: "pusula", baslik: "Bu sayfa bulunamadı", metin: "Adres değişmiş ya da sayfa kaldırılmış olabilir. Aradığın şeyi aşağıdan bulabilirsin.", arama: true, eylemler: [{ href: "/", etiket: "Akışa dön", tur: "cerceveli" }] },
+    403: { ikon: "kilit", baslik: "Bu sayfaya erişimin yok", metin: "Bu bölüm yalnızca yetkili hesaplara açık.", eylemler: [AKISA] },
+    429: { ikon: "kumsaati", baslik: "Biraz yavaşla", metin: "Kısa sürede çok fazla istek geldi. Az sonra kaldığın yerden devam edebilirsin.",
+           eylemler: [{ href: locals.yenileAdresi || "/", etiket: "Şimdi tekrar dene", tur: "birincil", geriSayimBitti: true }, AKISA] },
+    500: { ikon: "uyari", baslik: "Bir şeyler ters gitti", metin: "Sayfa yüklenemedi. Sorun bizde; birkaç saniye sonra tekrar dene.", eylemler: [{ href: locals.yenileAdresi || "/", etiket: "Sayfayı yenile", tur: "birincil" }, AKISA] },
+    503: { ikon: "anahtar", baslik: "Kısa bir bakımdayız", metin: "Site güncelleniyor.", eylemler: [{ href: "/giris", etiket: "Yetkili girişi", tur: "cerceveli" }] },
+  };
+  const d = Object.assign({}, DURUMLAR[kod] || DURUMLAR[500]);
+  if (locals.metin) d.metin = kod === 503 ? "Site güncelleniyor. " + metin : metin;
+  const menusuz = kod === 503 || !!locals.sade;
+%>
+<%- include("partials/bas", { sade: menusuz, baslik: d.baslik }) %>
+<% if (menusuz) { %>
+  <div class="orta-sayfa">
+    <a class="logo" href="/"><span class="logo-isaret">Q</span><span class="logo-yazi">QuadRan</span></a>
+    <%- include("partials/durum-icerik", Object.assign({}, d, { saniye: locals.saniye })) %>
+  </div>
+<% } else { %>
+  <%- include("partials/ust-cubuk") %>
+  <main class="durum-sayfa">
+    <%- include("partials/durum-icerik", Object.assign({}, d, { saniye: locals.saniye })) %>
+  </main>
+<% } %>
+<%- include("partials/son", { sade: menusuz }) %>

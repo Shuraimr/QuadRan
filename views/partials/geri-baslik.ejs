@@ -1,0 +1,6 @@
+<%#
+  Telefonda içerik başındaki "← Hedef" geri satırı (≤800px; tablet ve masaüstünde CSS ile gizli, orada sol menü/ray var).
+  Alt menüde yeri olmayan alt sayfalarda kişi nereden geldiğini bulsun diye tek tip kullanılır (≥44px dokunma hedefi).
+  Beklenen veriler: href (hedef adres), etiket (hedef adı: "Profil", "Ayarlar", "Keşfet"...)
+%>
+<a class="geri-baslik" href="<%= href %>"><%- include("ikon", { ad: "sol", boyut: 20 }) %><span><%= etiket %></span></a>

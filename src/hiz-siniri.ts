@@ -27,6 +27,13 @@ export class HizSiniri {
     return Math.ceil((k.bitis - Date.now()) / 60_000);
   }
 
+  // Aynı bilgi saniye olarak (429 sayfasındaki geri sayım için; yoksa 0)
+  kalanSaniye(anahtar: string): number {
+    const k = this.kayitlar.get(anahtar);
+    if (!k || k.bitis <= Date.now() || k.sayi < this.limit) return 0;
+    return Math.ceil((k.bitis - Date.now()) / 1000);
+  }
+
   // Bir deneme say. Pencere ilk denemeyle başlar ve süre dolunca sıfırlanır.
   say(anahtar: string) {
     const simdi = Date.now();
@@ -68,3 +75,6 @@ export const yakutHarcama = new HizSiniri(12, 1);
 // Ekli cevap (fotoğraf/video, src/ekler.ts): aynı kullanıcıdan 10 dakikada en çok 6 ekli gönderi (sharp işlemi pahalı, disk dolmasın).
 // cevapYazma sayacından ayrı: normal cevap yazmayı etkilemez. Yetkililer muaf.
 export const ekliCevap = new HizSiniri(6, 10);
+// Arama (GET /ara): aynı IP'den (girişliyse kullanıcıdan) dakikada en çok 30 arama. LIKE ile üç tabloyu tarayan en pahalı
+// sayfa; betikle art arda sorgulanıp veritabanı yorulmasın. Aşılırsa 429 durum sayfası (views/durum.ejs) görünür.
+export const aramaHizi = new HizSiniri(30, 1);

@@ -136,7 +136,7 @@
         // 'oy' satırı işarete göre ayrılır: artı = yazarın mesajına artı oy verildi (ya da eksi oyu geri alındı), eksi = eksi oy ya da geri alınan oy
         const sebepAd = (p) => p.sebep === "oy" ? (p.miktar > 0 ? "Mesajına artı oy verildi" : "Eksi oy ya da geri alınan oy") : (sebepMetni[p.sebep] || p.sebep);
       %>
-      <% if (puanGecmisi.length === 0) { %><div class="kart bos">Henüz puan hareketi yok.</div><% } else { %>
+      <% if (puanGecmisi.length === 0) { %><div class="kart"><%- include("partials/bos-durum", { ikon: "yildiz", baslik: "Henüz puan hareketin yok", metin: "Konu açtıkça, cevap yazdıkça ve her gün giriş yaptıkça puan kazanırsın." }) %></div><% } else { %>
         <div class="kart puan-gecmisi">
           <% for (const p of puanGecmisi) { %>
             <% const eski = p.sebep === "baslangic"; /* puan geçmişi tutulmadan önceki toplam: tarihi bilinmiyor, bağlantısı yok */ %>
@@ -165,7 +165,7 @@
         const etkinlikIkon = { konu: "kalem", cevap: "yorum", rozet: "kupa", takip: "kisi" };
         const etkinlikler_ = locals.etkinlikler || [];
       %>
-      <% if (etkinlikler_.length === 0) { %><div class="kart bos">Henüz etkinlik yok.</div><% } else { %>
+      <% if (etkinlikler_.length === 0) { %><div class="kart"><%- include("partials/bos-durum", { ikon: "kutu", baslik: kendisi ? "Henüz etkinliğin yok" : "Henüz etkinlik yok" }) %></div><% } else { %>
         <div class="kart puan-gecmisi">
           <% for (const e of etkinlikler_) { %>
             <div class="puan-satir etkinlik-satir">
@@ -182,18 +182,18 @@
         </div>
       <% } %>
     <% } else if (sekme === "yorumlar") { %>
-      <% if (yorumlar.length === 0) { %><div class="kart bos">Henüz yorum yazmamış.</div><% } %>
+      <% if (yorumlar.length === 0) { %><div class="kart"><%- include("partials/bos-durum", { ikon: "yorum", baslik: kendisi ? "Henüz yorum yazmadın" : "Henüz yorum yazmamış" }) %></div><% } %>
       <% for (const y of yorumlar) { %>
         <article class="kart profil-yorum">
           <div class="gonderi-meta">
             <a class="baglanti" href="/konu/<%= y.konu_id %>#mesaj-<%= y.id %>"><%= y.konu_baslik %></a>
-            <span class="zaman">· <%= zaman(y.created_at) %></span>
+            <%# Zaman ayraçsız: satır kırılınca başta tek "·" kalıyordu; aradaki boşluk (gap) yeterli %><span class="zaman"><%= zaman(y.created_at) %></span>
           </div>
           <p class="metin"><%= y.content %></p>
         </article>
       <% } %>
     <% } else { %>
-      <% if (konular.length === 0) { %><div class="kart bos">Henüz konu açmamış.</div><% } %>
+      <% if (konular.length === 0) { %><div class="kart"><%- include("partials/bos-durum", { ikon: "kalem", baslik: kendisi ? "Henüz konu açmadın" : "Henüz konu açmamış", eylem: kendisi ? { href: "/konu/yeni", etiket: "Konu aç" } : null }) %></div><% } %>
       <% for (const konu of konular) { %>
         <%- include("partials/gonderi-karti", { konu }) %>
       <% } %>

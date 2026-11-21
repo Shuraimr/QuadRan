@@ -19,3 +19,7 @@ yuklemeler/
 
 # Reddedilen yakut illüstrasyonları (büyük PNG; yalnızca yerelde, seçilen B3 simgesi yakut-b3.svg depoda)
 docs/tasarim-kaynak/yakut/*.png
+
+# Nix / direnv önbelleği
+.direnv/
+result

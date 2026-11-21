@@ -9,7 +9,7 @@
 // Menüde bir öğeyi gizlemek yetmez, her yalnızca-admin route'ta sadeceAdmin da var.
 import express from "express";
 import { pool } from "../db.ts";
-import { girisGerekli, banliSql, metin, sayi, likeKac } from "../yardimci.ts";
+import { girisGerekli, banliSql, metin, sayi, likeKac, durumSayfasi } from "../yardimci.ts";
 import { EYLEM_ETIKETLERI } from "../denetim.ts";
 import { hedefOnizleme, TUR_ETIKET } from "../sikayet.ts";
 import { sayfala, tarihFiltresi, menuKur, kalanSure } from "./yonetim-ortak.ts";
@@ -23,7 +23,7 @@ export const yonetim = express.Router();
 
 yonetim.use("/yonetim", girisGerekli("Yönetim paneli için giriş yapman gerekiyor."), async (req, res, next) => {
   const rol = res.locals.kullanici?.rol;
-  if (!["admin", "moderator"].includes(rol)) return res.status(403).render("yonetim/yasak", {});
+  if (!["admin", "moderator"].includes(rol)) return durumSayfasi(req, res, 403, { metin: "Yönetim paneli yalnızca moderatörlere ve yöneticilere açık." });
   // Kenar çubuğundaki bekleyen şikâyet sayısı (oturum.ts staff için zaten hesapladı)
   const bekleyen = res.locals.bekleyenSikayet ?? 0;
   res.locals.bekleyenSikayet = bekleyen;

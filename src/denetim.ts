@@ -61,6 +61,7 @@ export const EYLEM_ETIKETLERI: Record<string, string> = {
   "unvan.duzenle": "Unvan düzenlendi",
   "ayar.duyuru": "Duyuru şeridi güncellendi",
   "ayar.kayit": "Kayıt ayarı değiştirildi",
+  "ayar.bakim": "Bakım modu değiştirildi",
   "oda.kapat": "Oda kapatıldı",
   "oda.ac": "Oda yeniden açıldı",
   "ayar.oda": "Oda ayarları güncellendi",

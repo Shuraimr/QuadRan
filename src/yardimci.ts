@@ -317,11 +317,21 @@ export function girisGerekli(not = "Bu işlem için giriş yapman gerekiyor.") {
   };
 }
 
+// Ortak durum sayfaları (views/durum.ejs: 403, 404, 429, 500, 503). Tarayıcıya sayfa, JSON isteyene (fetch) JSON döner;
+// böylece düz metin "Forbidden" gibi cevaplar kalmaz ve kişi her zaman site düzeniyle (menüler) karşılaşıp kaybolmaz.
+export function durumSayfasi(req: Request, res: Response, kod: 403 | 404 | 429 | 500 | 503, secenek: { metin?: string; saniye?: number } = {}) {
+  res.status(kod);
+  if (kod === 429 && secenek.saniye) res.setHeader("Retry-After", String(secenek.saniye));
+  if (String(req.get("accept") ?? "").includes("application/json")) return res.json({ hata: secenek.metin ?? ({ 403: "Bu işlem için yetkin yok.", 404: "Bulunamadı.", 429: "Çok fazla istek geldi.", 500: "Sunucu hatası.", 503: "Site bakımda." } as const)[kod] });
+  // "Tekrar dene/yenile" bağlantısı aynı adrese döner; yalnızca GET'te anlamlı (POST'u bağlantıyla tekrarlayamayız) ve yalnızca site içi yol
+  return res.render("durum", { kod, yenileAdresi: req.method === "GET" ? yerelAdres(req.originalUrl) : "/", ...secenek });
+}
+
 // Moderatör ve admin dışındakiler için 403
 export function yetkiliGerekli(req: Request, res: Response, next: NextFunction) {
   if (["admin", "moderator"].includes(res.locals.kullanici?.rol)) return next();
+  if (req.method === "GET") return void durumSayfasi(req, res, 403, { metin: "Bu bölüm yalnızca yetkili hesaplara açık." });
   res.status(403);
-  if (req.method === "GET") return next(); // moderasyon.ejs "erişimin yok" kutusunu kendisi çizer
   bildir(req, "hata", "Bu işlem için yetkin yok.");
   res.redirect(geriAdres(req));
 }

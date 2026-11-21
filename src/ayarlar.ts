@@ -10,6 +10,8 @@ import { bildir, geriAdres } from "./yardimci.ts";
 
 export type SiteAyarlari = {
   kayitAcik: boolean;
+  bakimModu: boolean;  // sql/24: açıkken yalnızca yetkililer siteyi kullanır, diğerleri 503 bakım sayfasını görür
+  bakimMetni: string;  // bakım sayfasında "Site güncelleniyor." yanına yazılır (örn. "Tahmini bitiş: 14:30")
   duyuru: string;
   duyuruTur: "info" | "uyari";
   duyuruSurum: string;
@@ -65,6 +67,8 @@ export async function ayarlar(): Promise<SiteAyarlari> {
   for (const s of satirlar) h[s.anahtar] = s.deger;
   const veri: SiteAyarlari = {
     kayitAcik: (h.kayit_acik ?? "1") === "1",
+    bakimModu: (h.bakim_modu ?? "0") === "1",
+    bakimMetni: h.bakim_metni ?? "",
     duyuru: h.duyuru ?? "",
     duyuruTur: h.duyuru_tur === "uyari" ? "uyari" : "info",
     duyuruSurum: h.duyuru_surum ?? "0",

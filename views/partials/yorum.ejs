@@ -41,7 +41,7 @@
         <% } %>
         <% if (yetkili_) { %>
           <hr class="acilir-ayirici">
-          <%- include("moderasyon-menusu", { post_id: mesaj.id, topic_id: locals.konu ? konu.id : "", satirIci: true, ekVar: !!(mesaj.ekler && mesaj.ekler.length), nsfwMi: !!(mesaj.ekler && mesaj.ekler[0] && mesaj.ekler[0].nsfw) }) %>
+          <%- include("moderasyon-menusu", { post_id: mesaj.id, yazar_id: mesaj.user_id, topic_id: locals.konu ? konu.id : "", satirIci: true, ekVar: !!(mesaj.ekler && mesaj.ekler.length), nsfwMi: !!(mesaj.ekler && mesaj.ekler[0] && mesaj.ekler[0].nsfw) }) %>
         <% } %>
       </div>
     </div>

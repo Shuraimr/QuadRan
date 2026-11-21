@@ -1,6 +1,7 @@
 import { SEBEP_LISTESI } from "./sikayet.ts";
 import { belirtme } from "./gizlilik.ts";
-import { bulunmaEki } from "./yardimci.ts";
+import { bulunmaEki, durumSayfasi, yerelAdres } from "./yardimci.ts";
+import { ayarlar } from "./ayarlar.ts";
 import { rutbeBulId, icerikHtml, baglantiKartlari, disBaglantiHtml, cikisAdresi, rutbeCizimiBaslat, rutbeTazele } from "./rutbe.ts";
 import express from "express";
 import { oturum, ortakVeriler, csrfKoru } from "./oturum.ts";
@@ -74,6 +75,12 @@ app.use("/yuklemeler", express.static("yuklemeler", {
   setHeaders: (res) => { res.setHeader("X-Content-Type-Options", "nosniff"); },
 }));
 
+// Çevrimdışı sayfası (public/cevrimdisi.html): service worker (public/sw.js) bunu önbelleğe alır, ağ yokken gösterir.
+// Adresi uzantısız tutmak için ayrı rota; no-cache: sunucudaki hâli değişince worker güncel kopyayı alsın.
+app.get("/cevrimdisi", (req, res) => {
+  res.setHeader("Cache-Control", "no-cache");
+  res.sendFile("cevrimdisi.html", { root: "public" });
+});
 // Form gövdelerini (application/x-www-form-urlencoded) req.body'ye çevirir
 app.use(express.urlencoded({ extended: false }));
 // Oturum + her sayfada gereken ortak veriler (giriş yapan kullanıcı, bildirim sayıları...)
@@ -105,6 +112,19 @@ app.use((req, res, next) => {
     }));
   };
   next();
+});
+
+// Bakım modu (sql/24, panel: Kayıt ve erişim): açıkken yetkililer siteyi normal kullanır (üstte "Bakım modu açık" şeridi,
+// partials/duyuru.ejs), diğer herkes 503 bakım sayfasını görür. Oturum ve kullanıcı bilgisi ortakVeriler'de hazır olduğu için
+// buraya konuldu. Açık kalanlar: /giris (yetkili girebilsin), /cikis (oturum kapatılabilsin), /cevrimdisi (service worker sayfası);
+// statik dosyalar (/css, /js, /sw.js) zaten daha yukarıda sunuluyor, bakım sayfası da bunlara muhtaç.
+app.use(async (req, res, next) => {
+  const site = await ayarlar();
+  if (!site.bakimModu) return next();
+  if (["admin", "moderator"].includes(res.locals.kullanici?.rol)) { res.locals.bakimSeridi = true; return next(); }
+  if (["/giris", "/cikis"].includes(req.path)) return next();
+  res.setHeader("Retry-After", "600");
+  durumSayfasi(req, res, 503, { metin: site.bakimMetni || undefined });
 });
 
 // Gerçek sayfalar
@@ -157,13 +177,22 @@ app.locals.zaman = (tarih: Date) => {
 
 // Hiçbir adres eşleşmezse 404 sayfası
 app.use((req, res) => {
-  res.status(404).render("404");
+  durumSayfasi(req, res, 404);
 });
 
 // Beklenmeyen hata: sunucu çökmez, kullanıcıya kısa bir mesaj gider, ayrıntı konsola yazılır
 app.use((hata: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // Ayrıntı yalnızca konsola gider; kullanıcıya ortak 500 sayfası gösterilir (hata iletisi sızmaz).
   console.error(hata);
-  res.status(500).send("Bir şeyler ters gitti. Konsoldaki hataya bak.");
+  if (res.headersSent) return next(hata); // yanıt yarıda kaldıysa Express bağlantıyı kapatsın
+  res.status(500);
+  if (String(req.get("accept") ?? "").includes("application/json")) return void res.json({ hata: "Sunucu hatası." });
+  // Hata ortakVeriler'de (ör. veritabanı kapalı) çıktıysa menü verileri yok: menüsüz (sade) çizilir.
+  // Sayfa çizilirken de hata olursa (callback'e düşer) düz metne dönülür: işleyicinin kendi hatası sonsuz döngü yapmaz.
+  res.render("durum", { kod: 500, sade: !res.locals.menuKategoriler, yenileAdresi: req.method === "GET" ? yerelAdres(req.originalUrl) : "/" }, (h2: Error | null, html?: string) => {
+    if (h2) { console.error("[500 sayfası çizilemedi]", h2); return void res.type("text/plain").send("Bir şeyler ters gitti. Birkaç saniye sonra tekrar dene."); }
+    res.send(html);
+  });
 });
 
 app.listen(PORT, () => {

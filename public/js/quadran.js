@@ -759,6 +759,16 @@
     var soru = f && f.getAttribute ? f.getAttribute("data-onay") : null;
     if (soru && !window.confirm(soru)) e.preventDefault();
   });
+  /* Çift gönderim koruması: telefonda iki kez dokunmak ya da yavaş bağlantıda düğmeye yeniden basmak aynı POST'u
+     iki kez yollayabiliyor (işlem kaydına aynı uzaklaştırma iki satır düştü). Aynı form 4 sn içinde yeniden gönderilmez.
+     Süre sınırı olduğu için "geri" ile dönülen sayfada form yine çalışır; onay sorusu iptal edildiyse (defaultPrevented) sayılmaz. */
+  d.addEventListener("submit", function (e) {
+    var f = e.target;
+    if (e.defaultPrevented || !f || (f.getAttribute("method") || "").toLowerCase() !== "post") return;
+    var simdi = Date.now(), son = Number(f.getAttribute("data-gonderildi") || 0);
+    if (simdi - son < 4000) { e.preventDefault(); return; }
+    f.setAttribute("data-gonderildi", String(simdi));
+  });
   /* Yönetim › İçerik "Hepsini seç" kutusu: görünen sayfadaki bütün onay kutularını işaretler (JS yoksa tek tek seçilir).
      Eskiden şablonda satır içi <script> idi; CSP satır içi betiği yasakladığı için buraya taşındı. */
   hepsi("[data-hepsini-sec]").forEach(function (k) {
@@ -1317,6 +1327,341 @@
     var kb = bul(".gor-kapat", gor); if (kb) kb.focus();
   });
 
+  /* ---------- Özel video oynatıcı (yorum ekleri, Figma 15) ----------
+     Aşamalı geliştirme: şablondaki <video controls> JS'siz aynen çalışır. Burada `controls` kaldırılır ve kendi arayüzümüz eklenir.
+     Durum sınıfları kutuda durur (CSS bunlara bakar): oy-ilk (hiç oynatılmadı), oy-gizli (kontroller saklı), oy-bekliyor, oy-hata-durum, oy-tam. */
+  var OY_IKON_BAS = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  var OY_HOPARLOR = '<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/>';
+  var OY_IKON = {
+    oynat: OY_IKON_BAS + '<polygon points="6 3 20 12 6 21 6 3" fill="currentColor"/></svg>',
+    duraklat: OY_IKON_BAS + '<rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/></svg>',
+    ses: OY_IKON_BAS + OY_HOPARLOR + '<path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/></svg>',
+    sessiz: OY_IKON_BAS + OY_HOPARLOR + '<line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></svg>',
+    tam: OY_IKON_BAS + '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
+    tamCik: OY_IKON_BAS + '<path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>',
+    pip: OY_IKON_BAS + '<path d="M2 10h6V4"/><path d="m2 4 6 6"/><path d="M21 10V7a2 2 0 0 0-2-2h-7"/><path d="M3 14v2a2 2 0 0 0 2 2h3"/><rect x="12" y="14" width="10" height="7" rx="1"/></svg>',
+    geri: OY_IKON_BAS + '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>',
+    ileri: OY_IKON_BAS + '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>',
+    onay: OY_IKON_BAS + '<path d="M20 6 9 17l-5-5"/></svg>',
+    uyari: OY_IKON_BAS + '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>',
+    indir: OY_IKON_BAS + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>'
+  };
+  var OY_HIZLAR = [0.5, 0.75, 1, 1.25, 1.5, 2];
+  var oyAnahtar = "quadran-video"; /* localStorage anahtarı: {hiz, ses} */
+
+  /* Gizli pencerede/engellenmiş sitede localStorage atabilir: her erişim try/catch'te, yoksa varsayılanlarla çalışılır */
+  function oyOku() { try { return JSON.parse(window.localStorage.getItem(oyAnahtar)) || {}; } catch (e) { return {}; } }
+  function oyYaz(k, deger) { try { var o = oyOku(); o[k] = deger; window.localStorage.setItem(oyAnahtar, JSON.stringify(o)); } catch (e) { /* saklanamazsa bu oturumda kalır */ } }
+  function oySure(s) {
+    if (!isFinite(s) || s < 0) s = 0;
+    s = Math.floor(s);
+    var sa = Math.floor(s / 3600), dk = Math.floor((s % 3600) / 60), sn = s % 60;
+    return (sa ? sa + ":" + (dk < 10 ? "0" : "") : "") + dk + ":" + (sn < 10 ? "0" : "") + sn;
+  }
+  function oyHizYaz(h) { return String(h).replace(".", ",") + "×"; }
+
+  function videoOynatici(kutu) {
+    var v = bul("video", kutu);
+    if (!v || kutu.hasAttribute("data-oy-hazir")) return;
+    kutu.setAttribute("data-oy-hazir", "1");
+    v.removeAttribute("controls"); v.controls = false;
+    /* Dokunmatik: yerleşim CSS'te (pointer: coarse) ile değişir; davranış (dokununca aç/kapa, çift dokunma) JS'te buna göre */
+    var dokunmatik = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    var pipVar = !!(d.pictureInPictureEnabled && v.requestPictureInPicture);
+    var kaynak = v.currentSrc || v.getAttribute("src") || "";
+
+    kutu.classList.add("oy", "oy-ilk");
+    kutu.tabIndex = 0; kutu.setAttribute("role", "group"); kutu.setAttribute("aria-label", "Video oynatıcı");
+    kutu.insertAdjacentHTML("beforeend",
+      '<div class="oy-orta">' +
+        '<button type="button" class="oy-atla oy-atla-geri" data-oy="geri" aria-label="10 saniye geri">' + OY_IKON.geri + '<span>10</span></button>' +
+        '<button type="button" class="oy-buyuk oy-oynat" data-oy="oynat" aria-label="Oynat">' + OY_IKON.oynat + '</button>' +
+        '<button type="button" class="oy-atla oy-atla-ileri" data-oy="ileri" aria-label="10 saniye ileri">' + OY_IKON.ileri + '<span>10</span></button>' +
+      '</div>' +
+      '<span class="oy-sure-cip">0:00</span>' +
+      '<div class="oy-bekle" aria-hidden="true"></div>' +
+      '<div class="oy-hata" hidden role="alert">' + OY_IKON.uyari + '<p>Bu video oynatılamıyor</p>' +
+        '<a class="oy-indir" download href="' + kaynak.replace(/"/g, "&quot;") + '">' + OY_IKON.indir + '<span>Dosyayı indir</span></a></div>' +
+      '<div class="oy-menu" role="menu" aria-label="Oynatma hızı" hidden></div>' +
+      '<div class="oy-cubuk">' +
+        '<button type="button" class="oy-dugme oy-oynat" data-oy="oynat" aria-label="Oynat">' + OY_IKON.oynat + '</button>' +
+        '<span class="oy-zaman">0:00 / 0:00</span>' +
+        '<div class="oy-ilerleme" role="slider" tabindex="0" aria-label="Video konumu" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-valuetext="0:00 / 0:00">' +
+          '<span class="oy-iz"><span class="oy-yuk"></span><span class="oy-oyn"></span></span><span class="oy-tut"></span><span class="oy-ipucu" aria-hidden="true">0:00</span>' +
+        '</div>' +
+        '<div class="oy-ses"><button type="button" class="oy-dugme" data-oy="sessiz" aria-label="Sesi kapat">' + OY_IKON.ses + '</button>' +
+          '<input type="range" class="oy-ses-kay" min="0" max="1" step="0.05" value="1" aria-label="Ses düzeyi"></div>' +
+        '<button type="button" class="oy-hiz" data-oy="hiz" aria-label="Hız" aria-haspopup="menu" aria-expanded="false">1×</button>' +
+        (pipVar ? '<button type="button" class="oy-dugme oy-pip" data-oy="pip" aria-label="Resim içinde resim">' + OY_IKON.pip + '</button>' : '') +
+        '<button type="button" class="oy-dugme" data-oy="tam" aria-label="Tam ekran">' + OY_IKON.tam + '</button>' +
+      '</div>' +
+      '<div class="oy-ince" aria-hidden="true"><span></span></div>' +
+      '<span class="oy-dalga" hidden></span>');
+
+    var cubuk = bul(".oy-cubuk", kutu), ilerleme = bul(".oy-ilerleme", kutu), ipucu = bul(".oy-ipucu", kutu);
+    var zamanYazi = bul(".oy-zaman", kutu), sureCip = bul(".oy-sure-cip", kutu), hata = bul(".oy-hata", kutu);
+    var menu = bul(".oy-menu", kutu), hizDugme = bul(".oy-hiz", kutu), sesKay = bul(".oy-ses-kay", kutu), dalga = bul(".oy-dalga", kutu);
+    var sesDugme = bul('[data-oy="sessiz"]', kutu), tamDugme = bul('[data-oy="tam"]', kutu);
+    var oynatDugmeler = hepsi(".oy-oynat", kutu);
+
+    /* ---- +18 bulanıkken oynatıcı tamamen devre dışı: tıklama (CSS pointer-events) + klavye odağı (inert) ---- */
+    var bulanik = kutu.closest(".ek-bulanik");
+    if (bulanik) {
+      var nsfwOnay = bul(".ek-nsfw-onay", bulanik);
+      var nsfwEsitle = function () { kutu.inert = !!nsfwOnay && !nsfwOnay.checked; };
+      if (nsfwOnay) nsfwOnay.addEventListener("change", nsfwEsitle);
+      nsfwEsitle();
+    }
+
+    /* ---- Kayıtlı hız ve ses düzeyi ---- */
+    var kayit = oyOku();
+    if (OY_HIZLAR.indexOf(kayit.hiz) > -1) { v.defaultPlaybackRate = kayit.hiz; v.playbackRate = kayit.hiz; }
+    if (typeof kayit.ses === "number" && kayit.ses >= 0 && kayit.ses <= 1) v.volume = kayit.ses;
+
+    /* ---- Kontrolleri göster / 2,5 sn hareketsizlikte sakla ---- */
+    var gizleZaman = 0;
+    function menuAcikMi() { return !menu.hidden; }
+    function klavyeOdagi() {
+      try { return kutu.matches(":focus-visible") || !!kutu.querySelector(":focus-visible"); } catch (e) { return false; }
+    }
+    function gizle() {
+      if (v.paused || menuAcikMi() || klavyeOdagi()) return; /* duraklatılmışken, menü açıkken ve klavye odağındayken hep görünür */
+      kutu.classList.add("oy-gizli");
+    }
+    function goster() {
+      kutu.classList.remove("oy-gizli");
+      window.clearTimeout(gizleZaman);
+      if (!v.paused) gizleZaman = window.setTimeout(gizle, dokunmatik ? 3000 : 2500);
+    }
+
+    /* ---- Durum güncelleme ---- */
+    function oynatDurumu() {
+      var oynuyor = !v.paused;
+      oynatDugmeler.forEach(function (b) {
+        b.innerHTML = oynuyor ? OY_IKON.duraklat : OY_IKON.oynat;
+        b.setAttribute("aria-label", oynuyor ? "Duraklat" : "Oynat");
+      });
+    }
+    function konumGuncelle() {
+      var sure = isFinite(v.duration) ? v.duration : 0;
+      var oran = sure ? Math.min(1, v.currentTime / sure) : 0;
+      kutu.style.setProperty("--oyn", (oran * 100) + "%");
+      var yazi = oySure(v.currentTime) + " / " + oySure(sure);
+      zamanYazi.textContent = yazi;
+      ilerleme.setAttribute("aria-valuemax", String(Math.floor(sure)));
+      ilerleme.setAttribute("aria-valuenow", String(Math.floor(v.currentTime)));
+      ilerleme.setAttribute("aria-valuetext", yazi);
+    }
+    function yuklenenGuncelle() {
+      var sure = isFinite(v.duration) ? v.duration : 0, son = 0;
+      if (sure && v.buffered.length) {
+        /* Oynatma noktasını içeren aralığın sonu: parça parça yüklemede doğru "yüklenen" çizgisi */
+        for (var i = 0; i < v.buffered.length; i++) {
+          if (v.buffered.start(i) <= v.currentTime + 0.5 && v.buffered.end(i) >= son) son = v.buffered.end(i);
+        }
+      }
+      kutu.style.setProperty("--yuk", (sure ? Math.min(100, son / sure * 100) : 0) + "%");
+    }
+    function sesGuncelle() {
+      var kapali = v.muted || v.volume === 0;
+      sesDugme.innerHTML = kapali ? OY_IKON.sessiz : OY_IKON.ses;
+      sesDugme.setAttribute("aria-label", kapali ? "Sesi aç" : "Sesi kapat");
+      sesKay.value = v.muted ? 0 : v.volume;
+    }
+    function sureGuncelle() { sureCip.textContent = oySure(v.duration); konumGuncelle(); }
+
+    v.addEventListener("loadedmetadata", sureGuncelle);
+    v.addEventListener("durationchange", sureGuncelle);
+    v.addEventListener("timeupdate", konumGuncelle);
+    v.addEventListener("progress", yuklenenGuncelle);
+    v.addEventListener("timeupdate", yuklenenGuncelle);
+    v.addEventListener("volumechange", function () { sesGuncelle(); if (!v.muted) oyYaz("ses", v.volume); });
+    v.addEventListener("ratechange", function () { hizDugme.textContent = oyHizYaz(v.playbackRate); oyYaz("hiz", v.playbackRate); });
+    v.addEventListener("play", function () {
+      kutu.classList.remove("oy-ilk");
+      /* Sayfada aynı anda tek video: biri başlayınca diğerleri durur */
+      hepsi("video").forEach(function (o) { if (o !== v && !o.paused) o.pause(); });
+      oynatDurumu(); goster();
+    });
+    v.addEventListener("pause", function () { oynatDurumu(); goster(); });
+    v.addEventListener("waiting", function () { kutu.classList.add("oy-bekliyor"); });
+    v.addEventListener("seeking", function () { if (v.readyState < 3) kutu.classList.add("oy-bekliyor"); });
+    ["playing", "canplay", "seeked"].forEach(function (a) { v.addEventListener(a, function () { kutu.classList.remove("oy-bekliyor"); }); });
+    function hataGoster() {
+      kutu.classList.remove("oy-bekliyor");
+      kutu.classList.add("oy-hata-durum");
+      hata.hidden = false;
+    }
+    v.addEventListener("error", hataGoster);
+    if (v.error) hataGoster();
+
+    /* ---- Eylemler ---- */
+    function oynatDuraklat() { if (v.paused) { var s = v.play(); if (s && s.catch) s.catch(function () { /* otomatik oynatma engeli vb.: sessizce geç */ }); } else v.pause(); }
+    function atla(sn) {
+      if (!isFinite(v.duration)) return;
+      v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + sn));
+    }
+    function sesAyarla(x) { v.muted = false; v.volume = Math.max(0, Math.min(1, x)); }
+    function tamEkranMi() { return d.fullscreenElement === kutu || d.webkitFullscreenElement === kutu; }
+    function tamEkran() {
+      if (tamEkranMi()) { (d.exitFullscreen || d.webkitExitFullscreen).call(d); return; }
+      if (kutu.requestFullscreen) kutu.requestFullscreen().catch(function () {});
+      else if (kutu.webkitRequestFullscreen) kutu.webkitRequestFullscreen();
+      else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen(); /* iPhone Safari: yalnızca videonun kendi tam ekranı var */
+    }
+    function tamDurumu() {
+      var t = tamEkranMi();
+      kutu.classList.toggle("oy-tam", t);
+      tamDugme.innerHTML = t ? OY_IKON.tamCik : OY_IKON.tam;
+      tamDugme.setAttribute("aria-label", t ? "Tam ekrandan çık" : "Tam ekran");
+    }
+    d.addEventListener("fullscreenchange", tamDurumu);
+    d.addEventListener("webkitfullscreenchange", tamDurumu);
+
+    function menuKapat(odakVer) {
+      if (menu.hidden) return;
+      menu.hidden = true; hizDugme.setAttribute("aria-expanded", "false");
+      if (odakVer) hizDugme.focus();
+    }
+    function menuAc() {
+      menu.innerHTML = "";
+      OY_HIZLAR.forEach(function (h) {
+        var b = d.createElement("button"); b.type = "button"; b.className = "oy-menu-oge"; b.setAttribute("role", "menuitemradio");
+        var secili = h === v.playbackRate;
+        b.setAttribute("aria-checked", secili ? "true" : "false"); b.setAttribute("data-hiz", String(h));
+        b.innerHTML = '<span class="oy-onay">' + (secili ? OY_IKON.onay : "") + '</span><span>' + oyHizYaz(h) + '</span>';
+        menu.appendChild(b);
+      });
+      menu.hidden = false; hizDugme.setAttribute("aria-expanded", "true");
+      var s = bul('[aria-checked="true"]', menu) || bul(".oy-menu-oge", menu); if (s) s.focus();
+    }
+    d.addEventListener("pointerdown", function (e) {
+      if (!menu.hidden && !(e.target.closest && (e.target.closest(".oy-menu") || e.target.closest(".oy-hiz")) && kutu.contains(e.target))) menuKapat(false);
+    });
+
+    /* Dalga efekti: çift dokunmada dokunulan noktada büyüyen halka + "+10 sn" */
+    var dalgaZaman = 0;
+    function dalgaGoster(x, y, sn) {
+      var r = kutu.getBoundingClientRect();
+      dalga.hidden = false;
+      dalga.textContent = (sn > 0 ? "+" : "−") + Math.abs(sn) + " sn";
+      dalga.style.left = (x - r.left) + "px"; dalga.style.top = (y - r.top) + "px";
+      dalga.classList.remove("oy-dalga-ac"); void dalga.offsetWidth; /* animasyonu baştan oynat */
+      dalga.classList.add("oy-dalga-ac");
+      window.clearTimeout(dalgaZaman);
+      dalgaZaman = window.setTimeout(function () { dalga.hidden = true; }, hareketAzMi() ? 500 : 650);
+    }
+
+    /* ---- Düğmeler ---- */
+    kutu.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("[data-oy]") : null;
+      if (b && kutu.contains(b)) {
+        var is = b.getAttribute("data-oy");
+        if (is === "oynat") oynatDuraklat();
+        else if (is === "geri") atla(-10);
+        else if (is === "ileri") atla(10);
+        else if (is === "sessiz") { v.muted = !v.muted; if (!v.muted && v.volume === 0) v.volume = 0.5; }
+        else if (is === "tam") tamEkran();
+        else if (is === "hiz") { if (menu.hidden) menuAc(); else menuKapat(false); }
+        else if (is === "pip") {
+          if (d.pictureInPictureElement === v) d.exitPictureInPicture().catch(function () {});
+          else v.requestPictureInPicture().catch(function () {});
+        }
+        goster(); return;
+      }
+      var oge = e.target.closest ? e.target.closest(".oy-menu-oge") : null;
+      if (oge) { v.playbackRate = Number(oge.getAttribute("data-hiz")); menuKapat(true); }
+    });
+    sesKay.addEventListener("input", function () { sesAyarla(Number(sesKay.value)); });
+
+    /* ---- Yüzeye dokunma / tıklama ---- */
+    var sonDokunus = 0, sonYari = 0, bekleyen = 0;
+    kutu.addEventListener("pointerup", function (e) {
+      if (e.button !== 0 || kutu.classList.contains("oy-hata-durum")) return;
+      if (e.target.closest("button, a, input, .oy-cubuk, .oy-menu")) return; /* yalnızca boş yüzey */
+      menuKapat(false);
+      if (e.pointerType === "mouse" || e.pointerType === "pen") { oynatDuraklat(); goster(); return; }
+      var r = kutu.getBoundingClientRect(), yari = (e.clientX - r.left) < r.width / 2 ? -1 : 1, simdi = Date.now();
+      if (simdi - sonDokunus < 300 && yari === sonYari) {
+        /* Çift dokunma: tek dokunuşun bekleyen "kontrolleri aç/kapa" işlemi iptal, sol yarı geri, sağ yarı ileri */
+        window.clearTimeout(bekleyen); sonDokunus = 0;
+        atla(10 * yari); dalgaGoster(e.clientX, e.clientY, 10 * yari); goster();
+        return;
+      }
+      sonDokunus = simdi; sonYari = yari;
+      bekleyen = window.setTimeout(function () {
+        if (kutu.classList.contains("oy-gizli")) goster();
+        else if (!v.paused) { window.clearTimeout(gizleZaman); kutu.classList.add("oy-gizli"); }
+        else goster();
+      }, 300);
+    });
+    kutu.addEventListener("dblclick", function (e) {
+      if (e.target.closest("button, a, input, .oy-cubuk, .oy-menu")) return;
+      if (!dokunmatik) tamEkran();
+    });
+    ["pointermove", "pointerdown"].forEach(function (a) {
+      kutu.addEventListener(a, function (e) { if (e.pointerType === "mouse") goster(); });
+    });
+    kutu.addEventListener("focusin", goster);
+    kutu.addEventListener("focusout", function () { goster(); }); /* odak çıkınca sayaç yeniden başlar */
+
+    /* ---- İlerleme çubuğu: tıkla, sürükle, üzerine gelince zaman ipucu ---- */
+    var surukleme = false;
+    function oranAl(e) { var r = ilerleme.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); }
+    function ipucuKonumla(e) {
+      var r = ilerleme.getBoundingClientRect(), oran = oranAl(e);
+      ipucu.textContent = oySure(oran * (isFinite(v.duration) ? v.duration : 0));
+      var yar = ipucu.offsetWidth / 2, x = oran * r.width;
+      ipucu.style.left = Math.max(yar, Math.min(r.width - yar, x)) + "px"; /* kutudan taşmasın */
+    }
+    function konumaGit(e) { if (isFinite(v.duration)) v.currentTime = oranAl(e) * v.duration; }
+    ilerleme.addEventListener("pointerdown", function (e) {
+      if (e.button !== 0) return;
+      surukleme = true; ilerleme.setPointerCapture(e.pointerId); konumaGit(e); ipucuKonumla(e);
+      kutu.classList.add("oy-suruk"); e.preventDefault();
+    });
+    ilerleme.addEventListener("pointermove", function (e) { ipucuKonumla(e); if (surukleme) konumaGit(e); });
+    function surukBitir() { surukleme = false; kutu.classList.remove("oy-suruk"); }
+    ilerleme.addEventListener("pointerup", surukBitir);
+    ilerleme.addEventListener("pointercancel", surukBitir);
+
+    /* ---- Klavye (oynatıcı odaktayken) ---- */
+    kutu.addEventListener("keydown", function (e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      var k = e.key, ele = true;
+      if (k === "Escape" && !menu.hidden) { menuKapat(true); e.preventDefault(); return; }
+      if (!menu.hidden && e.target.closest(".oy-menu")) {
+        /* Hız menüsü içinde yukarı/aşağı ile gezin; Boşluk/Enter düğmenin kendi tıklamasına kalır */
+        var ogeler = hepsi(".oy-menu-oge", menu), i = ogeler.indexOf(d.activeElement);
+        if (k === "ArrowDown") { ogeler[(i + 1) % ogeler.length].focus(); e.preventDefault(); }
+        else if (k === "ArrowUp") { ogeler[(i - 1 + ogeler.length) % ogeler.length].focus(); e.preventDefault(); }
+        return;
+      }
+      /* Düğmenin kendi Boşluk/Enter etkinleştirmesini bozma */
+      if ((k === " " || k === "Enter") && e.target.closest("button, a")) return;
+      if (e.target.closest(".oy-ses-kay") && (k === "ArrowUp" || k === "ArrowDown" || k === "ArrowLeft" || k === "ArrowRight")) return; /* kaydırıcının kendi okları */
+      if (k === " " || k === "k" || k === "K") oynatDuraklat();
+      else if (k === "ArrowLeft") atla(-5);
+      else if (k === "ArrowRight") atla(5);
+      else if (k === "j" || k === "J") atla(-10);
+      else if (k === "l" || k === "L") atla(10);
+      else if (k === "ArrowUp") sesAyarla(v.volume + 0.1);
+      else if (k === "ArrowDown") sesAyarla(v.volume - 0.1);
+      else if (k === "m" || k === "M") v.muted = !v.muted;
+      else if (k === "f" || k === "F") tamEkran();
+      else if (k === "Home") { if (e.target.closest(".oy-ilerleme")) v.currentTime = 0; else ele = false; }
+      else if (k === "End") { if (e.target.closest(".oy-ilerleme") && isFinite(v.duration)) v.currentTime = v.duration; else ele = false; }
+      else if (k.length === 1 && k >= "0" && k <= "9" && isFinite(v.duration)) v.currentTime = v.duration * Number(k) / 10;
+      else ele = false;
+      if (ele) { e.preventDefault(); goster(); } /* sayfa kaydırması yalnızca işlenen tuşlarda engellenir */
+    });
+
+    /* İlk durum */
+    hizDugme.textContent = oyHizYaz(v.playbackRate);
+    oynatDurumu(); sesGuncelle(); sureGuncelle(); yuklenenGuncelle();
+  }
+  hepsi(".ek-video").forEach(videoOynatici);
+
   /* ---------- Cevap formu: ek seçme, önizleme, bağlantı çipi, ilerlemeli gönderim ---------- */
   var RESIM_SINIR = 10 * 1024 * 1024, VIDEO_SINIR = 50 * 1024 * 1024, EN_COK_RESIM = 6;
   var CIP_IKON = {
@@ -1444,4 +1789,71 @@
       x.send(fd);
     });
   });
+
+  /* ---------- 429 geri sayımı (views/partials/durum-icerik.ejs) ----------
+     Sunucu kalan süreyi data-geri-sayim="saniye" ile yazar; her saniye düşer, sıfırda "Şimdi tekrar deneyebilirsin" yazar ve
+     gizli tutulan "Şimdi tekrar dene" bağlantısı (data-geri-sayim-bitti) görünür. JS yoksa sunucunun yazdığı düz süre ve bağlantı kalır. */
+  hepsi("[data-geri-sayim]").forEach(function (kutu) {
+    var kalan = parseInt(kutu.getAttribute("data-geri-sayim"), 10);
+    var deger = bul("[data-geri-sayim-deger]", kutu);
+    var bagli = hepsi("[data-geri-sayim-bitti]");
+    if (!deger || !(kalan > 0)) return;
+    bagli.forEach(function (a) { a.hidden = true; });
+    var sayac = window.setInterval(function () {
+      kalan--;
+      if (kalan <= 0) {
+        window.clearInterval(sayac);
+        kutu.textContent = "Şimdi tekrar deneyebilirsin";
+        bagli.forEach(function (a) { a.hidden = false; });
+        return;
+      }
+      deger.textContent = Math.floor(kalan / 60) + ":" + (kalan % 60 < 10 ? "0" : "") + (kalan % 60);
+    }, 1000);
+  });
+
+  /* ---------- Bağlantı şeridi (çevrimdışı / yeniden bağlandı) ----------
+     Tarayıcı "offline" olayını verince üst çubuğun hemen altında sarı şerit çıkar; "online" olunca yeşile döner ve 2 sn sonra kalkar.
+     role="status": ekran okuyucu duyurur, odağı çalmaz. "Animasyonları azalt"ta geçiş yok (CSS süre değişkenleri 0'lanır, bekleme de 0). */
+  var baglantiSeridi = null, baglantiZamanlayici = 0;
+  function baglantiSeridiAl() {
+    if (baglantiSeridi && baglantiSeridi.isConnected) return baglantiSeridi;
+    baglantiSeridi = d.createElement("div");
+    baglantiSeridi.className = "cevrimdisi-serit";
+    baglantiSeridi.setAttribute("role", "status");
+    var ust = bul(".ust-cubuk");
+    if (ust && ust.parentNode) ust.parentNode.insertBefore(baglantiSeridi, ust.nextSibling);
+    else d.body.insertBefore(baglantiSeridi, d.body.firstChild);
+    return baglantiSeridi;
+  }
+  function baglantiYaz(geri, ikon, yazi) {
+    var el = baglantiSeridiAl();
+    window.clearTimeout(baglantiZamanlayici);
+    el.classList.remove("gizleniyor");
+    el.classList.toggle("geri", geri);
+    el.innerHTML = ikon + "<span></span>";
+    el.lastChild.textContent = yazi;
+    return el;
+  }
+  var svgBas = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  var wifiYokSvg = svgBas + '<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>';
+  var onaySvg = svgBas + '<path d="M20 6 9 17l-5-5"/></svg>';
+  window.addEventListener("offline", function () {
+    baglantiYaz(false, wifiYokSvg, "Bağlantı yok · gördüklerin güncel olmayabilir");
+  });
+  window.addEventListener("online", function () {
+    if (!baglantiSeridi || !baglantiSeridi.isConnected) return; /* hiç çevrimdışı olunmadıysa (ör. sayfa yeni açıldı) şerit gösterme */
+    var el = baglantiYaz(true, onaySvg, "Yeniden bağlandın");
+    var bekle = hareketAzMi() ? 0 : 200;
+    baglantiZamanlayici = window.setTimeout(function () {
+      el.classList.add("gizleniyor");
+      baglantiZamanlayici = window.setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, bekle);
+    }, 2000);
+  });
+  if (navigator.onLine === false) baglantiYaz(false, wifiYokSvg, "Bağlantı yok · gördüklerin güncel olmayabilir");
+
+  /* ---------- Service worker (public/sw.js): yalnızca çevrimdışı sayfası için ----------
+     Güvenli bağlamda (https ya da localhost) kaydolur; LAN IP'sinde http üzerinden kayıt olmaz, sorun değil (şerit yine çalışır). */
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register("/sw.js").catch(function () { /* kayıt olmazsa çevrimdışı sayfası yok, site normal çalışır */ });
+  }
 })();

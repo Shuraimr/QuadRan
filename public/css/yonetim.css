@@ -357,3 +357,7 @@ textarea.yn-girdi { height: auto; padding: 10px 12px; line-height: 1.5; resize: 
 .yn-rutbe-alt p { margin: 0; }
 @media (max-width: 800px) { .yn-rutbe-alt { flex-direction: column; align-items: stretch; } .yn-rutbe-hucre { min-width: 0; } }
 .yn-rutbe-onizleme { flex: 0 0 100%; }
+
+/* Bakım modu açıkken yetkililere görünen şerit (partials/duyuru.ejs): "bekliyor" sarısı, duyuru şeridinin yanında/üstünde */
+.duyuru-bakim { background: color-mix(in srgb, var(--d-bekliyor) 16%, var(--yuzey-1)); color: var(--d-bekliyor); }
+.duyuru-bakim a { color: inherit; text-decoration: underline; font-weight: 600; }

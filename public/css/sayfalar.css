@@ -510,9 +510,8 @@
 /* /rutbeler sayfası */
 .rutbeler-sayfa { display: grid; gap: 20px; max-width: 760px; margin: 0 auto; padding: 32px 24px 64px; min-width: 0; }
 .yakinda { color: var(--yazi-2); }
-/* Telefonda başlığın üstünde "← Profil" (≥44px dokunma hedefi); tablet ve masaüstünde gizli */
-.rutbeler-geri { display: none; align-items: center; min-height: 44px; width: fit-content; color: var(--vurgu); font-weight: 600; }
-@media (max-width: 800px) { .rutbeler-geri { display: inline-flex; } .rutbeler-sayfa { padding-top: 12px; } }
+/* Telefonda üstte geri satırı var (partials/geri-baslik.ejs): sayfa üst boşluğu kısılır */
+@media (max-width: 800px) { .rutbeler-sayfa { padding-top: 12px; } }
 .rutbeler-baslik h1 { margin: 0 0 4px; }
 .rutbeler-baslik p { margin: 0; }
 .rutbe-liste { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
@@ -592,3 +591,50 @@
   .etkinlik-satir .puan-metin { flex-basis: calc(100% - 40px); }
   .etkinlik-zaman { flex-basis: 100%; padding-left: 32px; }
 }
+
+/* ---------- Durum sayfaları (404, 403, 429, 500, 503), boş durumlar, çevrimdışı şeridi (Figma 09 · Hata ve durum sayfaları) ----------
+   Hepsi aynı görsel dili kullanır: yuvarlatılmış kare ikon kutusu (--yuzey-2 + ince kenar), Space Grotesk başlık, ikincil açıklama.
+   Renkler yalnızca token'lardan gelir; koyu/açık tema ve "Animasyonları azalt" ek iş istemez. */
+.durum-sayfa { display: grid; place-items: center; min-height: calc(100vh - 160px); padding: 32px 24px; }
+.orta-sayfa .durum-govde { position: relative; }
+.durum-govde { display: grid; justify-items: center; gap: 12px; width: 100%; max-width: 420px; text-align: center; }
+.durum-ikon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); color: var(--yazi-2); }
+.durum-baslik { margin: 4px 0 0; font-family: var(--baslik-tipi); font-weight: 700; font-size: 24px; line-height: 1.25; }
+.durum-metin { margin: 0; font-size: 15px; line-height: 1.5; color: var(--yazi-2); }
+.durum-sayim { margin: 0; font-size: 14px; color: var(--yazi-2); font-variant-numeric: tabular-nums; }
+.durum-sayim strong { color: var(--yazi); }
+.durum-arama { width: 100%; margin-top: 4px; text-align: left; }
+.durum-arama .alan { --alan-zemin: var(--zemin); }
+.durum-eylemler { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
+@media (max-width: 800px) {
+  .durum-sayfa { min-height: calc(100vh - 220px); }
+  .durum-eylemler { width: 100%; }
+  .durum-eylemler .buton { flex: 1 1 140px; height: 44px; }
+}
+
+/* Boş durum: durum sayfasının kart içindeki küçük kardeşi (partials/bos-durum.ejs) */
+.bos-durum { display: grid; justify-items: center; gap: 8px; padding: 32px 24px; text-align: center; }
+.bos-durum-ikon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--yuzey-2); border: 1px solid var(--kenar-ince); color: var(--yazi-2); }
+.kart .bos-durum-ikon { background: var(--yuzey-3); }
+.bos-durum-baslik { margin: 4px 0 0; font-family: var(--baslik-tipi); font-weight: 700; font-size: 18px; line-height: 1.3; }
+.bos-durum-metin { margin: 0; max-width: 360px; font-size: 14px; line-height: 1.5; color: var(--yazi-2); }
+.bos-durum .buton { margin-top: 8px; }
+/* Sohbet ve DM listeleri gibi dar yan sütunlarda daha sıkı */
+.bos-durum.dar { padding: 20px 12px; }
+
+/* Telefonda "← Hedef" geri satırı (partials/geri-baslik.ejs): alt menüde yeri olmayan alt sayfalarda içerik başında durur.
+   Tablet ve masaüstünde sol menü/ray zaten var; orada gizli. */
+.geri-baslik { display: none; align-items: center; gap: 4px; min-height: 44px; width: fit-content; margin-left: -4px; padding: 0 8px 0 4px; color: var(--vurgu); font-weight: 600; border-radius: 12px; }
+@media (max-width: 800px) { .geri-baslik { display: inline-flex; } }
+
+/* Bağlantı şeridi (quadran.js "offline"/"online"): üst çubuğun hemen altında yapışkan. Opak zemin: altından geçen içerik görünmesin. */
+.cevrimdisi-serit {
+  position: sticky; top: 64px; z-index: 9; display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; padding: 8px 16px; font-size: 14px; font-weight: 600; text-align: center;
+  background: color-mix(in srgb, var(--d-bekliyor) 16%, var(--yuzey-1)); color: var(--d-bekliyor); border-bottom: 1px solid var(--kenar-ince);
+  transition: opacity var(--sure-orta) var(--egri-cikis);
+}
+.cevrimdisi-serit.geri { background: color-mix(in srgb, var(--d-islendi) 16%, var(--yuzey-1)); color: var(--d-islendi); }
+.cevrimdisi-serit.gizleniyor { opacity: 0; }
+@media (max-width: 800px) { .cevrimdisi-serit { top: 56px; } }
+.durum-eylemler .buton[hidden] { display: none; }

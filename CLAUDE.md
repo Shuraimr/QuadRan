@@ -6,6 +6,7 @@ Ayrıntılı route / tablo / yetki listesi: `docs/AKTARIM.md` (önce oraya bak, 
 ## Teknoloji ve çalıştırma
 
 - Node.js 22, TypeScript'i **doğrudan** çalıştırır (type stripping): `enum`, `namespace`, parametre özellikleri YOK; importlar `.ts` uzantılı.
+- Geliştirme kabuğu: `flake.nix` (Node 22, mysql istemcisi, ffmpeg, gh, jq; DB Docker'da kalır). Araç gerekince `nix develop -c <komut>` (ör. ffmpeg ile örnek video üretmek); sistemde olmayan aracı başka yoldan kurma, flake'e ekle.
 - Express 5 · EJS · mysql2 (ORM yok, **saf SQL**) · MySQL 8.4 (Docker, konteyner `quadran-db`) · Adminer :8080
 - Düz CSS (`public/css`) ve tek bağımlılıksız betik (`public/js/quadran.js`). Derleme adımı yok.
 - `npm run dev` → :3000 (`--watch`; kullanıcının kendi sunucusu genelde açıktır, **kapatma**). `npm start` = yayın modu (`/onizleme` kapalı).
@@ -28,12 +29,14 @@ src/hiz-siniri.ts    bellek içi hız sınırı, src/sifre.ts scrypt
 src/yakut.ts          yakutEkle (yakut bakiyesi YALNIZCA buradan, yakut_log), günlük seri/aylık harçlık ödülleri, unvanAl; rotalar/yakut.ts (/yakut)
 src/ekler.ts         yorum ekleri (sql/23): fotoğraf/video yükleme+doğrulama (EXIF silme, video imza denetimi), ekliCevapKatmani; rotalar/cikis.ts (/cikis dış bağlantı onayı)
 src/yukleme.ts       dosya yükleme (multer + sharp, avatar/banner; ileride sohbet/oda/DM), src/premium.ts premiumMu, src/profil-gorunum.ts efekt/süs verisi
+public/sw.js         service worker: YALNIZCA çevrimdışı sayfasını önbelleğe alır (public/cevrimdisi.html + js/cevrimdisi.js, /cevrimdisi rotası)
 src/rotalar/         hesap, forum (akış/konu/profil/ara/sıralama/keşfet/şikâyet), mesaj (kendi mesajını düzenle/sil),
                      takip (takip et/bırak, takipçi listeleri, sql/20), iletisim (DM, bildirim, sohbet, engel), moderasyon (sitedeki ⋮ menüsü), yonetim-* (/yonetim paneli)
+views/durum.ejs      ortak durum sayfası 403/404/429/500/503 (durumSayfasi() src/yardimci.ts; partials/durum-icerik, bos-durum [boş durumlar], geri-baslik [telefonda ← geri satırı]); bakım modu sql/24, panelde Kayıt ve erişim
 views/partials/      ekler + kartlar (yorum ekleri, YouTube/GitHub kartı), avatar (resim+süs), profil-karti, profil-efekt, avatar-sus, profil-gorunumu-bolumu, ust-cubuk, kenar-menu (masaüstü sol menü + tablet rayı), alt-menu (telefon), avatar-menusu, bildirim-paneli,
                      sikayet-penceresi, oy, yorum, gonderi-karti, ikon (SVG ikon seti), bas/son
 views/yonetim/       panel şablonları (duzen-ust/duzen-alt ortak düzen)
-sql/01..23           sırayla uygulanan şema + seed + değişiklikler (Docker ilk kurulumda hepsini çalıştırır)
+sql/01..24           sırayla uygulanan şema + seed + değişiklikler (Docker ilk kurulumda hepsini çalıştırır)
 ```
 
 ## Kodlama kuralları
@@ -199,6 +202,6 @@ Silmeden önce `SELECT` ile bak: test sırasında kullanıcı :3000'de seed kull
 4. **Çok oyunculu oyunlar** (panelde "Oyunlar · yakında" yeri hazır) — gerçek zamanlı iletişim gerektirir (WebSocket paketi için önce sor)
 
 Bilinen eksikler / küçük işler: gerçek e-posta gönderimi (SMTP yok, sıfırlama bağlantısı konsola yazılır); sohbet, oda ve DM'ler
-canlı değil (sayfa yenileyince güncellenir); sitedeki ⋮ menüsünden yapılan eski moderasyon işlemleri sebep istemiyor; moderatörün sildiği
+canlı değil (sayfa yenileyince güncellenir); sitedeki ⋮ menüsünden yapılan sabitle/kilitle/sil sebep istemiyor (uzaklaştırma artık üye kartında, sebep zorunlu); moderatörün sildiği
 özel mesaj gönderene "Bu mesajı sildin" görünüyor (ayırmak için sütun gerek); son admin koruması gerçek veride denenmedi; "Kopyala"nın
 gerçek panoya yazması kullanıcı tarayıcısında doğrulanmadı; telefonda oda başlığındaki bilgi satırı iki satıra kayıyor.
